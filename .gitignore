@@ -1,0 +1,6 @@
+build/
+*.exe
+.vscode
+*.lib
+*.exp
+dist/
