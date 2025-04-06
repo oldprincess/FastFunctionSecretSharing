@@ -135,7 +135,7 @@ torch::Device Prng::device() const
     return device_;
 }
 
-void Prng::to(torch::Device device)
+void Prng::to_(torch::Device device)
 {
     // early check
     if (device.type() == torch::kCPU)
@@ -224,7 +224,7 @@ void Prng::to(torch::Device device)
     ctx_    = newCtx;
     device_ = device;
 }
-void Prng::rand(torch::Tensor out, std::size_t bitWidth)
+void Prng::rand_(torch::Tensor out, std::size_t bitWidth)
 {
     if (!out.is_contiguous())
     {

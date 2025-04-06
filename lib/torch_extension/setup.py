@@ -15,7 +15,7 @@ setup(
     long_description="",
     author="oldprincess",
     author_email="zirui.gong@foxmail.com",
-    packages=find_packages(exclude=("test",)),
+    packages=find_packages(exclude=("test", "examples")),
     ext_modules=[
         cpp_extension.CUDAExtension(
             name="pyFastFss" + "._C",
@@ -23,11 +23,14 @@ setup(
                 "pyFastFss/src/pyFastDcf.cpp",
                 "pyFastFss/src/pyFastDcfMIC.cpp",
                 "pyFastFss/src/pyFastFss.cpp",
+                "pyFastFss/src/pyFastGrotto.cpp",
                 "pyFastFss/src/pyFastPrng.cpp",
                 "../../src/cpu/dcf.cpp",
+                "../../src/cpu/grotto.cpp",
                 "../../src/cpu/mic.cpp",
                 "../../src/cpu/prng.cpp",
                 "../../src/cuda/dcf.cu",
+                "../../src/cuda/grotto.cu",
                 "../../src/cuda/mic.cu",
                 "../../src/cuda/prng.cu",
             ],

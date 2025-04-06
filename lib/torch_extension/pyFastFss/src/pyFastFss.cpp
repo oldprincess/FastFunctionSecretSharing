@@ -158,6 +158,233 @@ Raises:
         )");
 
     // ===========================================
+    // ================== GROTTO =================
+    // ===========================================
+
+    m.def("grotto_get_key_data_size",           //
+          &pyFastFss::grotto_get_key_data_size, //
+          py::arg("bitWidthIn"),                //
+          py::arg("elementSize"),               //
+          py::arg("elementNum"),                //
+          R"(
+Get Grotto key data size.
+
+Args:
+    bitWidthIn (int):      bit width of input data
+    elementSize (int):     element size of input data
+    elementNum (int):      element number of input data
+
+Returns:
+    key data size
+
+Raises:
+    ValueError:   If the input argument is invalid.
+        )");
+
+    m.def("grotto_get_zipped_key_data_size",           //
+          &pyFastFss::grotto_get_zipped_key_data_size, //
+          py::arg("bitWidthIn"),                       //
+          py::arg("elementSize"),                      //
+          py::arg("elementNum"),                       //
+          R"(
+GetGrotto zipped key data size.
+
+Args:
+    bitWidthIn (int):      bit width of input data
+    elementSize (int):     element size of input data
+    elementNum (int):      element number of input data
+    
+Returns:
+    zipped key data size
+
+Raises:
+    ValueError:   If the input argument is invalid.
+        )");
+
+    m.def("grotto_key_gen",           //
+          &pyFastFss::grotto_key_gen, //
+          py::arg("keyOut"),          //
+          py::arg("alpha"),           //
+          py::arg("seed0"),           //
+          py::arg("seed1"),           //
+          py::arg("bitWidthIn"),      //
+          py::arg("elementNum"),      //
+          R"(
+Generate Grotto key.
+
+Args:
+    keyOut (torch.Tensor):  Grotto key tensor
+    alpha (torch.Tensor):   alpha tensor
+    seed0 (torch.Tensor):   seed0 tensor
+    seed1 (torch.Tensor):   seed1 tensor
+    bitWidthIn (int):       bit width of input data
+    elementNum (int):       element number of input data
+    
+Raises:
+    ValueError:   If the input argument is invalid.
+    RuntimeError: If the FastFss_cpu_grottoKeyGen or FastFss_cuda_grottoKeyGen fail.
+        )");
+
+    m.def("grotto_key_zip",           //
+          &pyFastFss::grotto_key_zip, //
+          py::arg("zippedKeyOut"),    //
+          py::arg("key"),             //
+          py::arg("bitWidthIn"),      //
+          py::arg("elementNum"),      //
+          R"(
+Zip Grotto key.
+
+Args:
+    zippedKeyOut (torch.Tensor):  zipped Grotto key tensor
+    key (torch.Tensor):           Grotto key tensor
+    bitWidthIn (int):             bit width of input data
+    elementNum (int):             element number of input data
+    
+Raises:
+    ValueError:   If the input argument is invalid.
+    RuntimeError: If the FastFss_cpu_grottoKeyZip or FastFss_cuda_grottoKeyZip fail.
+        )");
+
+    m.def("grotto_key_unzip",           //
+          &pyFastFss::grotto_key_unzip, //
+          py::arg("keyOut"),            //
+          py::arg("zippedKey"),         //
+          py::arg("bitWidthIn"),        //
+          py::arg("elementNum"),        //
+          R"(
+Unzip Grotto key.
+
+Args:
+    keyOut (torch.Tensor):  Grotto key tensor
+    zippedKey (torch.Tensor):  zipped Grotto key tensor
+    bitWidthIn (int):       bit width of input data
+    elementNum (int):       element number of input data
+    
+Raises:
+    ValueError:   If the input argument is invalid.        
+        )");
+
+    m.def("grotto_eval",           //
+          &pyFastFss::grotto_eval, //
+          py::arg("sharedOut"),    //
+          py::arg("maskedX"),      //
+          py::arg("key"),          //
+          py::arg("seed"),         //
+          py::arg("equalBound"),   //
+          py::arg("partyId"),      //
+          py::arg("bitWidthIn"),   //
+          py::arg("elementNum"),   //
+          R"(
+Evaluate Grotto.
+
+Args:
+    sharedOut (torch.Tensor):       shared tensor
+    maskedX (torch.Tensor):         masked tensor
+    key (torch.Tensor):             key tensor
+    seed (torch.Tensor):            seed tensor
+    equalBound (bool):              equalBound
+    partyId (int):                  party id
+    bitWidthIn (int):               bit width of input data
+    elementNum (int):               element number of input data
+    
+Raises:
+    ValueError:   If the input argument is invalid.
+    RuntimeError: If the FastFss_cpu_grottoEval or FastFss_cuda_grottoEval fail.
+)");
+
+    m.def("grotto_eval_eq",           //
+          &pyFastFss::grotto_eval_eq, //
+          py::arg("sharedOut"),       //
+          py::arg("maskedX"),         //
+          py::arg("key"),             //
+          py::arg("seed"),            //
+          py::arg("partyId"),         //
+          py::arg("bitWidthIn"),      //
+          py::arg("elementNum"),      //
+          R"(
+Evaluate Grotto.
+
+Args:
+    sharedOut (torch.Tensor):       shared tensor
+    maskedX (torch.Tensor):         masked tensor
+    key (torch.Tensor):             key tensor
+    seed (torch.Tensor):            seed tensor
+    partyId (int):                  party id
+    bitWidthIn (int):               bit width of input data
+    elementNum (int):               element number of input data
+    
+Raises:
+    ValueError:   If the input argument is invalid.
+    RuntimeError: If the FastFss_cpu_grottoEvalEq or FastFss_cuda_grottoEvalEq fail.
+)");
+
+    m.def("grotto_mic_eval",           //
+          &pyFastFss::grotto_mic_eval, //
+          py::arg("sharedOut"),        //
+          py::arg("maskedX"),          //
+          py::arg("key"),              //
+          py::arg("seed"),             //
+          py::arg("partyId"),          //
+          py::arg("leftBoundary"),     //
+          py::arg("rightBoundary"),    //
+          py::arg("bitWidthIn"),       //
+          py::arg("elementNum"),       //
+          R"(
+Evaluate Grotto MIC.
+
+Args:
+    sharedOut (torch.Tensor):       shared tensor
+    maskedX (torch.Tensor):         masked tensor
+    key(torch.Tensor):              key tensor
+    seed(torch.Tensor):             seed tensor
+    partyId(int):                   party id
+    leftBoundary(torch.Tensor):     leftBoundary tensor
+    rightBoundary(torch.Tensor):    rightBoundary tensor
+    bitWidthIn(int):                bit width of input data
+    elementNum(int):                element number of input data
+    
+Raises:
+    ValueError:   If the input argument is invalid.
+    RuntimeError: If the FastFss_cpu_grottoMICEval or FastFss_cuda_grottoMICEval fail.
+)");
+
+    m.def("grotto_interval_lut_eval",
+          &pyFastFss::grotto_interval_lut_eval, //
+          py::arg("sharedOutE"),                //
+          py::arg("sharedOutT"),                //
+          py::arg("maskedX"),                   //
+          py::arg("key"),                       //
+          py::arg("seed"),                      //
+          py::arg("partyId"),                   //
+          py::arg("leftBoundary"),              //
+          py::arg("rightBoundary"),             //
+          py::arg("lookUpTable"),               //
+          py::arg("bitWidthIn"),                //
+          py::arg("bitWidthOut"),               //
+          py::arg("elementNum"),                //
+          R"(
+Evaluate Grotto MIC.
+
+Args:
+    sharedOutE (torch.Tensor):      shared tensor
+    sharedOutT (torch.Tensor):      shared tensor
+    maskedX (torch.Tensor):         masked tensor
+    key(torch.Tensor):              key tensor
+    seed(torch.Tensor):             seed tensor
+    partyId(int):                   party id
+    leftBoundary(torch.Tensor):     leftBoundary tensor
+    rightBoundary(torch.Tensor):    rightBoundary tensor
+    lookUpTable(torch.Tensor):      lookUpTable tensor
+    bitWidthIn(int):                bit width of input data
+    bitWidthOut(int):               bit width of output data
+    elementNum(int):                element number of input data
+    
+Raises:
+    ValueError:   If the input argument is invalid.
+    RuntimeError: If the FastFss_cpu_grottoIntervalLutEval or FastFss_cuda_grottoIntervalLutEval fail.
+)");
+
+    // ===========================================
     // ================== DCF MIC ================
     // ===========================================
 
@@ -319,10 +546,11 @@ Raises:
     // ==================== PRNG =================
     // ===========================================
 
-    py::class_<pyFastFss::Prng>(m, "Prng")
-        .def(py::init<torch::Device>(),                //
-             py::arg("device") = torch::Device("cpu"), //
-             R"(
+    auto PrngClass = py::class_<pyFastFss::Prng>(m, "Prng");
+
+    PrngClass.def(py::init<torch::Device>(),                //
+                  py::arg("device") = torch::Device("cpu"), //
+                  R"(
 Create a random number generator.
 
 Args:
@@ -331,18 +559,20 @@ Args:
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_prngInit or FastFss_cuda_prngInit fail.
-)")
-        .def("device",                 //
-             &pyFastFss::Prng::device, //
-             R"(
+)");
+
+    PrngClass.def("device",                 //
+                  &pyFastFss::Prng::device, //
+                  R"(
 Get the device.
 
 Returns:
     torch.Device: device
-)")
-        .def("get_current_seed",                 //
-             &pyFastFss::Prng::get_current_seed, //
-             R"(
+)");
+
+    PrngClass.def("get_current_seed",                 //
+                  &pyFastFss::Prng::get_current_seed, //
+                  R"(
 Get the current seed.
 
 Returns:
@@ -350,12 +580,13 @@ Returns:
 
 Raises:
     RuntimeError: If the FastFss_cpu_prngGetCurrentSeed or FastFss_cuda_prngGetCurrentSeed fail.
-)")
-        .def("set_current_seed",                 //
-             &pyFastFss::Prng::set_current_seed, //
-             py::arg("seed128bit"),              //
-             py::arg("counter128bit"),           //
-             R"(
+)");
+
+    PrngClass.def("set_current_seed",                 //
+                  &pyFastFss::Prng::set_current_seed, //
+                  py::arg("seed128bit"),              //
+                  py::arg("counter128bit"),           //
+                  R"(
 Set the current seed.
 
 Args:
@@ -366,11 +597,12 @@ Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_prngSetCurrentSeed or FastFss_cuda_prngSetCurrentSeed
 
-)")
-        .def("to",
-             &pyFastFss::Prng::to, //
-             py::arg("device"),    //
-             R"(
+)");
+
+    PrngClass.def("to_",
+                  &pyFastFss::Prng::to_, //
+                  py::arg("device"),     //
+                  R"(
 Move the random number generator to the specified device.
 
 Args:
@@ -379,12 +611,13 @@ Args:
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_prngTo or FastFss_cuda_prngTofail.
-)")
-        .def("rand",                 //
-             &pyFastFss::Prng::rand, //
-             py::arg("out"),         //
-             py::arg("bitWidth"),    //
-             R"(
+)");
+
+    PrngClass.def("rand_",                 //
+                  &pyFastFss::Prng::rand_, //
+                  py::arg("out"),          //
+                  py::arg("bitWidth"),     //
+                  R"(
 Generate random numbers.
 
 Args:

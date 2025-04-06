@@ -51,6 +51,75 @@ void dcf_eval(torch::Tensor sharedOut,
               std::size_t   elementNum);
 
 // ==========================================
+// =================== GROTTO ===============
+// ==========================================
+
+std::size_t grotto_get_key_data_size(std::size_t bitWidthIn,
+                                     std::size_t elementSize,
+                                     std::size_t elementNum);
+
+std::size_t grotto_get_zipped_key_data_size(std::size_t bitWidthIn,
+                                            std::size_t elementSize,
+                                            std::size_t elementNum);
+
+void grotto_key_zip(torch::Tensor zippedKeyOut,
+                    torch::Tensor key,
+                    std::size_t   bitWidthIn,
+                    std::size_t   elementNum);
+
+void grotto_key_unzip(torch::Tensor keyOut,
+                      torch::Tensor zippedKey,
+                      std::size_t   bitWidthIn,
+                      std::size_t   elementNum);
+
+void grotto_key_gen(torch::Tensor keyOut,
+                    torch::Tensor alpha,
+                    torch::Tensor seed0,
+                    torch::Tensor seed1,
+                    std::size_t   bitWidthIn,
+                    std::size_t   elementNum);
+
+void grotto_eval_eq(torch::Tensor sharedOut,
+                    torch::Tensor maskedX,
+                    torch::Tensor key,
+                    torch::Tensor seed,
+                    int           partyId,
+                    std::size_t   bitWidthIn,
+                    std::size_t   elementNum);
+
+void grotto_eval(torch::Tensor sharedOut,
+                 torch::Tensor maskedX,
+                 torch::Tensor key,
+                 torch::Tensor seed,
+                 bool          equalBound,
+                 int           partyId,
+                 std::size_t   bitWidthIn,
+                 std::size_t   elementNum);
+
+void grotto_mic_eval(torch::Tensor sharedBooleanOut,
+                     torch::Tensor maskedX,
+                     torch::Tensor key,
+                     torch::Tensor seed,
+                     int           partyId,
+                     torch::Tensor leftBoundary,
+                     torch::Tensor rightBoundary,
+                     std::size_t   bitWidthIn,
+                     std::size_t   elementNum);
+
+void grotto_interval_lut_eval(torch::Tensor sharedOutE,
+                              torch::Tensor sharedOutT,
+                              torch::Tensor maskedX,
+                              torch::Tensor key,
+                              torch::Tensor seed,
+                              int           partyId,
+                              torch::Tensor leftBoundary,
+                              torch::Tensor rightBoundary,
+                              torch::Tensor lookUpTable,
+                              std::size_t   bitWidthIn,
+                              std::size_t   bitWidthOut,
+                              std::size_t   elementNum);
+
+// ==========================================
 // ==================== MIC =================
 // ==========================================
 
@@ -122,9 +191,9 @@ public:
     torch::Device device() const;
 
 public:
-    void to(torch::Device device);
+    void to_(torch::Device device);
 
-    void rand(torch::Tensor out, std::size_t bitWidth);
+    void rand_(torch::Tensor out, std::size_t bitWidth);
 };
 
 }; // namespace pyFastFss
