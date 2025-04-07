@@ -224,7 +224,7 @@ void Prng::to_(torch::Device device)
     ctx_    = newCtx;
     device_ = device;
 }
-void Prng::rand_(torch::Tensor out, std::size_t bitWidth)
+torch::Tensor Prng::rand_(torch::Tensor out, std::size_t bitWidth)
 {
     if (!out.is_contiguous())
     {
@@ -266,6 +266,7 @@ void Prng::rand_(torch::Tensor out, std::size_t bitWidth)
     {
         throw std::runtime_error("FastFss_prngGen failed");
     }
+    return out;
 }
 
 }; // namespace pyFastFss

@@ -598,7 +598,6 @@ void grotto_interval_lut_eval(torch::Tensor sharedOutE,
 
     ARG_ASSERT(leftBoundary.numel() == rightBoundary.numel() &&
                leftBoundary.numel() == lookUpTable.numel());
-    std::size_t intervalNum = (std::size_t)leftBoundary.numel();
 
     ARG_ASSERT((std::size_t)key.numel() ==
                grotto_get_key_data_size(bitWidthIn, elementSize, elementNum));

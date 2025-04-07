@@ -193,7 +193,7 @@ public:
 public:
     void to_(torch::Device device);
 
-    void rand_(torch::Tensor out, std::size_t bitWidth);
+    torch::Tensor rand_(torch::Tensor out, std::size_t bitWidth);
 };
 
 }; // namespace pyFastFss

@@ -624,6 +624,9 @@ Args:
     out (torch.Tensor): output tensor
     bitWidth (int):     bit width
 
+Returns:
+    torch.Tensor
+
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_prngRand or FastFss_cuda_prngRand fail.

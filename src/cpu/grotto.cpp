@@ -3,6 +3,7 @@
 #include <FastFss/cpu/grotto.h>
 
 #include <cassert>
+#include <cstdlib>
 #include <memory>
 
 enum GROTTO_ERROR_CODE
@@ -80,7 +81,6 @@ static int IMPL_FastFss_cpu_grottoKeyGen(void**      key,
     {
         GrottoKey<GroupElement> grottoKey;
         std::size_t             offsetAlpha = i;
-        std::size_t             offsetBeta  = i;
         std::size_t             offsetSeed0 = 16 * i;
         std::size_t             offsetSeed1 = 16 * i;
         grottoKeySetPtr<GroupElement>(grottoKey, *key, bitWidthIn, i,
@@ -279,19 +279,27 @@ static int IMPL_FastFss_cpu_grottoMICEval(void*       sharedBooleanOut,
     const GroupElement* rightBoundaryPtr = (const GroupElement*)rightBoundary;
     const std::uint8_t* seedPtr          = (const std::uint8_t*)seed;
 
-    GrottoKey<GroupElement> grottoKey;
+    auto cacheDataSize = grottoCacheDataSize<GroupElement>(bitWidthIn, 1);
+
+    auto buf = std::unique_ptr<std::uint8_t[]>(new std::uint8_t[cacheDataSize]);
+
+    GrottoKey<GroupElement>   grottoKey;
+    grottoCache<GroupElement> cache;
+
     for (std::size_t i = 0; i < elementNum; i++)
     {
         std::size_t offsetSharedOut = i * intervalNum;
         std::size_t offsetMaskedX   = i;
         std::size_t offsetSeed      = 16 * i;
 
+        grottoCacheSetPtr<GroupElement>(cache, buf.get(), bitWidthIn, 0, 1);
+
         grottoKeySetPtr<GroupElement>(grottoKey, key, bitWidthIn, i,
                                       elementNum);
         grottoMICEval<GroupElement>(
             sharedBooleanOutPtr + offsetSharedOut, maskedXPtr[offsetMaskedX],
             grottoKey, seedPtr + offsetSeed, partyId, leftBoundaryPtr,
-            rightBoundaryPtr, intervalNum, bitWidthIn);
+            rightBoundaryPtr, intervalNum, bitWidthIn, &cache);
     }
     return GROTTO_SUCCESS;
 }
