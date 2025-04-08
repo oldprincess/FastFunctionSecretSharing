@@ -3,7 +3,7 @@
 #define SRC_FAST_FSS_CPU_MIC_HPP
 
 #include "dcf.hpp"
-#include "mod.hpp"
+#include "number.hpp"
 
 namespace FastFss::cpu {
 
