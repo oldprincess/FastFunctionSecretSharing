@@ -130,9 +130,9 @@ inline void aes128_aesni_enc_block(const std::uint8_t round_key[11][16],
 }
 
 template <int N>
-inline void aes128_aesni_enc_n_block(const std::uint8_t round_key[11][16],
-                                     void*              ciphertext,
-                                     const void*        plaintext)
+inline void aes128_aesni_compute_n_block(const std::uint8_t round_key[11][16],
+                                         void*              ciphertext,
+                                         const void*        plaintext)
 {
     const __m128i* rk = (__m128i*)(round_key);
     __m128i        state[N];
@@ -168,6 +168,101 @@ inline void aes128_aesni_enc_n_block(const std::uint8_t round_key[11][16],
     }
 }
 
+template <int N>
+inline void aes128_aesni_enc_n_block(void*       ciphertext,
+                                     const void* plaintext,
+                                     const void* user_key)
+{
+    __m128i state[N];
+    __m128i temp;
+    __m128i rki;
+    for (int j = 0; j < N; j++)
+    {
+        state[j] = _mm_loadu_si128((const __m128i*)plaintext + j);
+    }
+    // round0
+    rki = _mm_loadu_si128((__m128i*)user_key);
+    for (int j = 0; j < N; j++)
+    {
+        state[j] = _mm_xor_si128(state[j], rki);
+    }
+    // round1
+    temp = _mm_aeskeygenassist_si128(rki, 0x1);
+    rki  = AES_128_ASSIST(rki, temp);
+    for (int j = 0; j < N; j++)
+    {
+        state[j] = _mm_aesenc_si128(state[j], rki);
+    }
+    // round2
+    temp = _mm_aeskeygenassist_si128(rki, 0x2);
+    rki  = AES_128_ASSIST(rki, temp);
+    for (int j = 0; j < N; j++)
+    {
+        state[j] = _mm_aesenc_si128(state[j], rki);
+    }
+    // round3
+    temp = _mm_aeskeygenassist_si128(rki, 0x4);
+    rki  = AES_128_ASSIST(rki, temp);
+    for (int j = 0; j < N; j++)
+    {
+        state[j] = _mm_aesenc_si128(state[j], rki);
+    }
+    // round4
+    temp = _mm_aeskeygenassist_si128(rki, 0x8);
+    rki  = AES_128_ASSIST(rki, temp);
+    for (int j = 0; j < N; j++)
+    {
+        state[j] = _mm_aesenc_si128(state[j], rki);
+    }
+    // round5
+    temp = _mm_aeskeygenassist_si128(rki, 0x10);
+    rki  = AES_128_ASSIST(rki, temp);
+    for (int j = 0; j < N; j++)
+    {
+        state[j] = _mm_aesenc_si128(state[j], rki);
+    }
+    // round6
+    temp = _mm_aeskeygenassist_si128(rki, 0x20);
+    rki  = AES_128_ASSIST(rki, temp);
+    for (int j = 0; j < N; j++)
+    {
+        state[j] = _mm_aesenc_si128(state[j], rki);
+    }
+    // round7
+    temp = _mm_aeskeygenassist_si128(rki, 0x40);
+    rki  = AES_128_ASSIST(rki, temp);
+    for (int j = 0; j < N; j++)
+    {
+        state[j] = _mm_aesenc_si128(state[j], rki);
+    }
+    // round8
+    temp = _mm_aeskeygenassist_si128(rki, 0x80);
+    rki  = AES_128_ASSIST(rki, temp);
+    for (int j = 0; j < N; j++)
+    {
+        state[j] = _mm_aesenc_si128(state[j], rki);
+    }
+    // round9
+    temp = _mm_aeskeygenassist_si128(rki, 0x1b);
+    rki  = AES_128_ASSIST(rki, temp);
+    for (int j = 0; j < N; j++)
+    {
+        state[j] = _mm_aesenc_si128(state[j], rki);
+    }
+    // round10
+    temp = _mm_aeskeygenassist_si128(rki, 0x36);
+    rki  = AES_128_ASSIST(rki, temp);
+    for (int j = 0; j < N; j++)
+    {
+        state[j] = _mm_aesenclast_si128(state[j], rki);
+    }
+
+    for (int j = 0; j < N; j++)
+    {
+        _mm_storeu_si128((__m128i*)ciphertext + j, state[j]);
+    }
+}
+
 inline void aes128_aesni_enc_blocks(const std::uint8_t round_key[11][16],
                                     uint8_t*           ciphertext,
                                     const uint8_t*     plaintext,
@@ -175,7 +270,7 @@ inline void aes128_aesni_enc_blocks(const std::uint8_t round_key[11][16],
 {
     while (block_num >= 4)
     {
-        aes128_aesni_enc_n_block<4>(round_key, ciphertext, plaintext);
+        aes128_aesni_compute_n_block<4>(round_key, ciphertext, plaintext);
         ciphertext += 16 * 4;
         plaintext += 16 * 4;
         block_num -= 1 * 4;
@@ -199,27 +294,21 @@ public:
                                          const void* plaintext,
                                          const void* user_key) noexcept
     {
-        std::uint8_t rk[11][16];
-        internal::aes128_aesni_enc_key_init(rk, (const std::uint8_t*)user_key);
-        internal::aes128_aesni_enc_n_block<1>(rk, ciphertext, plaintext);
+        internal::aes128_aesni_enc_n_block<1>(ciphertext, plaintext, user_key);
     }
 
     static inline void aes128_enc2_block(void*       ciphertext,
                                          const void* plaintext,
                                          const void* user_key) noexcept
     {
-        std::uint8_t rk[11][16];
-        internal::aes128_aesni_enc_key_init(rk, (const std::uint8_t*)user_key);
-        internal::aes128_aesni_enc_n_block<2>(rk, ciphertext, plaintext);
+        internal::aes128_aesni_enc_n_block<2>(ciphertext, plaintext, user_key);
     }
 
     static inline void aes128_enc4_block(void*       ciphertext,
                                          const void* plaintext,
                                          const void* user_key) noexcept
     {
-        std::uint8_t rk[11][16];
-        internal::aes128_aesni_enc_key_init(rk, (const std::uint8_t*)user_key);
-        internal::aes128_aesni_enc_n_block<4>(rk, ciphertext, plaintext);
+        internal::aes128_aesni_enc_n_block<4>(ciphertext, plaintext, user_key);
     }
 
 public:
@@ -230,18 +319,18 @@ public:
 
     inline void enc_block(void* out, const void* in) noexcept
     {
-        internal::aes128_aesni_enc_n_block<1>(rk_, out, in);
+        internal::aes128_aesni_compute_n_block<1>(rk_, out, in);
     }
 
     inline void enc4_block(void* out, const void* in) noexcept
     {
-        internal::aes128_aesni_enc_n_block<4>(rk_, out, in);
+        internal::aes128_aesni_compute_n_block<4>(rk_, out, in);
     }
 
     template <int N>
     inline void enc_n_block(void* out, const void* in) noexcept
     {
-        internal::aes128_aesni_enc_n_block<N>(rk_, out, in);
+        internal::aes128_aesni_compute_n_block<N>(rk_, out, in);
     }
 
     inline void enc_blocks(void*       out,

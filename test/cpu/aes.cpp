@@ -1,4 +1,4 @@
-// g++ -I include test/cpu/aes.cpp -o cpu_aes.exe -std=c++11 -maes
+// g++ -I include test/cpu/aes.cpp -o cpu_aes.exe -std=c++17 -maes
 #include "../../src/cpu/aes.hpp"
 
 #include <cstdio>
