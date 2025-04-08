@@ -368,20 +368,39 @@ static int IMPL_FastFss_cpu_grottoIntervalLutEval( //
     const GroupElement* lookUpTablePtr   = (const GroupElement*)lookUpTable;
     const std::uint8_t* seedPtr          = (const std::uint8_t*)seed;
 
-    GrottoKey<GroupElement> grottoKey;
+    auto cacheDataSize = grottoCacheDataSize<GroupElement>(bitWidthIn, 1);
+
+    auto buf = std::unique_ptr<std::uint8_t[]>(new std::uint8_t[cacheDataSize]);
+
+    grottoCache<GroupElement> cache;
+    GrottoKey<GroupElement>   grottoKey;
     for (std::size_t i = 0; i < elementNum; i++)
     {
         std::size_t offsetSharedOut = i;
         std::size_t offsetMaskedX   = i;
         std::size_t offsetSeed      = 16 * i;
 
-        grottoKeySetPtr<GroupElement>(grottoKey, key, bitWidthIn, i,
-                                      elementNum);
-        grottoIntervalLutEval<GroupElement>(
-            sharedOutEPtr + offsetSharedOut, sharedOutTPtr + offsetSharedOut,
-            maskedXPtr[offsetMaskedX], grottoKey, seedPtr + offsetSeed, partyId,
-            leftBoundaryPtr, rightBoundaryPtr, lookUpTablePtr, intervalNum,
-            bitWidthIn);
+        grottoCacheSetPtr<GroupElement>(cache, buf.get(), bitWidthIn, 0, 1);
+
+        grottoKeySetPtr<GroupElement>(       //
+            grottoKey,                       //
+            key,                             //
+            bitWidthIn,                      //
+            i,                               //
+            elementNum);                     //
+        grottoIntervalLutEval<GroupElement>( //
+            sharedOutEPtr + offsetSharedOut, //
+            sharedOutTPtr + offsetSharedOut, //
+            maskedXPtr[offsetMaskedX],       //
+            grottoKey,                       //
+            seedPtr + offsetSeed,            //
+            partyId,                         //
+            leftBoundaryPtr,                 //
+            rightBoundaryPtr,                //
+            lookUpTablePtr,                  //
+            intervalNum,                     //
+            bitWidthIn,                      //
+            &cache);
     }
     return GROTTO_SUCCESS;
 }
