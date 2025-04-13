@@ -198,7 +198,12 @@ int FastFss_cuda_prngGen(void*  prng,
         return PRNG_INVALID_BIT_WIDTH;
     }
     FastFss::cuda::Prng* prngObj = (FastFss::cuda::Prng*)prng;
-    FastFss::cuda::aes128_ctr_kernel<<<256, 512>>>( //
+
+    int BLOCK_SIZE = 512;
+    int GRID_SIZE =
+        (elementNum * elementSize + BLOCK_SIZE * 16 - 1) / (BLOCK_SIZE * 16);
+
+    FastFss::cuda::aes128_ctr_kernel<<<GRID_SIZE, BLOCK_SIZE>>>( //
         prngObj->seed, prngObj->counterTmp, prngObj->counter, deviceDst,
         elementNum * elementSize //
     );                           //

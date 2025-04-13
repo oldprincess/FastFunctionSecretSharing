@@ -442,7 +442,8 @@ __global__ void grottoEvalKernel(void*       deviceSharedBooleanOut,
         std::size_t offsetSeed = i * 16;
         if (deviceCache != nullptr)
         {
-            grottoCacheSetPtr(cache, deviceCache, bitWidthIn, i, elementNum);
+            grottoCacheSetPtr(cache, deviceCache, bitWidthIn, i % stride,
+                              stride);
             cachePtr = &cache;
         }
         else
@@ -546,7 +547,8 @@ __global__ void grottoMICEvalKernel(void*       deviceSharedBooleanOut,
         std::size_t offsetSeed      = i * 16;
         if (deviceCache != nullptr)
         {
-            grottoCacheSetPtr(cache, deviceCache, bitWidthIn, i, elementNum);
+            grottoCacheSetPtr(cache, deviceCache, bitWidthIn, i % stride,
+                              stride);
             cachePtr = &cache;
         }
         else
@@ -674,7 +676,8 @@ __global__ void grottoIntervalLutEvalKernel(void*       deviceSharedOutE,
         std::size_t offsetSeed       = i * 16;
         if (deviceCache != nullptr)
         {
-            grottoCacheSetPtr(cache, deviceCache, bitWidthIn, i, elementNum);
+            grottoCacheSetPtr(cache, deviceCache, bitWidthIn, i % stride,
+                              stride);
             cachePtr = &cache;
         }
         else

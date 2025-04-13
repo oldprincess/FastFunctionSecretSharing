@@ -107,8 +107,14 @@ static int IMPL_FastFss_cuda_dcfKeyGen(void**      key,
     }
 
     // ===============================================
+    int BLOCK_SIZE = 512;
+    int GRID_SIZE  = (elementNum + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    if (GRID_SIZE > 128 * 32)
+    {
+        GRID_SIZE = 128 * 32;
+    }
 
-    dcfKeyGenKernel<GroupElement><<<256, 512>>>(
+    dcfKeyGenKernel<GroupElement><<<GRID_SIZE, BLOCK_SIZE>>>(
         *key, alpha, beta, seed0, seed1, bitWidthIn, bitWidthOut, elementNum);
     CUDA_ERR_CHECK({
         if (mallocKey)
@@ -163,10 +169,16 @@ static int IMPL_FastFss_cuda_dcfEval(void*       sharedOut,
     }
 
     // ===============================================
+    int BLOCK_SIZE = 512;
+    int GRID_SIZE  = (elementNum + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    if (GRID_SIZE > 128 * 32)
+    {
+        GRID_SIZE = 128 * 32;
+    }
 
-    dcfEvalKernel<GroupElement><<<256, 512>>>(sharedOut, maskedX, key, seed,
-                                              partyId, bitWidthIn, bitWidthOut,
-                                              elementNum);
+    dcfEvalKernel<GroupElement>
+        <<<GRID_SIZE, BLOCK_SIZE>>>(sharedOut, maskedX, key, seed, partyId,
+                                    bitWidthIn, bitWidthOut, elementNum);
     CUDA_ERR_CHECK({ return DCF_RUNTIME_ERROR; });
     return 0;
 }

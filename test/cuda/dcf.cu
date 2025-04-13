@@ -1,6 +1,6 @@
 // clang-format off
-// nvcc -I include src/cuda/dcf.cu test/cuda/dcf.cu -o cuda_dcf.exe -std=c++20
-// nvcc -I include src/cuda/dcf.cu test/cuda/dcf.cu -o cuda_dcf.exe -std=c++20 -lineinfo -O3
+// nvcc -I include src/cuda/dcf.cu test/cuda/dcf.cu -o cuda_dcf.exe -std=c++17
+// nvcc -I include src/cuda/dcf.cu test/cuda/dcf.cu -o cuda_dcf.exe -std=c++17 -lineinfo -O3
 // clang-format on
 #include <FastFss/cuda/dcf.h>
 

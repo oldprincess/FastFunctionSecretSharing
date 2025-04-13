@@ -108,7 +108,14 @@ static int IMPL_FastFss_cuda_dcfMICKeyGen(void**      key,
         mallocKey    = true;
     }
 
-    dcfMICKeyGenKernel<GroupElement><<<256, 512>>>(
+    int BLOCK_SIZE = 512;
+    int GRID_SIZE  = (elementNum + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    if (GRID_SIZE > 128 * 32)
+    {
+        GRID_SIZE = 128 * 32;
+    }
+
+    dcfMICKeyGenKernel<GroupElement><<<BLOCK_SIZE, GRID_SIZE>>>(
         *key, z, alpha, seed0, seed1, leftBoundary, rightBoundary, intervalNum,
         bitWidthIn, bitWidthOut, elementNum);
     CUDA_ERR_CHECK({
@@ -184,7 +191,14 @@ static int IMPL_FastFss_cuda_dcfMICEval(void*       sharedOut,
         return MIC_INVALID_PARTY_ID_ERROR;
     }
 
-    dcfMICEvalKernel<GroupElement><<<256, 512>>>(
+    int BLOCK_SIZE = 512;
+    int GRID_SIZE  = (elementNum + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    if (GRID_SIZE > 128 * 32)
+    {
+        GRID_SIZE = 128 * 32;
+    }
+
+    dcfMICEvalKernel<GroupElement><<<GRID_SIZE, BLOCK_SIZE>>>(
         sharedOut, maskedX, key, sharedZ, seed, partyId, leftBoundary,
         rightBoundary, intervalNum, bitWidthIn, bitWidthOut, elementNum);
 

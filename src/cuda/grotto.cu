@@ -98,10 +98,16 @@ static int IMPL_FastFss_cuda_grottoKeyGen(void**      key,
     }
 
     // ===============================================
+    int BLOCK_SIZE = 512;
+    int GRID_SIZE  = (elementNum + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    if (GRID_SIZE > 128 * 32)
+    {
+        GRID_SIZE = 128 * 32;
+    }
 
-    grottoKeyGenKernel<GroupElement><<<256, 512>>>(       //
-        *key, alpha, seed0, seed1, bitWidthIn, elementNum //
-    );                                                    //
+    grottoKeyGenKernel<GroupElement><<<GRID_SIZE, BLOCK_SIZE>>>( //
+        *key, alpha, seed0, seed1, bitWidthIn, elementNum        //
+    );                                                           //
     CUDA_ERR_CHECK({
         if (mallocKey)
         {
@@ -155,17 +161,23 @@ static int IMPL_FastFss_cuda_grottoEval(void*       sharedOut,
     }
 
     // ===============================================
+    int BLOCK_SIZE = 512;
+    int GRID_SIZE  = (elementNum + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    if (GRID_SIZE > 128 * 32)
+    {
+        GRID_SIZE = 128 * 32;
+    }
 
     void*       deviceCache   = nullptr;
     std::size_t needCacheSize = grottoCacheDataSize<GroupElement>( //
-        bitWidthIn, elementNum                                     //
+        bitWidthIn, GRID_SIZE * BLOCK_SIZE                         //
     );
     CUDA_CHECK(cudaMalloc(&deviceCache, needCacheSize),
                { return GROTTO_RUNTIME_ERROR; });
 
-    grottoEvalKernel<GroupElement>
-        <<<256, 512>>>(sharedOut, key, maskedX, seed, partyId, bitWidthIn,
-                       equalBound, deviceCache, elementNum);
+    grottoEvalKernel<GroupElement><<<GRID_SIZE, BLOCK_SIZE>>>(
+        sharedOut, key, maskedX, seed, partyId, bitWidthIn, equalBound,
+        deviceCache, elementNum);
     CUDA_ERR_CHECK({
         cudaFree(deviceCache);
         return GROTTO_RUNTIME_ERROR;
@@ -214,8 +226,14 @@ static int IMPL_FastFss_cuda_grottoEvalEq(void*       sharedOut,
     }
 
     // ===============================================
+    int BLOCK_SIZE = 512;
+    int GRID_SIZE  = (elementNum + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    if (GRID_SIZE > 128 * 32)
+    {
+        GRID_SIZE = 128 * 32;
+    }
 
-    grottoEvalEqKernel<GroupElement><<<256, 512>>>(                    //
+    grottoEvalEqKernel<GroupElement><<<GRID_SIZE, BLOCK_SIZE>>>(       //
         sharedOut, key, maskedX, seed, partyId, bitWidthIn, elementNum //
     );                                                                 //
     CUDA_ERR_CHECK({ return GROTTO_RUNTIME_ERROR; });
@@ -276,15 +294,22 @@ static int IMPL_FastFss_cuda_grottoMICEval(void*       sharedBooleanOut,
     {
         return GROTTO_INVALID_PARTY_ID_ERROR;
     }
+    // ===============================
+    int BLOCK_SIZE = 512;
+    int GRID_SIZE  = (elementNum + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    if (GRID_SIZE > 128 * 32)
+    {
+        GRID_SIZE = 128 * 32;
+    }
 
     void*       deviceCache   = nullptr;
     std::size_t needCacheSize = grottoCacheDataSize<GroupElement>( //
-        bitWidthIn, elementNum                                     //
+        bitWidthIn, GRID_SIZE * BLOCK_SIZE                         //
     );
     CUDA_CHECK(cudaMalloc(&deviceCache, needCacheSize),
                { return GROTTO_RUNTIME_ERROR; });
 
-    grottoMICEvalKernel<GroupElement><<<256, 512>>>(
+    grottoMICEvalKernel<GroupElement><<<GRID_SIZE, BLOCK_SIZE>>>(
         sharedBooleanOut, maskedX, key, seed, partyId, leftBoundary,
         rightBoundary, intervalNum, bitWidthIn, deviceCache, elementNum);
     CUDA_ERR_CHECK({
@@ -351,17 +376,25 @@ static int IMPL_FastFss_cuda_grottoIntervalLutEval( //
         return GROTTO_INVALID_PARTY_ID_ERROR;
     }
 
+    // ===============================
+    int BLOCK_SIZE = 512;
+    int GRID_SIZE  = (elementNum + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    if (GRID_SIZE > 128 * 32)
+    {
+        GRID_SIZE = 128 * 32;
+    }
+
     void*       deviceCache   = nullptr;
     std::size_t needCacheSize = grottoCacheDataSize<GroupElement>( //
-        bitWidthIn, elementNum                                     //
+        bitWidthIn, BLOCK_SIZE * GRID_SIZE                         //
     );
     CUDA_CHECK(cudaMalloc(&deviceCache, needCacheSize),
                { return GROTTO_RUNTIME_ERROR; });
 
-    grottoIntervalLutEvalKernel<GroupElement>
-        <<<256, 512>>>(sharedOutE, sharedOutT, maskedX, key, seed, partyId,
-                       leftBoundary, rightBoundary, lookUpTable, intervalNum,
-                       bitWidthIn, deviceCache, elementNum);
+    grottoIntervalLutEvalKernel<GroupElement><<<GRID_SIZE, BLOCK_SIZE>>>(
+        sharedOutE, sharedOutT, maskedX, key, seed, partyId, leftBoundary,
+        rightBoundary, lookUpTable, intervalNum, bitWidthIn, deviceCache,
+        elementNum);
     CUDA_ERR_CHECK({
         cudaFree(deviceCache);
         return GROTTO_RUNTIME_ERROR;
