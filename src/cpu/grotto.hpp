@@ -381,13 +381,13 @@ inline void grottoMICEval(                    //
     std::size_t  bitWidth = bitWidthIn;
     GroupElement sp = 0, sq = 0;
     {
-        GroupElement xP = maskedX - leftBoundary[0];
+        GroupElement xP = maskedX - (leftBoundary[0] - 1);
         GroupElement xQ = maskedX - rightBoundary[0];
 
         xP = mod_bits<GroupElement>(xP, bitWidth);
         xQ = mod_bits<GroupElement>(xQ, bitWidth);
 
-        sp = grottoEval<GroupElement>(key, xP, seed, partyId, bitWidth, false,
+        sp = grottoEval<GroupElement>(key, xP, seed, partyId, bitWidth, true,
                                       cache);
         sq = grottoEval<GroupElement>(key, xQ, seed, partyId, bitWidth, true,
                                       cache);
@@ -396,7 +396,7 @@ inline void grottoMICEval(                    //
     }
     for (std::size_t i = 1; i < intervalNum; i++)
     {
-        GroupElement xP        = maskedX - leftBoundary[i] + 1;
+        GroupElement xP        = maskedX - (leftBoundary[i] - 1);
         GroupElement xQ        = maskedX - rightBoundary[i];
         GroupElement privQAdd1 = rightBoundary[i - 1] + 1;
 
@@ -446,13 +446,13 @@ inline void grottoIntervalLutEval( //
     std::size_t  bitWidth = bitWidthIn;
     GroupElement sp = 0, sq = 0;
     {
-        GroupElement xP = maskedX - leftBoundary[0];
+        GroupElement xP = maskedX - (leftBoundary[0] - 1);
         GroupElement xQ = maskedX - rightBoundary[0];
 
         xP = mod_bits<GroupElement>(xP, bitWidth);
         xQ = mod_bits<GroupElement>(xQ, bitWidth);
 
-        sp = grottoEval<GroupElement>(key, xP, seed, partyId, bitWidth, false,
+        sp = grottoEval<GroupElement>(key, xP, seed, partyId, bitWidth, true,
                                       cache);
         sq = grottoEval<GroupElement>(key, xQ, seed, partyId, bitWidth, true,
                                       cache);
@@ -465,7 +465,7 @@ inline void grottoIntervalLutEval( //
     }
     for (std::size_t i = 1; i < intervalNum; i++)
     {
-        GroupElement xP        = maskedX - leftBoundary[i];
+        GroupElement xP        = maskedX - (leftBoundary[i] - 1);
         GroupElement xQ        = maskedX - rightBoundary[i];
         GroupElement privQAdd1 = rightBoundary[i - 1] + 1;
 
@@ -480,7 +480,7 @@ inline void grottoIntervalLutEval( //
         else
         {
             sp = grottoEval<GroupElement>(key, xP, seed, partyId, bitWidth,
-                                          false, cache);
+                                          true, cache);
         }
         sq = grottoEval<GroupElement>(key, xQ, seed, partyId, bitWidth, true,
                                       cache);

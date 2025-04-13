@@ -52,7 +52,7 @@ static void aes128_ctr(const void* seed,
         curCounter[0] = counterPtr[0] + i;
         curCounter[1] = counterPtr[1] + (curCounter[0] < i);
 
-        aes128ctx.enc_block(dstPtr + dstOffest, curCounter);
+        aes128ctx.enc_n_block<1>(dstPtr + dstOffest, curCounter);
     }
 
     if (bytesRem != 0)
@@ -64,7 +64,7 @@ static void aes128_ctr(const void* seed,
 
         std::size_t dstOffest = blockNum * 16;
 
-        aes128ctx.enc_block(outputBufer, curCounter);
+        aes128ctx.enc_n_block<1>(outputBufer, curCounter);
         for (std::size_t i = 0; i < bytesRem; i++)
         {
             dstPtr[dstOffest + i] = outputBufer[i];
