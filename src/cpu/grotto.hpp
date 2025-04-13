@@ -98,7 +98,8 @@ inline void grottoCacheSetPtr( //
     const char* curCacheData = nullptr;
 
     std::size_t offsetSTCache     = idx * (16 * (bitWidthIn - 6));
-    std::size_t offsetParityCache = elementNum * (16 * (bitWidthIn - 6));
+    std::size_t offsetParityCache = elementNum * (16 * (bitWidthIn - 6)) + //
+                                    (bitWidthIn - 6) * idx;
 
     curCacheData  = (const char*)cacheData + offsetSTCache;
     cache.stCache = (std::uint64_t (*)[2])(curCacheData);

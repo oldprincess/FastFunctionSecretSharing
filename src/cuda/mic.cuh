@@ -3,7 +3,7 @@
 #define SRC_FAST_FSS_CUDA_MIC_CUH
 
 #include "dcf.cuh"
-#include "mod.cuh"
+#include "number.cuh"
 
 namespace FastFss::cuda {
 
