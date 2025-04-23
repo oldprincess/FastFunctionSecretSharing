@@ -2,3 +2,12 @@ pyFastFss.egg-info/
 build/
 dist/
 __pycache__/
+*.out
+*.pyc
+*.pyo
+*.so
+*.swp
+*.zip
+*.tar.gz
+*.egg-info
+*.egg
