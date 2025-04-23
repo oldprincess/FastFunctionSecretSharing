@@ -599,11 +599,6 @@ int FastFss_cuda_grottoIntervalLutEval(void*       sharedOutE,
     }
     cudaStream_t stream = CAST_CUDA_STREAM_PTR(cudaStreamPtr);
 
-    std::printf("%s:%d\n", __FILE__, __LINE__);
-    std::printf("elementSize=%d, intervalNum=%d, bitWidthIn=%d, elementNum=%d, "
-                "cache=%p\n",
-                elementSize, intervalNum, bitWidthIn, elementNum, cache);
-
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
         [&] {

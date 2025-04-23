@@ -694,8 +694,6 @@ void grotto_interval_lut_eval(torch::Tensor sharedOutE,
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
 
-        ERR_LOG("stream ptr = %p", stream);
-
         int ret = FastFss_cuda_grottoIntervalLutEval(         //
             sharedOutE.mutable_data_ptr(),                    //
             sharedOutT.mutable_data_ptr(),                    //
