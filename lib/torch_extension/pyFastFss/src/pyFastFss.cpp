@@ -543,6 +543,40 @@ Raises:
         )");
 
     // ===========================================
+    // ==================== ONEHOT ===============
+    // ===========================================
+
+    m.def("onehot_get_key_data_size",           //
+          &pyFastFss::onehot_get_key_data_size, //
+          py::arg("bitWidthIn"),                //
+          py::arg("elementNum"),                //
+          R"(
+      )");
+
+    m.def("onehot_key_gen",           //
+          &pyFastFss::onehot_key_gen, //
+          py::arg("keyInOut"),        //
+          py::arg("alpha"),           //
+          py::arg("bitWidthIn"),      //
+          py::arg("elementNum"),      //
+          R"(
+    )");
+
+    m.def("onehot_lut_eval",           //
+          &pyFastFss::onehot_lut_eval, //
+          py::arg("sharedOutE"),       //
+          py::arg("sharedOutT"),       //
+          py::arg("maskedX"),          //
+          py::arg("key"),              //
+          py::arg("partyId"),          //
+          py::arg("lookUpTable"),      //
+          py::arg("bitWidthIn"),       //
+          py::arg("bitWidthOut"),      //
+          py::arg("elementNum"),       //
+          R"(
+  )");
+
+    // ===========================================
     // ==================== PRNG =================
     // ===========================================
 
@@ -554,7 +588,7 @@ Raises:
 Create a random number generator.
 
 Args:
-    device (torch.Device): device
+    device (torch.device): device
 
 Raises:
     ValueError:   If the input argument is invalid.
@@ -567,7 +601,7 @@ Raises:
 Get the device.
 
 Returns:
-    torch.Device: device
+    torch.device: device
 )");
 
     PrngClass.def("get_current_seed",                 //
@@ -576,7 +610,7 @@ Returns:
 Get the current seed.
 
 Returns:
-    py::tuple: current seed
+    tuple[bytes, bytes]: current seed
 
 Raises:
     RuntimeError: If the FastFss_cpu_prngGetCurrentSeed or FastFss_cuda_prngGetCurrentSeed fail.
@@ -590,8 +624,8 @@ Raises:
 Set the current seed.
 
 Args:
-    seed128bit (py::bytes):     seed128bit
-    counter128bit (py::bytes):  counter128bit
+    seed128bit (bytes):     seed128bit
+    counter128bit (bytes):  counter128bit
 
 Raises:
     ValueError:   If the input argument is invalid.
@@ -606,7 +640,7 @@ Raises:
 Move the random number generator to the specified device.
 
 Args:
-    device (torch.Device): device
+    device (torch.device): device
 
 Raises:
     ValueError:   If the input argument is invalid.
@@ -625,7 +659,7 @@ Args:
     bitWidth (int):     bit width
 
 Returns:
-    torch.Tensor
+    torch.Tensor:       output tensor
 
 Raises:
     ValueError:   If the input argument is invalid.
