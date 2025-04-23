@@ -9,8 +9,8 @@
 extern "C" {
 #endif
 
-int FastFss_cpu_grottoKeyGen(void**      key,
-                             size_t*     keyDataSize,
+int FastFss_cpu_grottoKeyGen(void*       key,
+                             size_t      keyDataSize,
                              const void* alpha,
                              size_t      alphaDataSize,
                              const void* seed0,
@@ -32,7 +32,9 @@ int FastFss_cpu_grottoEval(void*       sharedBooleanOut,
                            int         partyId,
                            size_t      bitWidthIn,
                            size_t      elementSize,
-                           size_t      elementNum);
+                           size_t      elementNum,
+                           void*       cache,
+                           size_t      cacheDataSize);
 
 int FastFss_cpu_grottoEvalEq(void*       sharedBooleanOut,
                              const void* maskedX,
@@ -44,7 +46,9 @@ int FastFss_cpu_grottoEvalEq(void*       sharedBooleanOut,
                              int         partyId,
                              size_t      bitWidthIn,
                              size_t      elementSize,
-                             size_t      elementNum);
+                             size_t      elementNum,
+                             void*       cache,
+                             size_t      cacheDataSize);
 
 int FastFss_cpu_grottoMICEval(void*       sharedBooleanOut,
                               size_t      sharedBooleanOutDataSize,
@@ -61,7 +65,9 @@ int FastFss_cpu_grottoMICEval(void*       sharedBooleanOut,
                               size_t      rightBoundaryDataSize,
                               size_t      bitWidthIn,
                               size_t      elementSize,
-                              size_t      elementNum);
+                              size_t      elementNum,
+                              void*       cache,
+                              size_t      cacheDataSize);
 
 int FastFss_cpu_grottoIntervalLutEval(void*       sharedOutE,
                                       void*       sharedOutT,
@@ -81,31 +87,40 @@ int FastFss_cpu_grottoIntervalLutEval(void*       sharedOutE,
                                       size_t      bitWidthIn,
                                       size_t      bitWidthOut,
                                       size_t      elementSize,
-                                      size_t      elementNum);
+                                      size_t      elementNum,
+                                      void*       cache,
+                                      size_t      cacheDataSize);
 
-int FastFss_cpu_grottoKeyZip(void**      zippedKey,
-                             size_t*     zippedKeyDataSize,
+int FastFss_cpu_grottoKeyZip(void*       zippedKey,
+                             size_t      zippedKeyDataSize,
                              const void* key,
                              size_t      keyDataSize,
                              size_t      bitWidthIn,
                              size_t      elementSize,
                              size_t      elementNum);
 
-int FastFss_cpu_grottoKeyUnzip(void**      key,
-                               size_t*     keyDataSize,
+int FastFss_cpu_grottoKeyUnzip(void*       key,
+                               size_t      keyDataSize,
                                const void* zippedKey,
                                size_t      zippedKeyDataSize,
                                size_t      bitWidthIn,
                                size_t      elementSize,
                                size_t      elementNum);
 
-int FastFss_cpu_grottoGetKeyDataSize(size_t bitWidthIn,
-                                     size_t elementSize,
-                                     size_t elementNum);
+int FastFss_cpu_grottoGetKeyDataSize(size_t* keyDataSize,
+                                     size_t  bitWidthIn,
+                                     size_t  elementSize,
+                                     size_t  elementNum);
 
-int FastFss_cpu_grottoGetZippedKeyDataSize(size_t bitWidthIn,
-                                           size_t elementSize,
-                                           size_t elementNum);
+int FastFss_cpu_grottoGetZippedKeyDataSize(size_t* keyDataSize,
+                                           size_t  bitWidthIn,
+                                           size_t  elementSize,
+                                           size_t  elementNum);
+
+int FastFss_cpu_grottoGetCacheDataSize(size_t* cacheDataSize,
+                                       size_t  bitWidthIn,
+                                       size_t  elementSize,
+                                       size_t  elementNum);
 
 #ifdef __cplusplus
 }

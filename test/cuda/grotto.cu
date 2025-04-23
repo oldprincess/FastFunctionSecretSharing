@@ -16,6 +16,21 @@ MT19937Rng rng;
 
 using namespace FastFss::cuda;
 
+#define LOG(fmt, ...)                                                 \
+    std::fprintf(stderr, "[FastFss] " fmt ". %s:%d\n", ##__VA_ARGS__, \
+                 __FILE__, __LINE__)
+
+#define CHECK(exp)                    \
+    [&] {                             \
+        cudaDeviceSynchronize();      \
+        auto the_ret = exp;           \
+        if (the_ret)                  \
+        {                             \
+            LOG("ret = %d", the_ret); \
+            std::exit(-1);            \
+        }                             \
+    }()
+
 template <typename GroupElement>
 constexpr GroupElement mod_bits(GroupElement x, int bitWidth) noexcept
 {
@@ -77,8 +92,13 @@ public:
             maskedX[i] = mod_bits<GroupElement>(maskedX[i], bitWidthIn);
         }
 
+        int         ret;
         void*       grottoKey = nullptr;
         std::size_t grottoKeyDataSize;
+        ret = FastFss_cuda_grottoGetKeyDataSize(
+            &grottoKeyDataSize, bitWidthIn, sizeof(GroupElement), elementNum);
+        CHECK(ret);
+        grottoKey = malloc_gpu(grottoKeyDataSize);
 
         {
             void* deviceAlpha = malloc_gpu(alphaDataSize);
@@ -89,20 +109,15 @@ public:
             memcpy_cpu2gpu(deviceSeed1, seed1.get(), seedDataSize0);
 
             int ret1 = FastFss_cuda_grottoKeyGen(
-                &grottoKey, &grottoKeyDataSize, deviceAlpha, alphaDataSize,
+                grottoKey, grottoKeyDataSize, deviceAlpha, alphaDataSize,
                 deviceSeed0, seedDataSize0, deviceSeed1, seedDataSize1,
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr);
 
             free_gpu(deviceAlpha);
             free_gpu(deviceSeed0);
             free_gpu(deviceSeed1);
 
-            if (ret1 != 0)
-            {
-                std::printf("\n[%d] err. FastFss_cuda_grottoKeyGen ret = %d\n",
-                            __LINE__, ret1);
-                return;
-            }
+            CHECK(ret1);
         }
 
         {
@@ -115,20 +130,14 @@ public:
             int ret2 = FastFss_cuda_grottoEvalEq(
                 deviceSharedOut0, deviceMaskedX, maskedXDataSize, grottoKey,
                 grottoKeyDataSize, deviceSeed0, seedDataSize0, 0, bitWidthIn,
-                sizeof(GroupElement), elementNum);
+                sizeof(GroupElement), elementNum, nullptr, 0, nullptr);
 
             memcpy_gpu2cpu(sharedOut0.get(), deviceSharedOut0, maskedXDataSize);
             free_gpu(deviceMaskedX);
             free_gpu(deviceSharedOut0);
             free_gpu(deviceSeed0);
 
-            if (ret2 != 0)
-            {
-                std::printf("\n[%d] err. FastFss_cuda_grottoEvalEq ret = %d\n",
-                            __LINE__, ret2);
-                cudaFree(grottoKey);
-                return;
-            }
+            CHECK(ret2);
         }
 
         {
@@ -141,20 +150,14 @@ public:
             int ret3 = FastFss_cuda_grottoEvalEq(
                 deviceSharedOut1, deviceMaskedX, maskedXDataSize, grottoKey,
                 grottoKeyDataSize, deviceSeed1, seedDataSize1, 1, bitWidthIn,
-                sizeof(GroupElement), elementNum);
+                sizeof(GroupElement), elementNum, nullptr, 0, nullptr);
 
             memcpy_gpu2cpu(sharedOut1.get(), deviceSharedOut1, maskedXDataSize);
             free_gpu(deviceMaskedX);
             free_gpu(deviceSharedOut1);
             free_gpu(deviceSeed1);
 
-            if (ret3 != 0)
-            {
-                std::printf("\n[%d] err. FastFss_cuda_grottoEvalEq ret = %d\n",
-                            __LINE__, ret3);
-                cudaFree(grottoKey);
-                return;
-            }
+            CHECK(ret3);
         }
 
         for (int i = 0; i < elementNum; i++)
@@ -172,7 +175,7 @@ public:
                 std::exit(-1);
             }
         }
-        cudaFree(grottoKey);
+        free_gpu(grottoKey);
 
         std::puts("  pass");
     }
@@ -222,8 +225,13 @@ public:
             maskedX[i] = mod_bits<GroupElement>(maskedX[i], bitWidthIn);
         }
 
+        int         ret;
         void*       grottoKey = nullptr;
         std::size_t grottoKeyDataSize;
+        ret = FastFss_cuda_grottoGetKeyDataSize(
+            &grottoKeyDataSize, bitWidthIn, sizeof(GroupElement), elementNum);
+        CHECK(ret);
+        grottoKey = malloc_gpu(grottoKeyDataSize);
 
         {
             void* deviceAlpha = malloc_gpu(alphaDataSize);
@@ -234,9 +242,9 @@ public:
             memcpy_cpu2gpu(deviceSeed1, seed1.get(), seedDataSize0);
 
             int ret1 = FastFss_cuda_grottoKeyGen(
-                &grottoKey, &grottoKeyDataSize, deviceAlpha, alphaDataSize,
+                grottoKey, grottoKeyDataSize, deviceAlpha, alphaDataSize,
                 deviceSeed0, seedDataSize0, deviceSeed1, seedDataSize1,
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr);
 
             free_gpu(deviceAlpha);
             free_gpu(deviceSeed0);
@@ -260,7 +268,8 @@ public:
             int ret2 = FastFss_cuda_grottoEval(
                 deviceSharedOut0, deviceMaskedX, maskedXDataSize, grottoKey,
                 grottoKeyDataSize, deviceSeed0, seedDataSize0, false, 0,
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr, 0,
+                nullptr);
 
             memcpy_gpu2cpu(sharedOut0.get(), deviceSharedOut0, maskedXDataSize);
             free_gpu(deviceMaskedX);
@@ -286,7 +295,8 @@ public:
             int ret3 = FastFss_cuda_grottoEval(
                 deviceSharedOut1, deviceMaskedX, maskedXDataSize, grottoKey,
                 grottoKeyDataSize, deviceSeed1, seedDataSize1, false, 1,
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr, 0,
+                nullptr);
 
             memcpy_gpu2cpu(sharedOut1.get(), deviceSharedOut1, maskedXDataSize);
             free_gpu(deviceMaskedX);
@@ -329,7 +339,8 @@ public:
             int ret2 = FastFss_cuda_grottoEval(
                 deviceSharedOut0, deviceMaskedX, maskedXDataSize, grottoKey,
                 grottoKeyDataSize, deviceSeed0, seedDataSize0, true, 0,
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr, 0,
+                nullptr);
 
             memcpy_gpu2cpu(sharedOut0.get(), deviceSharedOut0, maskedXDataSize);
             free_gpu(deviceMaskedX);
@@ -354,7 +365,8 @@ public:
             int ret3 = FastFss_cuda_grottoEval(
                 deviceSharedOut1, deviceMaskedX, maskedXDataSize, grottoKey,
                 grottoKeyDataSize, deviceSeed1, seedDataSize1, true, 1,
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr, 0,
+                nullptr);
             memcpy_gpu2cpu(sharedOut1.get(), deviceSharedOut1, maskedXDataSize);
             free_gpu(deviceMaskedX);
             free_gpu(deviceSharedOut1);
@@ -424,8 +436,20 @@ public:
         std::size_t leftBoundaryDataSize  = intervalNum * sizeof(GroupElement);
         std::size_t rightBoundaryDataSize = intervalNum * sizeof(GroupElement);
 
+        int         ret;
         void*       grottoMICKey         = nullptr;
         std::size_t grottoMICKeyDataSize = 0;
+        void*       grottoCache          = nullptr;
+        std::size_t cacheDataSize        = 0;
+        ret =
+            FastFss_cuda_grottoGetKeyDataSize(&grottoMICKeyDataSize, bitWidthIn,
+                                              sizeof(GroupElement), elementNum);
+        CHECK(ret);
+        ret = FastFss_cuda_grottoGetCacheDataSize(
+            &cacheDataSize, bitWidthIn, sizeof(GroupElement), elementNum);
+        CHECK(ret);
+        grottoMICKey = malloc_gpu(grottoMICKeyDataSize);
+        grottoCache  = malloc_gpu(cacheDataSize);
 
         for (std::size_t i = 0; i < elementNum; ++i)
         {
@@ -450,20 +474,14 @@ public:
             memcpy_cpu2gpu(deviceSeed1, seed1.data(), seedDataSize1);
 
             int ret1 = FastFss_cuda_grottoKeyGen(
-                &grottoMICKey, &grottoMICKeyDataSize, deviceAlpha,
-                alphaDataSize, deviceSeed0, seedDataSize0, deviceSeed1,
-                seedDataSize1, bitWidthIn, sizeof(GroupElement), elementNum);
+                grottoMICKey, grottoMICKeyDataSize, deviceAlpha, alphaDataSize,
+                deviceSeed0, seedDataSize0, deviceSeed1, seedDataSize1,
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr);
+            CHECK(ret1);
 
             free_gpu(deviceAlpha);
             free_gpu(deviceSeed0);
             free_gpu(deviceSeed1);
-
-            if (ret1 != 0)
-            {
-                std::printf("\n[%d] err. FastFss_cuda_grottoKeyGen ret = %d\n",
-                            __LINE__, ret1);
-                return;
-            }
         }
 
         {
@@ -483,20 +501,22 @@ public:
                            rightBoundaryDataSize);
 
             int ret1 = FastFss_cuda_grottoMICEval(
-                deviceSharedOut0,      //
-                sharedOutDataSize,     //
-                deviceMaskedX,         //
-                maskedXDataSize,       //
-                grottoMICKey,          //
-                grottoMICKeyDataSize,  //
-                deviceSeed0,           //
-                seedDataSize0,         //
-                0,                     //
-                deviceLeftBoundary,    //
-                leftBoundaryDataSize,  //
-                deviceRightBoundary,   //
-                rightBoundaryDataSize, //
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                deviceSharedOut0,                             //
+                sharedOutDataSize,                            //
+                deviceMaskedX,                                //
+                maskedXDataSize,                              //
+                grottoMICKey,                                 //
+                grottoMICKeyDataSize,                         //
+                deviceSeed0,                                  //
+                seedDataSize0,                                //
+                0,                                            //
+                deviceLeftBoundary,                           //
+                leftBoundaryDataSize,                         //
+                deviceRightBoundary,                          //
+                rightBoundaryDataSize,                        //
+                bitWidthIn, sizeof(GroupElement), elementNum, //
+                nullptr, 0, nullptr);
+            CHECK(ret1);
 
             memcpy_gpu2cpu(sharedOut0.data(), deviceSharedOut0,
                            sharedOutDataSize);
@@ -506,14 +526,6 @@ public:
             free_gpu(deviceSeed0);
             free_gpu(deviceMaskedX);
             free_gpu(deviceSharedOut0);
-
-            if (ret1 != 0)
-            {
-                cudaFree(grottoMICKey);
-                std::printf(
-                    "[err] FastFss_cuda_grottoMICEval failed ret = %d\n", ret1);
-                return;
-            }
         }
 
         {
@@ -533,20 +545,22 @@ public:
                            rightBoundaryDataSize);
 
             int ret2 = FastFss_cuda_grottoMICEval(
-                deviceSharedOut1,      //
-                sharedOutDataSize,     //
-                deviceMaskedX,         //
-                maskedXDataSize,       //
-                grottoMICKey,          //
-                grottoMICKeyDataSize,  //
-                deviceSeed1,           //
-                seedDataSize1,         //
-                1,                     //
-                deviceLeftBoundary,    //
-                leftBoundaryDataSize,  //
-                deviceRightBoundary,   //
-                rightBoundaryDataSize, //
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                deviceSharedOut1,                             //
+                sharedOutDataSize,                            //
+                deviceMaskedX,                                //
+                maskedXDataSize,                              //
+                grottoMICKey,                                 //
+                grottoMICKeyDataSize,                         //
+                deviceSeed1,                                  //
+                seedDataSize1,                                //
+                1,                                            //
+                deviceLeftBoundary,                           //
+                leftBoundaryDataSize,                         //
+                deviceRightBoundary,                          //
+                rightBoundaryDataSize,                        //
+                bitWidthIn, sizeof(GroupElement), elementNum, //
+                grottoCache, cacheDataSize, nullptr);
+            CHECK(ret2);
 
             memcpy_gpu2cpu(sharedOut1.data(), deviceSharedOut1,
                            sharedOutDataSize);
@@ -556,14 +570,6 @@ public:
             free_gpu(deviceSeed1);
             free_gpu(deviceMaskedX);
             free_gpu(deviceSharedOut1);
-
-            if (ret2 != 0)
-            {
-                cudaFree(grottoMICKey);
-                std::printf(
-                    "[err] FastFss_cuda_grottoMICEval failed ret = %d\n", ret2);
-                return;
-            }
         }
 
         for (std::size_t i = 0; i < elementNum; ++i)
@@ -595,6 +601,7 @@ public:
         }
 
         cudaFree(grottoMICKey);
+        free_gpu(grottoCache);
         std::puts("  pass");
     }
 };

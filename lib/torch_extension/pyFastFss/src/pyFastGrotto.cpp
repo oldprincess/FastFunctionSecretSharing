@@ -1,7 +1,6 @@
 #include <FastFss/cpu/grotto.h>
-#include <FastFss/cpu/mic.h>
 #include <FastFss/cuda/grotto.h>
-#include <FastFss/cuda/mic.h>
+#include <c10/cuda/CUDAStream.h>
 #include <torch/extension.h>
 
 #include <cstddef>
@@ -27,28 +26,30 @@ std::size_t grotto_get_key_data_size(std::size_t bitWidthIn,
                                      std::size_t elementSize,
                                      std::size_t elementNum)
 {
-    int result =
-        FastFss_cpu_grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum);
+    std::size_t keyDataSize = 0;
+    int result = FastFss_cpu_grottoGetKeyDataSize(&keyDataSize, bitWidthIn,
+                                                  elementSize, elementNum);
     if (result < 0)
     {
         ERR_LOG("FastFss_cpu_grottoGetKeyDataSize ret = %d", result);
         throw std::runtime_error("FastFss_cpu_grottoGetKeyDataSize fail");
     }
-    return (std::size_t)result;
+    return keyDataSize;
 }
 
 std::size_t grotto_get_zipped_key_data_size(std::size_t bitWidthIn,
                                             std::size_t elementSize,
                                             std::size_t elementNum)
 {
-    int result = FastFss_cpu_grottoGetZippedKeyDataSize(bitWidthIn, elementSize,
-                                                        elementNum);
+    std::size_t keyDataSize = 0;
+    int         result      = FastFss_cpu_grottoGetZippedKeyDataSize(
+        &keyDataSize, bitWidthIn, elementSize, elementNum);
     if (result < 0)
     {
         ERR_LOG("FastFss_cpu_grottoGetZippedKeyDataSize ret = %d", result);
         throw std::runtime_error("FastFss_cpu_grottoGetZippedKeyDataSize fail");
     }
-    return (std::size_t)result;
+    return keyDataSize;
 }
 
 void grotto_key_zip(torch::Tensor zippedKeyOut,
@@ -70,17 +71,16 @@ void grotto_key_zip(torch::Tensor zippedKeyOut,
         zippedKeyOut.resize_({(std::int64_t)zippedKeyDataSize});
     }
 
-    void*       zippedKeyOutPtr = zippedKeyOut.mutable_data_ptr();
-    std::size_t inputDataSize   = zippedKeyOut.numel();
     if (device.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_grottoKeyZip(&zippedKeyOutPtr,         //
-                                           &inputDataSize,           //
-                                           key.const_data_ptr(),     //
-                                           (std::size_t)key.numel(), //
-                                           bitWidthIn,               //
-                                           1,                        //
-                                           elementNum                //
+        int ret = FastFss_cpu_grottoKeyZip(    //
+            zippedKeyOut.mutable_data_ptr(),   //
+            (std::size_t)zippedKeyOut.numel(), //
+            key.const_data_ptr(),              //
+            (std::size_t)key.numel(),          //
+            bitWidthIn,                        //
+            1,                                 //
+            elementNum                         //
         );
         if (ret < 0)
         {
@@ -90,13 +90,17 @@ void grotto_key_zip(torch::Tensor zippedKeyOut,
     }
     else if (device.type() == torch::kCUDA)
     {
-        int ret = FastFss_cuda_grottoKeyZip(&zippedKeyOutPtr,         //
-                                            &inputDataSize,           //
-                                            key.const_data_ptr(),     //
-                                            (std::size_t)key.numel(), //
-                                            bitWidthIn,               //
-                                            1,                        //
-                                            elementNum                //
+        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
+
+        int ret = FastFss_cuda_grottoKeyZip(   //
+            zippedKeyOut.mutable_data_ptr(),   //
+            (std::size_t)zippedKeyOut.numel(), //
+            key.const_data_ptr(),              //
+            (std::size_t)key.numel(),          //
+            bitWidthIn,                        //
+            1,                                 //
+            elementNum,                        //
+            &stream                            //
         );
         if (ret < 0)
         {
@@ -129,17 +133,16 @@ void grotto_key_unzip(torch::Tensor keyOut,
         keyOut.resize_({(std::int64_t)keyDataSize});
     }
 
-    void*       keyOutPtr     = keyOut.mutable_data_ptr();
-    std::size_t inputDataSize = (std::size_t)keyOut.numel();
     if (device.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_grottoKeyUnzip(&keyOutPtr,                     //
-                                             &inputDataSize,                 //
-                                             zippedKey.const_data_ptr(),     //
-                                             (std::size_t)zippedKey.numel(), //
-                                             bitWidthIn,                     //
-                                             1,                              //
-                                             elementNum                      //
+        int ret = FastFss_cpu_grottoKeyUnzip( //
+            keyOut.mutable_data_ptr(),        //
+            (std::size_t)keyOut.numel(),      //
+            zippedKey.const_data_ptr(),       //
+            (std::size_t)zippedKey.numel(),   //
+            bitWidthIn,                       //
+            1,                                //
+            elementNum                        //
         );
         if (ret < 0)
         {
@@ -149,13 +152,17 @@ void grotto_key_unzip(torch::Tensor keyOut,
     }
     else if (device.type() == torch::kCUDA)
     {
-        int ret = FastFss_cuda_grottoKeyUnzip(&keyOutPtr,                     //
-                                              &inputDataSize,                 //
-                                              zippedKey.const_data_ptr(),     //
-                                              (std::size_t)zippedKey.numel(), //
-                                              bitWidthIn,                     //
-                                              1,                              //
-                                              elementNum                      //
+        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
+
+        int ret = FastFss_cuda_grottoKeyUnzip( //
+            keyOut.mutable_data_ptr(),         //
+            (std::size_t)keyOut.numel(),       //
+            zippedKey.const_data_ptr(),        //
+            (std::size_t)zippedKey.numel(),    //
+            bitWidthIn,                        //
+            1,                                 //
+            elementNum,                        //
+            &stream                            //
         );
         if (ret < 0)
         {
@@ -169,6 +176,7 @@ void grotto_key_unzip(torch::Tensor keyOut,
         throw std::invalid_argument("device must be CPU or CUDA");
     }
 }
+
 void grotto_key_gen(torch::Tensor keyOut,
                     torch::Tensor alpha,
                     torch::Tensor seed0,
@@ -215,13 +223,11 @@ void grotto_key_gen(torch::Tensor keyOut,
         keyOut.resize_({(std::int64_t)grottoKeyDataSize});
     }
 
-    void*       grottoKeyPtr = keyOut.mutable_data_ptr();
-    std::size_t inputKeySize = (std::size_t)keyOut.numel();
     if (device.type() == torch::kCPU)
     {
         int ret = FastFss_cpu_grottoKeyGen(
-            &grottoKeyPtr,                            //
-            &inputKeySize,                            //
+            keyOut.mutable_data_ptr(),                //
+            (std::size_t)keyOut.numel(),              //
             alpha.const_data_ptr(),                   //
             (std::size_t)alpha.numel() * elementSize, //
             seed0.const_data_ptr(),                   //
@@ -240,9 +246,11 @@ void grotto_key_gen(torch::Tensor keyOut,
     }
     else if (device.type() == torch::kCUDA)
     {
+        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
+
         int ret = FastFss_cuda_grottoKeyGen(
-            &grottoKeyPtr,                            //
-            &inputKeySize,                            //
+            keyOut.mutable_data_ptr(),                //
+            (std::size_t)keyOut.numel(),              //
             alpha.const_data_ptr(),                   //
             (std::size_t)alpha.numel() * elementSize, //
             seed0.const_data_ptr(),                   //
@@ -251,7 +259,8 @@ void grotto_key_gen(torch::Tensor keyOut,
             (std::size_t)seed1.numel(),               //
             bitWidthIn,                               //
             elementSize,                              //
-            elementNum                                //
+            elementNum,                               //
+            &stream                                   //
         );
         if (ret != 0)
         {
@@ -322,7 +331,10 @@ void grotto_eval_eq(torch::Tensor sharedOut,
             partyId,                                    //
             bitWidthIn,                                 //
             elementSize,                                //
-            elementNum);
+            elementNum,                                 //
+            nullptr,                                    //
+            0                                           //
+        );
         if (ret != 0)
         {
             ERR_LOG("FastFss_cpu_grottoEval fail ret = %d", ret);
@@ -331,6 +343,8 @@ void grotto_eval_eq(torch::Tensor sharedOut,
     }
     else if (device.type() == torch::kCUDA)
     {
+        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
+
         int ret = FastFss_cuda_grottoEvalEq(
             sharedOut.mutable_data_ptr(),               //
             maskedX.const_data_ptr(),                   //
@@ -342,7 +356,11 @@ void grotto_eval_eq(torch::Tensor sharedOut,
             partyId,                                    //
             bitWidthIn,                                 //
             elementSize,                                //
-            elementNum);
+            elementNum,                                 //
+            nullptr,                                    //
+            0,                                          //
+            &stream                                     //
+        );
         if (ret != 0)
         {
             ERR_LOG("FastFss_cuda_grottoEval fail ret = %d", ret);
@@ -411,7 +429,9 @@ void grotto_eval(torch::Tensor sharedOut,
             partyId,                                    //
             bitWidthIn,                                 //
             elementSize,                                //
-            elementNum);
+            elementNum,                                 //
+            nullptr,                                    //
+            0);
         if (ret != 0)
         {
             ERR_LOG("FastFss_cpu_grottoEval fail ret = %d", ret);
@@ -420,7 +440,8 @@ void grotto_eval(torch::Tensor sharedOut,
     }
     else if (device.type() == torch::kCUDA)
     {
-        int ret = FastFss_cuda_grottoEval(
+        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
+        int          ret    = FastFss_cuda_grottoEval(
             sharedOut.mutable_data_ptr(),               //
             maskedX.const_data_ptr(),                   //
             (std::size_t)maskedX.numel() * elementSize, //
@@ -432,7 +453,11 @@ void grotto_eval(torch::Tensor sharedOut,
             partyId,                                    //
             bitWidthIn,                                 //
             elementSize,                                //
-            elementNum);
+            elementNum,                                 //
+            nullptr,                                    //
+            0,                                          //
+            &stream                                     //
+        );
         if (ret != 0)
         {
             ERR_LOG("FastFss_cuda_grottoEval fail ret = %d", ret);
@@ -513,7 +538,9 @@ void grotto_mic_eval(torch::Tensor sharedBooleanOut,
             (std::size_t)rightBoundary.numel() * elementSize,    //
             bitWidthIn,                                          //
             elementSize,                                         //
-            elementNum);
+            elementNum,                                          //
+            nullptr,                                             //
+            0);
         if (ret != 0)
         {
             ERR_LOG("FastFss_cpu_grottoMICEval ret = %d", ret);
@@ -522,6 +549,8 @@ void grotto_mic_eval(torch::Tensor sharedBooleanOut,
     }
     else if (device.type() == torch::kCUDA)
     {
+        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
+
         int ret = FastFss_cuda_grottoMICEval(                    //
             sharedBooleanOut.mutable_data_ptr(),                 //
             (std::size_t)sharedBooleanOut.numel() * elementSize, //
@@ -538,7 +567,11 @@ void grotto_mic_eval(torch::Tensor sharedBooleanOut,
             (std::size_t)rightBoundary.numel() * elementSize,    //
             bitWidthIn,                                          //
             elementSize,                                         //
-            elementNum);
+            elementNum,                                          //
+            nullptr,                                             //
+            0,                                                   //
+            &stream                                              //
+        );
         if (ret != 0)
         {
             ERR_LOG("FastFss_cuda_grottoMICEval ret = %d", ret);
@@ -615,6 +648,20 @@ void grotto_interval_lut_eval(torch::Tensor sharedOutE,
         sharedOutT.resize_({(std::int64_t)(elementNum)});
     }
 
+    std::size_t cacheSize;
+    {
+        int ret = FastFss_cpu_grottoGetCacheDataSize(&cacheSize, bitWidthIn,
+                                                     elementSize, elementNum);
+        if (ret)
+        {
+            ERR_LOG("FastFss_cpu_grottoGetCacheDataSize ret = %d", ret);
+            throw std::runtime_error("FastFss_cpu_grottoGetCacheDataSize fail");
+        }
+    }
+    torch::TensorOptions options;
+    options             = options.dtype(torch::kUInt8).device(device.type());
+    torch::Tensor cache = torch::empty({(std::int64_t)(cacheSize)}, options);
+
     if (device.type() == torch::kCPU)
     {
         int ret = FastFss_cpu_grottoIntervalLutEval(          //
@@ -636,7 +683,7 @@ void grotto_interval_lut_eval(torch::Tensor sharedOutE,
             bitWidthIn,                                       //
             bitWidthOut,                                      //
             elementSize,                                      //
-            elementNum);
+            elementNum, cache.mutable_data_ptr(), cacheSize);
         if (ret != 0)
         {
             ERR_LOG("FastFss_cpu_grottoIntervalLutEval fail ret = %d", ret);
@@ -645,6 +692,10 @@ void grotto_interval_lut_eval(torch::Tensor sharedOutE,
     }
     else if (device.type() == torch::kCUDA)
     {
+        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
+
+        ERR_LOG("stream ptr = %p", stream);
+
         int ret = FastFss_cuda_grottoIntervalLutEval(         //
             sharedOutE.mutable_data_ptr(),                    //
             sharedOutT.mutable_data_ptr(),                    //
@@ -664,7 +715,7 @@ void grotto_interval_lut_eval(torch::Tensor sharedOutE,
             bitWidthIn,                                       //
             bitWidthOut,                                      //
             elementSize,                                      //
-            elementNum);
+            elementNum, cache.mutable_data_ptr(), cacheSize, &stream);
         if (ret != 0)
         {
             ERR_LOG("FastFss_cuda_grottoIntervalLutEval ret = %d", ret);

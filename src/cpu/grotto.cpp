@@ -1,438 +1,160 @@
-#include "grotto.hpp"
-
 #include <FastFss/cpu/grotto.h>
 
-#include <cassert>
-#include <cstdlib>
-#include <memory>
+#if !defined(AES_IMPL)
+#include "../impl/aesni.h"
+#define AES_IMPL
+#endif
 
-enum GROTTO_ERROR_CODE
+#include "../impl/grotto.h"
+
+using namespace FastFss;
+
+enum ERR_CODE
 {
-    GROTTO_SUCCESS                            = 0,
-    GROTTO_RUNTIME_ERROR                      = -1,
-    GROTTO_INVALID_KEY_DATA_SIZE_ERROR        = -2,
-    GROTTO_INVALID_ALPHA_DATA_SIZE_ERROR      = -3,
-    GROTTO_INVALID_SEED_DATA_SIZE_ERROR       = -5,
-    GROTTO_INVALID_BOUNDARY_DATA_SIZE_ERROR   = -6,
-    GROTTO_INVALID_Z_DATA_SIZE_ERROR          = -7,
-    GROTTO_INVALID_SHARED_OUT_DATA_SIZE_ERROR = -8,
-    GROTTO_INVLIAD_MASKED_X_DATA_SIZE_ERROR   = -9,
-    GROTTO_INVALID_BITWIDTH_ERROR             = -10,
-    GROTTO_INVALID_ELEMENT_SIZE_ERROR         = -11,
-    GROTTO_INVALID_PARTY_ID_ERROR             = -12,
+    SUCCESS                    = 0,
+    RUNTIME_ERROR              = -1,
+    INVALID_ELEMENT_SIZE       = -2,
+    INVALID_ALPHA_DATA_SIZE    = -3,
+    INVALID_SEED_DATA_SIZE     = -4,
+    INVALID_BITWIDTH           = -5,
+    INVALID_PARTY_ID           = -6,
+    INVALID_KEY_DATA_SIZE      = -7,
+    INVLIAD_MASKED_X_DATA_SIZE = -8,
+    INVALID_CACHE_DATA_SIZE    = -9,
+    INVALID_BOUNDARY_DATA_SIZE = -10,
+    INVALID_LUT_DATA_SIZE      = -11,
+    INVALID_MIC_OUT_DATA_SIZE  = -12,
 };
 
-namespace FastFss::cpu {
+static std::size_t grottoGetKeyDataSize(size_t bitWidthIn,
+                                        size_t elementSize,
+                                        size_t elementNum)
+{
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return (size_t)0; },
+        [&] {
+            return impl::grottoGetKeyDataSize<scalar_t>(bitWidthIn, elementNum);
+        });
+}
+
+static std::size_t grottoGetCacheDataSize(size_t bitWidthIn,
+                                          size_t elementSize,
+                                          size_t elementNum)
+{
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return (size_t)0; },
+        [&] {
+            return impl::grottoGetCacheDataSize<scalar_t>(bitWidthIn,
+                                                          elementNum);
+        });
+}
+
+#define CHECK_ALPHA_DATA_SIZE(alphaDataSize, elementSize, elementNum) \
+    if (alphaDataSize != elementSize * elementNum)                    \
+    {                                                                 \
+        return ERR_CODE::INVALID_ALPHA_DATA_SIZE;                     \
+    }
+
+#define CHECK_MASKED_X_DATA_SIZE(maskedXDataSize, elementSize, elementNum) \
+    if (maskedXDataSize != elementSize * elementNum)                       \
+    {                                                                      \
+        return ERR_CODE::INVLIAD_MASKED_X_DATA_SIZE;                       \
+    }
+
+#define CHECK_SEED_DATA_SIZE(seedDataSize, elementNum) \
+    if (seedDataSize != 16 * elementNum)               \
+    {                                                  \
+        return ERR_CODE::INVALID_SEED_DATA_SIZE;       \
+    }
+
+#define CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize)         \
+    if (!(bitWidthIn <= elementSize * 8 && bitWidthIn > 6)) \
+    {                                                       \
+        return ERR_CODE::INVALID_BITWIDTH;                  \
+    }
+
+#define CHECK_PARTY_ID(partyId)            \
+    if (!(partyId == 0 || partyId == 1))   \
+    {                                      \
+        return ERR_CODE::INVALID_PARTY_ID; \
+    }
+
+#define CHECK_KEY_DATA_SIZE(keyDataSize, bitWidthIn, elementSize, elementNum) \
+    if (!(keyDataSize ==                                                      \
+          grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum)))         \
+    {                                                                         \
+        return ERR_CODE::INVALID_KEY_DATA_SIZE;                               \
+    }
+
+#define CHECK_CACHE_DATA_SIZE(cachePtr, cacheDataSize, bitWidthIn,            \
+                              elementSize, elementNum)                        \
+    if (!(cachePtr == nullptr ||                                              \
+          (cachePtr != nullptr &&                                             \
+           cacheDataSize ==                                                   \
+               grottoGetCacheDataSize(bitWidthIn, elementSize, elementNum)))) \
+    {                                                                         \
+        return ERR_CODE::INVALID_CACHE_DATA_SIZE;                             \
+    }
+
+#define CHECK_BOUNDARY_DATA_SIZE(leftBoundaryDataSize, rightBoundaryDataSize, \
+                                 elementSize)                                 \
+    if (!(leftBoundaryDataSize == rightBoundaryDataSize &&                    \
+          leftBoundaryDataSize % elementSize == 0))                           \
+    {                                                                         \
+        return ERR_CODE::INVALID_BOUNDARY_DATA_SIZE;                          \
+    }
+
+#define CHECK_MIC_OUT_DATA_SIZE(outDataSize, intervalNum, elementSize, \
+                                elementNum)                            \
+    if (!(outDataSize == intervalNum * elementSize * elementNum))      \
+    {                                                                  \
+        return ERR_CODE::INVALID_MIC_OUT_DATA_SIZE;                    \
+    }
+
+#define CHECK_LUT_DATA_SIZE(lutDataSize, intervalNum, elementSize) \
+    if (!(lutDataSize == intervalNum * elementSize))               \
+    {                                                              \
+        return ERR_CODE::INVALID_LUT_DATA_SIZE;                    \
+    }
+
+#define CAL_INTERVAL_NUM(boundaryDataSize, elementSize) \
+    ((boundaryDataSize) / (elementSize))
+
+#define CAST_CUDA_STREAM_PTR(cpuStreamPtr) \
+    ((cpuStreamPtr) == nullptr) ? 0 : *(cpuStream_t*)(cpuStreamPtr)
 
 template <typename GroupElement>
-static int IMPL_FastFss_cpu_grottoKeyGen(void**      key,
-                                         size_t*     keyDataSize,
-                                         const void* alpha,
-                                         size_t      alphaDataSize,
-                                         const void* seed0,
-                                         size_t      seedDataSize0,
-                                         const void* seed1,
-                                         size_t      seedDataSize1,
-                                         size_t      bitWidthIn,
-                                         size_t      elementSize,
-                                         size_t      elementNum) noexcept
+static void grottoKeyGenKernel(void*       key,
+                               const void* alpha,
+                               const void* seed0,
+                               const void* seed1,
+                               size_t      bitWidthIn,
+                               size_t      elementNum)
 {
-    assert(sizeof(GroupElement) == elementSize);
-
-    if (alphaDataSize != sizeof(GroupElement) * elementNum)
-    {
-        return GROTTO_INVALID_ALPHA_DATA_SIZE_ERROR;
-    }
-    if (!(seedDataSize0 == 16 * elementNum && seedDataSize1 == 16 * elementNum))
-    {
-        return GROTTO_INVALID_SEED_DATA_SIZE_ERROR;
-    }
-    if (!(bitWidthIn <= elementSize * 8 && bitWidthIn > 6))
-    {
-        return GROTTO_INVALID_BITWIDTH_ERROR;
-    }
-    std::size_t needKeyDataSize = grottoGetKeyDataSize<GroupElement>( //
-        bitWidthIn, elementNum                                        //
-    );                                                                //
-    if (*key != nullptr)
-    {
-        if (*keyDataSize != needKeyDataSize)
-        {
-            return GROTTO_INVALID_KEY_DATA_SIZE_ERROR;
-        }
-    }
-    else
-    {
-        *key = std::malloc(needKeyDataSize);
-        if (*key == nullptr)
-        {
-            return GROTTO_RUNTIME_ERROR;
-        }
-        *keyDataSize = needKeyDataSize;
-    }
-
-    // ===============================================
+    std::size_t idx    = 0;
+    std::size_t stride = 1;
 
     const GroupElement* alphaPtr = (const GroupElement*)alpha;
-    const std::uint8_t* seedPtr0 = (const std::uint8_t*)seed0;
-    const std::uint8_t* seedPtr1 = (const std::uint8_t*)seed1;
+    const std::uint8_t* seed0Ptr = (const std::uint8_t*)seed0;
+    const std::uint8_t* seed1Ptr = (const std::uint8_t*)seed1;
 
-    for (std::size_t i = 0; i < elementNum; i++)
+    impl::GrottoKey<GroupElement> keyObj;
+    for (std::size_t i = idx; i < elementNum; i += stride)
     {
-        GrottoKey<GroupElement> grottoKey;
-        std::size_t             offsetAlpha = i;
-        std::size_t             offsetSeed0 = 16 * i;
-        std::size_t             offsetSeed1 = 16 * i;
-        grottoKeySetPtr<GroupElement>(grottoKey, *key, bitWidthIn, i,
-                                      elementNum);
-        grottoKeyGen<GroupElement>(grottoKey, alphaPtr[offsetAlpha],
-                                   seedPtr0 + offsetSeed0,
-                                   seedPtr1 + offsetSeed1, bitWidthIn);
+        std::size_t alphaOffset = i;
+        std::size_t seed0Offset = 16 * i;
+        std::size_t seed1Offset = 16 * i;
+        impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
+        impl::grottoKeyGen(keyObj,                 //
+                           alphaPtr[alphaOffset],  //
+                           seed0Ptr + seed0Offset, //
+                           seed1Ptr + seed1Offset, //
+                           bitWidthIn);            //
     }
-
-    return GROTTO_SUCCESS;
 }
 
-template <typename GroupElement>
-static int IMPL_FastFss_cpu_grottoEval(void*       sharedOut,
-                                       const void* maskedX,
-                                       size_t      maskedXDataSize,
-                                       const void* key,
-                                       size_t      keyDataSize,
-                                       const void* seed,
-                                       size_t      seedDataSize,
-                                       bool        equalBound,
-                                       int         partyId,
-                                       size_t      bitWidthIn,
-                                       size_t      elementSize,
-                                       size_t      elementNum)
-{
-    assert(sizeof(GroupElement) == elementSize);
-
-    if (maskedXDataSize != sizeof(GroupElement) * elementNum)
-    {
-        return GROTTO_INVLIAD_MASKED_X_DATA_SIZE_ERROR;
-    }
-    if (seedDataSize != 16 * elementNum)
-    {
-        return GROTTO_INVALID_SEED_DATA_SIZE_ERROR;
-    }
-    if (!(bitWidthIn <= elementSize * 8 && bitWidthIn > 6))
-    {
-        return GROTTO_INVALID_BITWIDTH_ERROR;
-    }
-    std::size_t needKeyDataSize = grottoGetKeyDataSize<GroupElement>( //
-        bitWidthIn, elementNum                                        //
-    );                                                                //
-    if (keyDataSize != needKeyDataSize)
-    {
-        return GROTTO_INVALID_KEY_DATA_SIZE_ERROR;
-    }
-    if (!(partyId == 0 || partyId == 1))
-    {
-        return GROTTO_INVALID_PARTY_ID_ERROR;
-    }
-
-    // ===============================================
-
-    GroupElement*       sharedOutPtr = (GroupElement*)sharedOut;
-    const GroupElement* maskedXPtr   = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr      = (const std::uint8_t*)seed;
-
-    GrottoKey<GroupElement> grottoKey;
-    for (std::size_t i = 0; i < elementNum; i++)
-    {
-        std::size_t offsetSharedOut = i;
-        std::size_t offsetMaskedX   = i;
-        std::size_t offsetSeed      = 16 * i;
-
-        grottoKeySetPtr<GroupElement>(grottoKey, key, bitWidthIn, i,
-                                      elementNum);
-        sharedOutPtr[offsetSharedOut] = grottoEval<GroupElement>( //
-            grottoKey, maskedXPtr[offsetMaskedX], seedPtr + offsetSeed, partyId,
-            bitWidthIn, equalBound);
-    }
-
-    return GROTTO_SUCCESS;
-}
-
-template <typename GroupElement>
-static int IMPL_FastFss_cpu_grottoEvalEq(void*       sharedOut,
-                                         const void* maskedX,
-                                         size_t      maskedXDataSize,
-                                         const void* key,
-                                         size_t      keyDataSize,
-                                         const void* seed,
-                                         size_t      seedDataSize,
-                                         int         partyId,
-                                         size_t      bitWidthIn,
-                                         size_t      elementSize,
-                                         size_t      elementNum)
-{
-    assert(sizeof(GroupElement) == elementSize);
-
-    if (maskedXDataSize != sizeof(GroupElement) * elementNum)
-    {
-        return GROTTO_INVLIAD_MASKED_X_DATA_SIZE_ERROR;
-    }
-    if (seedDataSize != 16 * elementNum)
-    {
-        return GROTTO_INVALID_SEED_DATA_SIZE_ERROR;
-    }
-    if (!(bitWidthIn <= elementSize * 8 && bitWidthIn > 6))
-    {
-        return GROTTO_INVALID_BITWIDTH_ERROR;
-    }
-    std::size_t needKeyDataSize = grottoGetKeyDataSize<GroupElement>( //
-        bitWidthIn, elementNum                                        //
-    );                                                                //
-    if (keyDataSize != needKeyDataSize)
-    {
-        return GROTTO_INVALID_KEY_DATA_SIZE_ERROR;
-    }
-    if (!(partyId == 0 || partyId == 1))
-    {
-        return GROTTO_INVALID_PARTY_ID_ERROR;
-    }
-
-    // ===============================================
-
-    GroupElement*       sharedOutPtr = (GroupElement*)sharedOut;
-    const GroupElement* maskedXPtr   = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr      = (const std::uint8_t*)seed;
-
-    GrottoKey<GroupElement> grottoKey;
-    for (std::size_t i = 0; i < elementNum; i++)
-    {
-        std::size_t offsetSharedOut = i;
-        std::size_t offsetMaskedX   = i;
-        std::size_t offsetSeed      = 16 * i;
-
-        grottoKeySetPtr<GroupElement>(grottoKey, key, bitWidthIn, i,
-                                      elementNum);
-        sharedOutPtr[offsetSharedOut] = grottoEvalEq<GroupElement>( //
-            grottoKey, maskedXPtr[offsetMaskedX], seedPtr + offsetSeed, partyId,
-            bitWidthIn);
-    }
-
-    return GROTTO_SUCCESS;
-}
-
-template <typename GroupElement>
-static int IMPL_FastFss_cpu_grottoMICEval(void*       sharedBooleanOut,
-                                          size_t      sharedBooleanOutDataSize,
-                                          const void* maskedX,
-                                          size_t      maskedXDataSize,
-                                          const void* key,
-                                          size_t      keyDataSize,
-                                          const void* seed,
-                                          size_t      seedDataSize,
-                                          int         partyId,
-                                          const void* leftBoundary,
-                                          size_t      leftBoundaryDataSize,
-                                          const void* rightBoundary,
-                                          size_t      rightBoundaryDataSize,
-                                          size_t      bitWidthIn,
-                                          size_t      elementSize,
-                                          size_t      elementNum) noexcept
-{
-    assert(sizeof(GroupElement) == elementSize);
-    if (leftBoundaryDataSize != rightBoundaryDataSize ||
-        leftBoundaryDataSize % sizeof(GroupElement) != 0)
-    {
-        return GROTTO_INVALID_BOUNDARY_DATA_SIZE_ERROR;
-    }
-    std::size_t intervalNum = leftBoundaryDataSize / sizeof(GroupElement);
-    if (sharedBooleanOutDataSize !=
-        sizeof(GroupElement) * elementNum * intervalNum)
-    {
-        return GROTTO_INVALID_SHARED_OUT_DATA_SIZE_ERROR;
-    }
-
-    if (maskedXDataSize != sizeof(GroupElement) * elementNum)
-    {
-        return GROTTO_INVLIAD_MASKED_X_DATA_SIZE_ERROR;
-    }
-    if (seedDataSize != 16 * elementNum)
-    {
-        return GROTTO_INVALID_SEED_DATA_SIZE_ERROR;
-    }
-    if (!(bitWidthIn <= elementSize * 8 && bitWidthIn > 6))
-    {
-        return GROTTO_INVALID_BITWIDTH_ERROR;
-    }
-    std::size_t needKeyDataSize = grottoGetKeyDataSize<GroupElement>( //
-        bitWidthIn, elementNum                                        //
-    );                                                                //
-    if (keyDataSize != needKeyDataSize)
-    {
-        return GROTTO_INVALID_KEY_DATA_SIZE_ERROR;
-    }
-    if (!(partyId == 0 || partyId == 1))
-    {
-        return GROTTO_INVALID_PARTY_ID_ERROR;
-    }
-
-    GroupElement*       sharedBooleanOutPtr = (GroupElement*)sharedBooleanOut;
-    const GroupElement* maskedXPtr          = (const GroupElement*)maskedX;
-    const GroupElement* leftBoundaryPtr     = (const GroupElement*)leftBoundary;
-    const GroupElement* rightBoundaryPtr = (const GroupElement*)rightBoundary;
-    const std::uint8_t* seedPtr          = (const std::uint8_t*)seed;
-
-    auto cacheDataSize = grottoCacheDataSize<GroupElement>(bitWidthIn, 1);
-
-    auto buf = std::unique_ptr<std::uint8_t[]>(new std::uint8_t[cacheDataSize]);
-
-    GrottoKey<GroupElement>   grottoKey;
-    grottoCache<GroupElement> cache;
-
-    for (std::size_t i = 0; i < elementNum; i++)
-    {
-        std::size_t offsetSharedOut = i * intervalNum;
-        std::size_t offsetMaskedX   = i;
-        std::size_t offsetSeed      = 16 * i;
-
-        grottoCacheSetPtr<GroupElement>(cache, buf.get(), bitWidthIn, 0, 1);
-
-        grottoKeySetPtr<GroupElement>(grottoKey, key, bitWidthIn, i,
-                                      elementNum);
-        grottoMICEval<GroupElement>(
-            sharedBooleanOutPtr + offsetSharedOut, maskedXPtr[offsetMaskedX],
-            grottoKey, seedPtr + offsetSeed, partyId, leftBoundaryPtr,
-            rightBoundaryPtr, intervalNum, bitWidthIn, &cache);
-    }
-    return GROTTO_SUCCESS;
-}
-
-template <typename GroupElement>
-static int IMPL_FastFss_cpu_grottoIntervalLutEval( //
-    void*       sharedOutE,
-    void*       sharedOutT,
-    const void* maskedX,
-    size_t      maskedXDataSize,
-    const void* key,
-    size_t      keyDataSize,
-    const void* seed,
-    size_t      seedDataSize,
-    int         partyId,
-    const void* leftBoundary,
-    size_t      leftBoundaryDataSize,
-    const void* rightBoundary,
-    size_t      rightBoundaryDataSize,
-    const void* lookUpTable,
-    size_t      lookUpTableDataSize,
-    size_t      bitWidthIn,
-    size_t      bitWidthOut,
-    size_t      elementSize,
-    size_t      elementNum) noexcept
-{
-    assert(sizeof(GroupElement) == elementSize);
-    if (leftBoundaryDataSize != rightBoundaryDataSize ||
-        lookUpTableDataSize != rightBoundaryDataSize ||
-        leftBoundaryDataSize % sizeof(GroupElement) != 0)
-    {
-        return GROTTO_INVALID_BOUNDARY_DATA_SIZE_ERROR;
-    }
-    std::size_t intervalNum = leftBoundaryDataSize / sizeof(GroupElement);
-
-    if (maskedXDataSize != sizeof(GroupElement) * elementNum)
-    {
-        return GROTTO_INVLIAD_MASKED_X_DATA_SIZE_ERROR;
-    }
-    if (seedDataSize != 16 * elementNum)
-    {
-        return GROTTO_INVALID_SEED_DATA_SIZE_ERROR;
-    }
-    if (!(bitWidthIn <= elementSize * 8 && bitWidthIn > 6 &&
-          bitWidthOut <= elementSize * 8))
-    {
-        return GROTTO_INVALID_BITWIDTH_ERROR;
-    }
-    std::size_t needKeyDataSize = grottoGetKeyDataSize<GroupElement>( //
-        bitWidthIn, elementNum                                        //
-    );                                                                //
-    if (keyDataSize != needKeyDataSize)
-    {
-        return GROTTO_INVALID_KEY_DATA_SIZE_ERROR;
-    }
-    if (!(partyId == 0 || partyId == 1))
-    {
-        return GROTTO_INVALID_PARTY_ID_ERROR;
-    }
-
-    GroupElement*       sharedOutEPtr    = (GroupElement*)sharedOutE;
-    GroupElement*       sharedOutTPtr    = (GroupElement*)sharedOutT;
-    const GroupElement* maskedXPtr       = (const GroupElement*)maskedX;
-    const GroupElement* leftBoundaryPtr  = (const GroupElement*)leftBoundary;
-    const GroupElement* rightBoundaryPtr = (const GroupElement*)rightBoundary;
-    const GroupElement* lookUpTablePtr   = (const GroupElement*)lookUpTable;
-    const std::uint8_t* seedPtr          = (const std::uint8_t*)seed;
-
-    auto cacheDataSize = grottoCacheDataSize<GroupElement>(bitWidthIn, 1);
-
-    auto buf = std::unique_ptr<std::uint8_t[]>(new std::uint8_t[cacheDataSize]);
-
-    grottoCache<GroupElement> cache;
-    GrottoKey<GroupElement>   grottoKey;
-    for (std::size_t i = 0; i < elementNum; i++)
-    {
-        std::size_t offsetSharedOut = i;
-        std::size_t offsetMaskedX   = i;
-        std::size_t offsetSeed      = 16 * i;
-
-        grottoCacheSetPtr<GroupElement>(cache, buf.get(), bitWidthIn, 0, 1);
-
-        grottoKeySetPtr<GroupElement>(       //
-            grottoKey,                       //
-            key,                             //
-            bitWidthIn,                      //
-            i,                               //
-            elementNum);                     //
-        grottoIntervalLutEval<GroupElement>( //
-            sharedOutEPtr + offsetSharedOut, //
-            sharedOutTPtr + offsetSharedOut, //
-            maskedXPtr[offsetMaskedX],       //
-            grottoKey,                       //
-            seedPtr + offsetSeed,            //
-            partyId,                         //
-            leftBoundaryPtr,                 //
-            rightBoundaryPtr,                //
-            lookUpTablePtr,                  //
-            intervalNum,                     //
-            bitWidthIn,                      //
-            &cache);
-    }
-    return GROTTO_SUCCESS;
-}
-
-template <typename GroupElement>
-static int IMPL_FastFss_cpu_grottoKeyZip(void**      zippedKey,
-                                         size_t*     zippedKeyDataSize,
-                                         const void* key,
-                                         size_t      keyDataSize,
-                                         size_t      bitWidthIn,
-                                         size_t      elementSize,
-                                         size_t      elementNum)
-{
-    return GROTTO_RUNTIME_ERROR;
-}
-
-template <typename GroupElement>
-static int IMPL_FastFss_cpu_grottoKeyUnzip(void**      key,
-                                           size_t*     keyDataSize,
-                                           const void* zippedKey,
-                                           size_t      zippedKeyDataSize,
-                                           size_t      bitWidthIn,
-                                           size_t      elementSize,
-                                           size_t      elementNum)
-{
-    return GROTTO_RUNTIME_ERROR;
-}
-
-}; // namespace FastFss::cpu
-
-int FastFss_cpu_grottoKeyGen(void**      key,
-                             size_t*     keyDataSize,
+int FastFss_cpu_grottoKeyGen(void*       key,
+                             size_t      keyDataSize,
                              const void* alpha,
                              size_t      alphaDataSize,
                              const void* seed0,
@@ -443,25 +165,62 @@ int FastFss_cpu_grottoKeyGen(void**      key,
                              size_t      elementSize,
                              size_t      elementNum)
 {
-    switch (elementSize)
+    CHECK_ALPHA_DATA_SIZE(alphaDataSize, elementSize, elementNum);
+    CHECK_SEED_DATA_SIZE(seedDataSize0, elementNum);
+    CHECK_SEED_DATA_SIZE(seedDataSize1, elementNum);
+    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
+    CHECK_KEY_DATA_SIZE(keyDataSize, bitWidthIn, elementSize, elementNum);
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
+        [&] {
+            grottoKeyGenKernel<scalar_t>                             //
+                (                                                    //
+                    key, alpha, seed0, seed1, bitWidthIn, elementNum //
+                );                                                   //
+            return ERR_CODE::SUCCESS;
+        });
+}
+
+template <typename GroupElement>
+static void grottoEvalKernel(void*       out,
+                             const void* maskedX,
+                             const void* key,
+                             const void* seed,
+                             bool        equalBound,
+                             int         partyId,
+                             size_t      bitWidthIn,
+                             size_t      elementNum,
+                             void*       cache)
+{
+    std::size_t idx    = 0;
+    std::size_t stride = 1;
+
+    const GroupElement* maskedXPtr = (const GroupElement*)maskedX;
+    const std::uint8_t* seedPtr    = (const std::uint8_t*)seed;
+    GroupElement*       outPtr     = (GroupElement*)out;
+
+    impl::GrottoKey<GroupElement>   keyObj;
+    impl::GrottoCache<GroupElement> cacheObj;
+    for (std::size_t i = idx; i < elementNum; i += stride)
     {
-        case 1:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoKeyGen<std::uint8_t>(
-                key, keyDataSize, alpha, alphaDataSize, seed0, seedDataSize0,
-                seed1, seedDataSize1, bitWidthIn, elementSize, elementNum);
-        case 2:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoKeyGen<std::uint16_t>(
-                key, keyDataSize, alpha, alphaDataSize, seed0, seedDataSize0,
-                seed1, seedDataSize1, bitWidthIn, elementSize, elementNum);
-        case 4:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoKeyGen<std::uint32_t>(
-                key, keyDataSize, alpha, alphaDataSize, seed0, seedDataSize0,
-                seed1, seedDataSize1, bitWidthIn, elementSize, elementNum);
-        case 8:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoKeyGen<std::uint64_t>(
-                key, keyDataSize, alpha, alphaDataSize, seed0, seedDataSize0,
-                seed1, seedDataSize1, bitWidthIn, elementSize, elementNum);
-        default: return GROTTO_INVALID_ELEMENT_SIZE_ERROR;
+        impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
+        std::size_t                      maskedXOffset = i;
+        std::size_t                      seedOffset    = 16 * i;
+        impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
+        if (cache != nullptr)
+        {
+            impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
+            cacheObjPtr = &cacheObj;
+        }
+        outPtr[i] = impl::grottoEval(keyObj,                    //
+                                     maskedXPtr[maskedXOffset], //
+                                     seedPtr + seedOffset,      //
+                                     partyId,                   //
+                                     bitWidthIn,                //
+                                     equalBound,                //
+                                     cacheObjPtr                //
+        );
     }
 }
 
@@ -476,31 +235,75 @@ int FastFss_cpu_grottoEval(void*       sharedBooleanOut,
                            int         partyId,
                            size_t      bitWidthIn,
                            size_t      elementSize,
-                           size_t      elementNum)
+                           size_t      elementNum,
+                           void*       cache,
+                           size_t      cacheDataSize)
 {
-    switch (elementSize)
+    CHECK_MASKED_X_DATA_SIZE(maskedXDataSize, elementSize, elementNum);
+    CHECK_SEED_DATA_SIZE(seedDataSize, elementNum);
+    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
+    CHECK_KEY_DATA_SIZE(keyDataSize, bitWidthIn, elementSize, elementNum);
+    CHECK_CACHE_DATA_SIZE(cache, cacheDataSize, bitWidthIn, elementSize,
+                          elementNum);
+    CHECK_PARTY_ID(partyId);
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
+        [&] {
+            grottoEvalKernel<scalar_t> //
+                (                      //
+                    sharedBooleanOut,  //
+                    maskedX,           //
+                    key,               //
+                    seed,              //
+                    equalBound,        //
+                    partyId,           //
+                    bitWidthIn,        //
+                    elementNum,        //
+                    cache              //
+                );                     //
+
+            return ERR_CODE::SUCCESS;
+        });
+}
+
+template <typename GroupElement>
+static void grottoEvalEqKernel(void*       out,
+                               const void* maskedX,
+                               const void* key,
+                               const void* seed,
+                               int         partyId,
+                               size_t      bitWidthIn,
+                               size_t      elementNum,
+                               void*       cache)
+{
+    std::size_t idx    = 0;
+    std::size_t stride = 1;
+
+    const GroupElement* maskedXPtr = (const GroupElement*)maskedX;
+    const std::uint8_t* seedPtr    = (const std::uint8_t*)seed;
+    GroupElement*       outPtr     = (GroupElement*)out;
+
+    impl::GrottoKey<GroupElement>   keyObj;
+    impl::GrottoCache<GroupElement> cacheObj;
+    for (std::size_t i = idx; i < elementNum; i += stride)
     {
-        case 1:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoEval<std::uint8_t>(
-                sharedBooleanOut, maskedX, maskedXDataSize, key, keyDataSize,
-                seed, seedDataSize, equalBound, partyId, bitWidthIn,
-                elementSize, elementNum);
-        case 2:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoEval<std::uint16_t>(
-                sharedBooleanOut, maskedX, maskedXDataSize, key, keyDataSize,
-                seed, seedDataSize, equalBound, partyId, bitWidthIn,
-                elementSize, elementNum);
-        case 4:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoEval<std::uint32_t>(
-                sharedBooleanOut, maskedX, maskedXDataSize, key, keyDataSize,
-                seed, seedDataSize, equalBound, partyId, bitWidthIn,
-                elementSize, elementNum);
-        case 8:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoEval<std::uint64_t>(
-                sharedBooleanOut, maskedX, maskedXDataSize, key, keyDataSize,
-                seed, seedDataSize, equalBound, partyId, bitWidthIn,
-                elementSize, elementNum);
-        default: return GROTTO_INVALID_ELEMENT_SIZE_ERROR;
+        impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
+        std::size_t                      maskedXOffset = i;
+        std::size_t                      seedOffset    = 16 * i;
+        impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
+        if (cache != nullptr)
+        {
+            impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
+            cacheObjPtr = &cacheObj;
+        }
+        outPtr[i] = impl::grottoEvalEq(keyObj,                    //
+                                       maskedXPtr[maskedXOffset], //
+                                       seedPtr + seedOffset,      //
+                                       partyId,                   //
+                                       bitWidthIn,                //
+                                       cacheObjPtr                //
+        );
     }
 }
 
@@ -514,31 +317,85 @@ int FastFss_cpu_grottoEvalEq(void*       sharedBooleanOut,
                              int         partyId,
                              size_t      bitWidthIn,
                              size_t      elementSize,
-                             size_t      elementNum)
+                             size_t      elementNum,
+                             void*       cache,
+                             size_t      cacheDataSize)
 {
-    switch (elementSize)
+    CHECK_MASKED_X_DATA_SIZE(maskedXDataSize, elementSize, elementNum);
+    CHECK_SEED_DATA_SIZE(seedDataSize, elementNum);
+    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
+    CHECK_KEY_DATA_SIZE(keyDataSize, bitWidthIn, elementSize, elementNum);
+    CHECK_CACHE_DATA_SIZE(cache, cacheDataSize, bitWidthIn, elementSize,
+                          elementNum);
+    CHECK_PARTY_ID(partyId);
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
+        [&] {
+            grottoEvalEqKernel<scalar_t> //
+                (                        //
+                    sharedBooleanOut,    //
+                    maskedX,             //
+                    key,                 //
+                    seed,                //
+                    partyId,             //
+                    bitWidthIn,          //
+                    elementNum,          //
+                    cache                //
+                );                       //
+
+            return ERR_CODE::SUCCESS;
+        });
+}
+
+template <typename GroupElement>
+static void grottoMICEvalKernel(void*       out,
+                                const void* maskedX,
+                                const void* key,
+                                const void* seed,
+                                int         partyId,
+                                const void* leftBoundary,
+                                const void* rightBoundary,
+                                size_t      intervalNum,
+                                size_t      bitWidthIn,
+                                size_t      elementNum,
+                                void*       cache)
+{
+    std::size_t idx    = 0;
+    std::size_t stride = 1;
+
+    const GroupElement* maskedXPtr       = (const GroupElement*)maskedX;
+    const std::uint8_t* seedPtr          = (const std::uint8_t*)seed;
+    GroupElement*       outPtr           = (GroupElement*)out;
+    const GroupElement* leftBoundaryPtr  = (GroupElement*)leftBoundary;
+    const GroupElement* rightBoundaryPtr = (GroupElement*)rightBoundary;
+
+    impl::GrottoKey<GroupElement>   keyObj;
+    impl::GrottoCache<GroupElement> cacheObj;
+    for (std::size_t i = idx; i < elementNum; i += stride)
     {
-        case 1:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoEvalEq<std::uint8_t>(
-                sharedBooleanOut, maskedX, maskedXDataSize, key, keyDataSize,
-                seed, seedDataSize, partyId, bitWidthIn, elementSize,
-                elementNum);
-        case 2:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoEvalEq<std::uint16_t>(
-                sharedBooleanOut, maskedX, maskedXDataSize, key, keyDataSize,
-                seed, seedDataSize, partyId, bitWidthIn, elementSize,
-                elementNum);
-        case 4:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoEvalEq<std::uint32_t>(
-                sharedBooleanOut, maskedX, maskedXDataSize, key, keyDataSize,
-                seed, seedDataSize, partyId, bitWidthIn, elementSize,
-                elementNum);
-        case 8:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoEvalEq<std::uint64_t>(
-                sharedBooleanOut, maskedX, maskedXDataSize, key, keyDataSize,
-                seed, seedDataSize, partyId, bitWidthIn, elementSize,
-                elementNum);
-        default: return GROTTO_INVALID_ELEMENT_SIZE_ERROR;
+        impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
+        std::size_t                      maskedXOffset = i;
+        std::size_t                      seedOffset    = 16 * i;
+        std::size_t                      outOffset     = intervalNum * i;
+        impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
+        if (cache != nullptr)
+        {
+            impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
+            cacheObjPtr = &cacheObj;
+        }
+        impl::grottoMICEval(           //
+            outPtr + outOffset,        //
+            keyObj,                    //
+            maskedXPtr[maskedXOffset], //
+            seedPtr + seedOffset,      //
+            partyId,                   //
+            leftBoundaryPtr,           //
+            rightBoundaryPtr,          //
+            intervalNum,               //
+            bitWidthIn,                //
+            cacheObjPtr                //
+        );
     }
 }
 
@@ -557,35 +414,100 @@ int FastFss_cpu_grottoMICEval(void*       sharedBooleanOut,
                               size_t      rightBoundaryDataSize,
                               size_t      bitWidthIn,
                               size_t      elementSize,
-                              size_t      elementNum)
+                              size_t      elementNum,
+                              void*       cache,
+                              size_t      cacheDataSize)
 {
-    switch (elementSize)
+    CHECK_MASKED_X_DATA_SIZE(maskedXDataSize, elementSize, elementNum);
+    CHECK_SEED_DATA_SIZE(seedDataSize, elementNum);
+    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
+    CHECK_KEY_DATA_SIZE(keyDataSize, bitWidthIn, elementSize, elementNum);
+    CHECK_CACHE_DATA_SIZE(cache, cacheDataSize, bitWidthIn, elementSize,
+                          elementNum);
+    CHECK_PARTY_ID(partyId);
+    CHECK_BOUNDARY_DATA_SIZE(leftBoundaryDataSize, rightBoundaryDataSize,
+                             elementSize);
+    CHECK_MIC_OUT_DATA_SIZE(sharedBooleanOutDataSize,
+                            CAL_INTERVAL_NUM(leftBoundaryDataSize, elementSize),
+                            elementSize, elementNum);
+
+    size_t intervalNum = CAL_INTERVAL_NUM(leftBoundaryDataSize, elementSize);
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
+        [&] {
+            grottoMICEvalKernel<scalar_t> //
+                (                         //
+                    sharedBooleanOut,     //
+                    maskedX,              //
+                    key,                  //
+                    seed,                 //
+                    partyId,              //
+                    leftBoundary,         //
+                    rightBoundary,        //
+                    intervalNum,          //
+                    bitWidthIn,           //
+                    elementNum,           //
+                    cache                 //
+                );                        //
+
+            return ERR_CODE::SUCCESS;
+        });
+}
+
+template <typename GroupElement>
+static void grottoIntervalLutEvalKernel(void*       outE,
+                                        void*       outT,
+                                        const void* maskedX,
+                                        const void* key,
+                                        const void* seed,
+                                        int         partyId,
+                                        const void* leftBoundary,
+                                        const void* rightBoundary,
+                                        const void* lookUpTable,
+                                        size_t      intervalNum,
+                                        size_t      bitWidthIn,
+                                        size_t      elementNum,
+                                        void*       cache)
+{
+    std::size_t idx    = 0;
+    std::size_t stride = 1;
+
+    const GroupElement* maskedXPtr       = (const GroupElement*)maskedX;
+    const std::uint8_t* seedPtr          = (const std::uint8_t*)seed;
+    GroupElement*       outEPtr          = (GroupElement*)outE;
+    GroupElement*       outTPtr          = (GroupElement*)outT;
+    const GroupElement* leftBoundaryPtr  = (GroupElement*)leftBoundary;
+    const GroupElement* rightBoundaryPtr = (GroupElement*)rightBoundary;
+    const GroupElement* lookUpTablePtr   = (GroupElement*)lookUpTable;
+
+    impl::GrottoKey<GroupElement>   keyObj;
+    impl::GrottoCache<GroupElement> cacheObj;
+    for (std::size_t i = idx; i < elementNum; i += stride)
     {
-        case 1:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoMICEval<std::uint8_t>(
-                sharedBooleanOut, sharedBooleanOutDataSize, maskedX,
-                maskedXDataSize, key, keyDataSize, seed, seedDataSize, partyId,
-                leftBoundary, leftBoundaryDataSize, rightBoundary,
-                rightBoundaryDataSize, bitWidthIn, elementSize, elementNum);
-        case 2:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoMICEval<std::uint16_t>(
-                sharedBooleanOut, sharedBooleanOutDataSize, maskedX,
-                maskedXDataSize, key, keyDataSize, seed, seedDataSize, partyId,
-                leftBoundary, leftBoundaryDataSize, rightBoundary,
-                rightBoundaryDataSize, bitWidthIn, elementSize, elementNum);
-        case 4:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoMICEval<std::uint32_t>(
-                sharedBooleanOut, sharedBooleanOutDataSize, maskedX,
-                maskedXDataSize, key, keyDataSize, seed, seedDataSize, partyId,
-                leftBoundary, leftBoundaryDataSize, rightBoundary,
-                rightBoundaryDataSize, bitWidthIn, elementSize, elementNum);
-        case 8:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoMICEval<std::uint64_t>(
-                sharedBooleanOut, sharedBooleanOutDataSize, maskedX,
-                maskedXDataSize, key, keyDataSize, seed, seedDataSize, partyId,
-                leftBoundary, leftBoundaryDataSize, rightBoundary,
-                rightBoundaryDataSize, bitWidthIn, elementSize, elementNum);
-        default: return GROTTO_INVALID_ELEMENT_SIZE_ERROR;
+        impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
+        std::size_t                      maskedXOffset = i;
+        std::size_t                      seedOffset    = 16 * i;
+        impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
+        if (cache != nullptr)
+        {
+            impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
+            cacheObjPtr = &cacheObj;
+        }
+        impl::grottoIntervalLutEval(   //
+            outEPtr + i,               //
+            outTPtr + i,               //
+            keyObj,                    //
+            maskedXPtr[maskedXOffset], //
+            seedPtr + seedOffset,      //
+            partyId,                   //
+            leftBoundaryPtr,           //
+            rightBoundaryPtr,          //
+            lookUpTablePtr,            //
+            intervalNum,               //
+            bitWidthIn,                //
+            cacheObjPtr                //
+        );
     }
 }
 
@@ -607,156 +529,112 @@ int FastFss_cpu_grottoIntervalLutEval(void*       sharedOutE,
                                       size_t      bitWidthIn,
                                       size_t      bitWidthOut,
                                       size_t      elementSize,
-                                      size_t      elementNum)
+                                      size_t      elementNum,
+                                      void*       cache,
+                                      size_t      cacheDataSize)
 {
-    switch (elementSize)
-    {
-        case 1:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoIntervalLutEval<
-                std::uint8_t>(sharedOutE, sharedOutT, maskedX, maskedXDataSize,
-                              key, keyDataSize, seed, seedDataSize, partyId,
-                              leftBoundary, leftBoundaryDataSize, rightBoundary,
-                              rightBoundaryDataSize, lookUpTable,
-                              lookUpTableDataSize, bitWidthIn, bitWidthOut,
-                              elementSize, elementNum);
+    CHECK_MASKED_X_DATA_SIZE(maskedXDataSize, elementSize, elementNum);
+    CHECK_SEED_DATA_SIZE(seedDataSize, elementNum);
+    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
+    CHECK_KEY_DATA_SIZE(keyDataSize, bitWidthIn, elementSize, elementNum);
+    CHECK_CACHE_DATA_SIZE(cache, cacheDataSize, bitWidthIn, elementSize,
+                          elementNum);
+    CHECK_PARTY_ID(partyId);
+    CHECK_BOUNDARY_DATA_SIZE(leftBoundaryDataSize, rightBoundaryDataSize,
+                             elementSize);
 
-        case 2:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoIntervalLutEval<
-                std::uint16_t>(sharedOutE, sharedOutT, maskedX, maskedXDataSize,
-                               key, keyDataSize, seed, seedDataSize, partyId,
-                               leftBoundary, leftBoundaryDataSize,
-                               rightBoundary, rightBoundaryDataSize,
-                               lookUpTable, lookUpTableDataSize, bitWidthIn,
-                               bitWidthOut, elementSize, elementNum);
-        case 4:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoIntervalLutEval<
-                std::uint32_t>(sharedOutE, sharedOutT, maskedX, maskedXDataSize,
-                               key, keyDataSize, seed, seedDataSize, partyId,
-                               leftBoundary, leftBoundaryDataSize,
-                               rightBoundary, rightBoundaryDataSize,
-                               lookUpTable, lookUpTableDataSize, bitWidthIn,
-                               bitWidthOut, elementSize, elementNum);
-        case 8:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoIntervalLutEval<
-                std::uint64_t>(sharedOutE, sharedOutT, maskedX, maskedXDataSize,
-                               key, keyDataSize, seed, seedDataSize, partyId,
-                               leftBoundary, leftBoundaryDataSize,
-                               rightBoundary, rightBoundaryDataSize,
-                               lookUpTable, lookUpTableDataSize, bitWidthIn,
-                               bitWidthOut, elementSize, elementNum);
-        default: return GROTTO_INVALID_ELEMENT_SIZE_ERROR;
-    }
+    CHECK_LUT_DATA_SIZE(lookUpTableDataSize,
+                        CAL_INTERVAL_NUM(leftBoundaryDataSize, elementSize),
+                        elementSize);
+
+    std::size_t intervalNum =
+        CAL_INTERVAL_NUM(leftBoundaryDataSize, elementSize);
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
+        [&] {
+            grottoIntervalLutEvalKernel<scalar_t> //
+                (                                 //
+                    sharedOutE,                   //
+                    sharedOutT,                   //
+                    maskedX,                      //
+                    key,                          //
+                    seed,                         //
+                    partyId,                      //
+                    leftBoundary,                 //
+                    rightBoundary,                //
+                    lookUpTable,                  //
+                    intervalNum,                  //
+                    bitWidthIn,                   //
+                    elementNum,                   //
+                    cache                         //
+                );                                //
+
+            return ERR_CODE::SUCCESS;
+        });
 }
 
-int FastFss_cpu_grottoKeyZip(void**      zippedKey,
-                             size_t*     zippedKeyDataSize,
+int FastFss_cpu_grottoKeyZip(void*       zippedKey,
+                             size_t      zippedKeyDataSize,
                              const void* key,
                              size_t      keyDataSize,
                              size_t      bitWidthIn,
                              size_t      elementSize,
                              size_t      elementNum)
 {
-    switch (elementSize)
-    {
-        case 1:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoKeyZip<std::uint8_t>(
-                zippedKey, zippedKeyDataSize, key, keyDataSize, bitWidthIn,
-                elementSize, elementNum);
-        case 2:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoKeyZip<std::uint16_t>(
-                zippedKey, zippedKeyDataSize, key, keyDataSize, bitWidthIn,
-                elementSize, elementNum);
-        case 4:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoKeyZip<std::uint32_t>(
-                zippedKey, zippedKeyDataSize, key, keyDataSize, bitWidthIn,
-                elementSize, elementNum);
-        case 8:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoKeyZip<std::uint64_t>(
-                zippedKey, zippedKeyDataSize, key, keyDataSize, bitWidthIn,
-                elementSize, elementNum);
-
-        default: return GROTTO_INVALID_ELEMENT_SIZE_ERROR;
-    }
+    return -1;
 }
 
-int FastFss_cpu_grottoKeyUnzip(void**      key,
-                               size_t*     keyDataSize,
+int FastFss_cpu_grottoKeyUnzip(void*       key,
+                               size_t      keyDataSize,
                                const void* zippedKey,
                                size_t      zippedKeyDataSize,
                                size_t      bitWidthIn,
                                size_t      elementSize,
                                size_t      elementNum)
 {
-    switch (elementSize)
-    {
-        case 1:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoKeyUnzip<std::uint8_t>(
-                key, keyDataSize, zippedKey, zippedKeyDataSize, bitWidthIn,
-                elementSize, elementNum);
-        case 2:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoKeyUnzip<std::uint16_t>(
-                key, keyDataSize, zippedKey, zippedKeyDataSize, bitWidthIn,
-                elementSize, elementNum);
-        case 4:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoKeyUnzip<std::uint32_t>(
-                key, keyDataSize, zippedKey, zippedKeyDataSize, bitWidthIn,
-                elementSize, elementNum);
-        case 8:
-            return FastFss::cpu::IMPL_FastFss_cpu_grottoKeyUnzip<std::uint64_t>(
-                key, keyDataSize, zippedKey, zippedKeyDataSize, bitWidthIn,
-                elementSize, elementNum);
-        default: return GROTTO_INVALID_ELEMENT_SIZE_ERROR;
-    }
+    return -1;
 }
 
-int FastFss_cpu_grottoGetKeyDataSize(size_t bitWidthIn,
-                                     size_t elementSize,
-                                     size_t elementNum)
+int FastFss_cpu_grottoGetKeyDataSize(size_t* keyDataSize,
+                                     size_t  bitWidthIn,
+                                     size_t  elementSize,
+                                     size_t  elementNum)
 {
-    if (!(bitWidthIn <= elementSize * 8 && bitWidthIn > 6))
-    {
-        return GROTTO_INVALID_BITWIDTH_ERROR;
-    }
-    switch (elementSize)
-    {
-        case 1:
-            return (int)FastFss::cpu::grottoGetKeyDataSize<std::uint8_t>(
-                bitWidthIn, elementNum);
-        case 2:
-            return (int)FastFss::cpu::grottoGetKeyDataSize<std::uint16_t>(
-                bitWidthIn, elementNum);
-        case 4:
-            return (int)FastFss::cpu::grottoGetKeyDataSize<std::uint32_t>(
-                bitWidthIn, elementNum);
-        case 8:
-            return (int)FastFss::cpu::grottoGetKeyDataSize<std::uint64_t>(
-                bitWidthIn, elementNum);
-        default: return GROTTO_INVALID_ELEMENT_SIZE_ERROR;
-    }
+    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
+    *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return (size_t)0; },
+        [&] {
+            return impl::grottoGetKeyDataSize<scalar_t>(bitWidthIn, elementNum);
+        });
+    return ERR_CODE::SUCCESS;
 }
 
-int FastFss_cpu_grottoGetZippedKeyDataSize(size_t bitWidthIn,
-                                           size_t elementSize,
-                                           size_t elementNum)
+int FastFss_cpu_grottoGetZippedKeyDataSize(size_t* keyDataSize,
+                                           size_t  bitWidthIn,
+                                           size_t  elementSize,
+                                           size_t  elementNum)
 {
-    if (!(bitWidthIn <= elementSize * 8 && bitWidthIn > 6))
-    {
-        return GROTTO_INVALID_BITWIDTH_ERROR;
-    }
-    switch (elementSize)
-    {
-        case 1:
-            return (int)FastFss::cpu::grottoGetZippedKeyDataSize<std::uint8_t>(
-                bitWidthIn, elementNum);
-        case 2:
-            return (int)FastFss::cpu::grottoGetZippedKeyDataSize<std::uint16_t>(
-                bitWidthIn, elementNum);
-        case 4:
-            return (int)FastFss::cpu::grottoGetZippedKeyDataSize<std::uint32_t>(
-                bitWidthIn, elementNum);
-        case 8:
-            return (int)FastFss::cpu::grottoGetZippedKeyDataSize<std::uint64_t>(
-                bitWidthIn, elementNum);
-        default: return GROTTO_INVALID_ELEMENT_SIZE_ERROR;
-    }
+    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
+    *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return (size_t)0; },
+        [&] {
+            return impl::grottoGetZippedKeyDataSize<scalar_t>(bitWidthIn,
+                                                              elementNum);
+        });
+    return ERR_CODE::SUCCESS;
+}
+
+int FastFss_cpu_grottoGetCacheDataSize(size_t* cacheDataSize,
+                                       size_t  bitWidthIn,
+                                       size_t  elementSize,
+                                       size_t  elementNum)
+{
+    *cacheDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return (size_t)0; },
+        [&] {
+            return impl::grottoGetCacheDataSize<scalar_t>(bitWidthIn,
+                                                          elementNum);
+        });
+    return ERR_CODE::SUCCESS;
 }

@@ -76,10 +76,13 @@ public:
 
         void*       grottoKey = nullptr;
         std::size_t grottoKeyDataSize;
+        FastFss_cpu_grottoGetKeyDataSize(&grottoKeyDataSize, bitWidthIn,
+                                         sizeof(GroupElement), elementNum);
+        grottoKey = malloc(grottoKeyDataSize);
 
         {
             int ret1 = FastFss_cpu_grottoKeyGen(
-                &grottoKey, &grottoKeyDataSize, alpha.get(), alphaDataSize,
+                grottoKey, grottoKeyDataSize, alpha.get(), alphaDataSize,
                 seed0.get(), seedDataSize0, seed1.get(), seedDataSize1,
                 bitWidthIn, sizeof(GroupElement), elementNum);
             if (ret1 != 0)
@@ -94,7 +97,7 @@ public:
             int ret2 = FastFss_cpu_grottoEvalEq(
                 sharedOut0.get(), maskedX.get(), maskedXDataSize, grottoKey,
                 grottoKeyDataSize, seed0.get(), seedDataSize0, 0, bitWidthIn,
-                sizeof(GroupElement), elementNum);
+                sizeof(GroupElement), elementNum, nullptr, 0);
             if (ret2 != 0)
             {
                 std::printf("\n[%d] err. FastFss_cpu_grottoEvalEq ret = %d\n",
@@ -108,7 +111,7 @@ public:
             int ret3 = FastFss_cpu_grottoEvalEq(
                 sharedOut1.get(), maskedX.get(), maskedXDataSize, grottoKey,
                 grottoKeyDataSize, seed1.get(), seedDataSize1, 1, bitWidthIn,
-                sizeof(GroupElement), elementNum);
+                sizeof(GroupElement), elementNum, nullptr, 0);
             if (ret3 != 0)
             {
                 std::printf("\n[%d] err. FastFss_cpu_grottoEvalEq ret = %d\n",
@@ -185,10 +188,13 @@ public:
 
         void*       grottoKey = nullptr;
         std::size_t grottoKeyDataSize;
+        FastFss_cpu_grottoGetKeyDataSize(&grottoKeyDataSize, bitWidthIn,
+                                         sizeof(GroupElement), elementNum);
+        grottoKey = malloc(grottoKeyDataSize);
 
         {
             int ret1 = FastFss_cpu_grottoKeyGen(
-                &grottoKey, &grottoKeyDataSize, alpha.get(), alphaDataSize,
+                grottoKey, grottoKeyDataSize, alpha.get(), alphaDataSize,
                 seed0.get(), seedDataSize0, seed1.get(), seedDataSize1,
                 bitWidthIn, sizeof(GroupElement), elementNum);
             if (ret1 != 0)
@@ -203,7 +209,7 @@ public:
             int ret2 = FastFss_cpu_grottoEval(
                 sharedOut0.get(), maskedX.get(), maskedXDataSize, grottoKey,
                 grottoKeyDataSize, seed0.get(), seedDataSize0, false, 0,
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr, 0);
             if (ret2 != 0)
             {
                 std::printf("\n[%d] err. FastFss_cpu_grottoEval ret = %d\n",
@@ -217,7 +223,7 @@ public:
             int ret3 = FastFss_cpu_grottoEval(
                 sharedOut1.get(), maskedX.get(), maskedXDataSize, grottoKey,
                 grottoKeyDataSize, seed1.get(), seedDataSize1, false, 1,
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr, 0);
             if (ret3 != 0)
             {
                 std::printf("\n[%d] err. FastFss_cpu_grottoEval ret = %d\n",
@@ -248,7 +254,7 @@ public:
             int ret2 = FastFss_cpu_grottoEval(
                 sharedOut0.get(), maskedX.get(), maskedXDataSize, grottoKey,
                 grottoKeyDataSize, seed0.get(), seedDataSize0, true, 0,
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr, 0);
             if (ret2 != 0)
             {
                 std::printf("\n[%d] err. FastFss_cpu_grottoEval ret = %d\n",
@@ -262,7 +268,7 @@ public:
             int ret3 = FastFss_cpu_grottoEval(
                 sharedOut1.get(), maskedX.get(), maskedXDataSize, grottoKey,
                 grottoKeyDataSize, seed1.get(), seedDataSize1, true, 1,
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr, 0);
             if (ret3 != 0)
             {
                 std::printf("\n[%d] err. FastFss_cpu_grottoEval ret = %d\n",
@@ -320,8 +326,17 @@ public:
         std::vector<std::uint8_t> seed0(elementNum * 16);
         std::vector<std::uint8_t> seed1(elementNum * 16);
 
-        void*       grottoMICKey         = nullptr;
-        std::size_t grottoMICKeyDataSize = 0;
+        void*       grottoMICKey = nullptr;
+        std::size_t grottoMICKeyDataSize;
+        FastFss_cpu_grottoGetKeyDataSize(&grottoMICKeyDataSize, bitWidthIn,
+                                         sizeof(GroupElement), elementNum);
+        grottoMICKey = malloc(grottoMICKeyDataSize);
+
+        void*       cache = nullptr;
+        std::size_t cacheDataSize;
+        FastFss_cpu_grottoGetCacheDataSize(&cacheDataSize, bitWidthIn,
+                                           sizeof(GroupElement), elementNum);
+        cache = malloc(cacheDataSize);
 
         rng.gen(seed0.data(), seed0.size());
         rng.gen(seed1.data(), seed1.size());
@@ -338,13 +353,13 @@ public:
         }
 
         int ret0 = FastFss_cpu_grottoKeyGen(
-            &grottoMICKey, &grottoMICKeyDataSize, //
-            alpha.data(),                         //
-            alpha.size() * sizeof(GroupElement),  //
-            seed0.data(),                         //
-            seed0.size(),                         //
-            seed1.data(),                         //
-            seed1.size(),                         //
+            grottoMICKey, grottoMICKeyDataSize,  //
+            alpha.data(),                        //
+            alpha.size() * sizeof(GroupElement), //
+            seed0.data(),                        //
+            seed0.size(),                        //
+            seed1.data(),                        //
+            seed1.size(),                        //
             bitWidthIn, sizeof(GroupElement), elementNum);
         if (ret0 != 0)
         {
@@ -367,7 +382,7 @@ public:
             leftBoundary.size() * sizeof(GroupElement),  //
             rightBoundary.data(),                        //
             rightBoundary.size() * sizeof(GroupElement), //
-            bitWidthIn, sizeof(GroupElement), elementNum);
+            bitWidthIn, sizeof(GroupElement), elementNum, cache, cacheDataSize);
         if (ret1 != 0)
         {
             std::free(grottoMICKey);
@@ -390,7 +405,7 @@ public:
             leftBoundary.size() * sizeof(GroupElement),  //
             rightBoundary.data(),                        //
             rightBoundary.size() * sizeof(GroupElement), //
-            bitWidthIn, sizeof(GroupElement), elementNum);
+            bitWidthIn, sizeof(GroupElement), elementNum, cache, cacheDataSize);
         if (ret2 != 0)
         {
             std::free(grottoMICKey);
@@ -428,6 +443,7 @@ public:
         }
 
         std::free(grottoMICKey);
+        std::free(cache);
         std::puts("  pass");
     }
 };

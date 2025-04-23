@@ -1,15 +1,15 @@
-#ifndef SRC_FAST_FSS_GROTTO_HPP
-#define SRC_FAST_FSS_GROTTO_HPP
+#ifndef SRC_IMPL_GROTTO_H
+#define SRC_IMPL_GROTTO_H
 
-#include <cassert>
-#include <cstddef>
-#include <cstdint>
-#include <cstdio>
+#include "def.h"
+#include "number.h"
 
-#include "aes.hpp"
-#include "number.hpp"
+#if !defined(AES_IMPL)
+#include "aes.h"
+#define AES_IMPL
+#endif
 
-namespace FastFss::cpu {
+namespace FastFss::impl {
 
 template <typename GroupElement>
 struct GrottoKey
@@ -22,7 +22,7 @@ struct GrottoKey
 };
 
 template <typename GroupElement>
-struct grottoCache
+struct GrottoCache
 {
     // S: 127 bits, [1: 127]. bitWidthIn - 6 length
     // t: 1   bits, [0]     . bitWidthIn - 6 length
@@ -35,8 +35,8 @@ struct grottoCache
 };
 
 template <typename GroupElement>
-inline std::size_t grottoGetKeyDataSize(std::size_t bitWidthIn,
-                                        std::size_t elementNum) noexcept
+static inline std::size_t grottoGetKeyDataSize(std::size_t bitWidthIn,
+                                               std::size_t elementNum) noexcept
 {
     return elementNum * (16 * (bitWidthIn - 6) + //
                          sizeof(std::uint64_t) + //
@@ -46,18 +46,19 @@ inline std::size_t grottoGetKeyDataSize(std::size_t bitWidthIn,
 }
 
 template <typename GroupElement>
-inline std::size_t grottoGetZippedKeyDataSize(std::size_t bitWidthIn,
-                                              std::size_t elementNum) noexcept
+static inline std::size_t grottoGetZippedKeyDataSize(
+    std::size_t bitWidthIn,
+    std::size_t elementNum) noexcept
 {
-    return -1;
+    return (std::size_t)(-1);
 }
 
 template <typename GroupElement>
-inline void grottoKeySetPtr(GrottoKey<GroupElement>& grottoKey,
-                            const void*              keyData,
-                            std::size_t              bitWidthIn,
-                            std::size_t              idx,
-                            std::size_t              elementNum) noexcept
+FAST_FSS_DEVICE inline void grottoKeySetPtr(GrottoKey<GroupElement>& grottoKey,
+                                            const void*              keyData,
+                                            std::size_t              bitWidthIn,
+                                            std::size_t              idx,
+                                            std::size_t elementNum) noexcept
 {
     const char* curKeyData = nullptr;
 
@@ -81,15 +82,16 @@ inline void grottoKeySetPtr(GrottoKey<GroupElement>& grottoKey,
 }
 
 template <typename GroupElement>
-inline std::size_t grottoCacheDataSize(std::size_t bitWidthIn,
-                                       std::size_t elementNum) noexcept
+static inline std::size_t grottoGetCacheDataSize(
+    std::size_t bitWidthIn,
+    std::size_t elementNum) noexcept
 {
     return elementNum * (16 * (bitWidthIn - 6) + (bitWidthIn - 6));
 }
 
 template <typename GroupElement>
-inline void grottoCacheSetPtr( //
-    grottoCache<GroupElement>& cache,
+FAST_FSS_DEVICE static inline void grottoCacheSetPtr( //
+    GrottoCache<GroupElement>& cache,
     const void*                cacheData,
     std::size_t                bitWidthIn,
     std::size_t                idx,
@@ -112,11 +114,11 @@ inline void grottoCacheSetPtr( //
 }
 
 template <typename GroupElement>
-inline void grottoKeyGen(GrottoKey<GroupElement>& key,
-                         GroupElement             alpha,
-                         const void*              seed0,
-                         const void*              seed1,
-                         std::size_t              bitWidthIn) noexcept
+FAST_FSS_DEVICE inline void grottoKeyGen(GrottoKey<GroupElement>& key,
+                                         GroupElement             alpha,
+                                         const void*              seed0,
+                                         const void*              seed1,
+                                         std::size_t bitWidthIn) noexcept
 {
     constexpr std::uint64_t    MASK_MSB63   = 0xFFFF'FFFF'FFFF'FFFEULL;
     static const std::uint64_t PLAINTEXT[4] = {0, 1, 2, 3};
@@ -209,12 +211,13 @@ inline void grottoKeyGen(GrottoKey<GroupElement>& key,
 }
 
 template <typename GroupElement>
-inline GroupElement grottoEvalEq( //
+FAST_FSS_DEVICE inline GroupElement grottoEvalEq( //
     const GrottoKey<GroupElement>& key,
     GroupElement                   maskedX,
     const void*                    seed,
     int                            partyId,
-    std::size_t                    bitWidthIn) noexcept
+    std::size_t                    bitWidthIn,
+    GrottoCache<GroupElement>*     cache = nullptr) noexcept
 {
     constexpr std::uint64_t    MASK_MSB63   = 0xFFFF'FFFF'FFFF'FFFEULL;
     static const std::uint64_t PLAINTEXT[4] = {0, 1, 2, 3};
@@ -225,8 +228,22 @@ inline GroupElement grottoEvalEq( //
     };
     int curT = partyId;
 
+    std::size_t idx_from = 0;
+    if (cache != nullptr)
+    {
+        idx_from = clz<GroupElement>((maskedX ^ cache->preMaskedX) | 0b111111,
+                                     bitWidthIn);
+        idx_from = (idx_from < cache->preTo) ? idx_from : cache->preTo;
+        if (0 < idx_from && idx_from <= bitWidthIn - 6)
+        {
+            curT    = cache->stCache[idx_from - 1][0] & 1;
+            curS[0] = cache->stCache[idx_from - 1][0] & MASK_MSB63;
+            curS[1] = cache->stCache[idx_from - 1][1];
+        }
+    }
+
     std::uint64_t s[2];
-    for (std::size_t i = 0; i < bitWidthIn - 6; i++)
+    for (std::size_t i = idx_from; i < bitWidthIn - 6; i++)
     {
         int bitI = (maskedX >> (bitWidthIn - 1 - i)) & 1;
         AES128::aes128_enc1_block(s, PLAINTEXT + bitI * 2, curS);
@@ -248,25 +265,35 @@ inline GroupElement grottoEvalEq( //
         //      =   ti ^ cw_t[bit_i]    if  t == 1
         GroupElement cwT = (bitI == 0) ? key.tLCW[0] : key.tRCW[0];
         curT             = (curT == 0) ? ti : ti ^ ((cwT >> i) & 1);
+
+        if (cache != nullptr)
+        {
+            cache->stCache[i][0] = curS[0] & MASK_MSB63;
+            cache->stCache[i][1] = curS[1];
+            cache->stCache[i][0] ^= curT;
+
+            cache->preTo      = i + 1;
+            cache->preMaskedX = maskedX;
+        }
     }
     std::uint64_t u = (curT == 0) ? curS[1] : curS[1] ^ (key.lastCW[0]);
     return (u >> (maskedX & 0b111111)) & 1;
 }
 
 template <typename GroupElement>
-inline GroupElement grottoEval( //
+FAST_FSS_DEVICE inline GroupElement grottoEval( //
     const GrottoKey<GroupElement>& key,
     GroupElement                   maskedX,
     const void*                    seed,
     int                            partyId,
     std::size_t                    bitWidthIn,
     bool                           equalBound = false,
-    grottoCache<GroupElement>*     cache      = nullptr) noexcept
+    GrottoCache<GroupElement>*     cache      = nullptr) noexcept
 {
     constexpr std::uint64_t    MASK_MSB63   = 0xFFFF'FFFF'FFFF'FFFEULL;
     static const std::uint64_t PLAINTEXT[4] = {0, 1, 2, 3};
 
-    maskedX = mod_bits<GroupElement>(maskedX, bitWidthIn);
+    maskedX = modBits<GroupElement>(maskedX, bitWidthIn);
 
     std::uint64_t curS[2] = {
         ((const std::uint64_t*)seed)[0] & MASK_MSB63,
@@ -362,17 +389,17 @@ inline GroupElement grottoEval( //
 }
 
 template <typename GroupElement>
-inline void grottoMICEval(                    //
+FAST_FSS_DEVICE inline void grottoMICEval(    //
     GroupElement*                  sharedOut, // intervalNum
-    GroupElement                   maskedX,
     const GrottoKey<GroupElement>& key,
+    GroupElement                   maskedX,
     const void*                    seed,
     int                            partyId,
     const GroupElement*            leftBoundary,
     const GroupElement*            rightBoundary,
     size_t                         intervalNum,
     std::size_t                    bitWidthIn,
-    grottoCache<GroupElement>*     cache = nullptr) noexcept
+    GrottoCache<GroupElement>*     cache = nullptr) noexcept
 {
     if (intervalNum == 0)
     {
@@ -385,8 +412,8 @@ inline void grottoMICEval(                    //
         GroupElement xP = maskedX - (leftBoundary[0] - 1);
         GroupElement xQ = maskedX - rightBoundary[0];
 
-        xP = mod_bits<GroupElement>(xP, bitWidth);
-        xQ = mod_bits<GroupElement>(xQ, bitWidth);
+        xP = modBits<GroupElement>(xP, bitWidth);
+        xQ = modBits<GroupElement>(xQ, bitWidth);
 
         sp = grottoEval<GroupElement>(key, xP, seed, partyId, bitWidth, true,
                                       cache);
@@ -401,9 +428,9 @@ inline void grottoMICEval(                    //
         GroupElement xQ        = maskedX - rightBoundary[i];
         GroupElement privQAdd1 = rightBoundary[i - 1] + 1;
 
-        xP        = mod_bits<GroupElement>(xP, bitWidth);
-        xQ        = mod_bits<GroupElement>(xQ, bitWidth);
-        privQAdd1 = mod_bits<GroupElement>(privQAdd1, bitWidth);
+        xP        = modBits<GroupElement>(xP, bitWidth);
+        xQ        = modBits<GroupElement>(xQ, bitWidth);
+        privQAdd1 = modBits<GroupElement>(privQAdd1, bitWidth);
 
         if (leftBoundary[i] == privQAdd1)
         {
@@ -422,11 +449,11 @@ inline void grottoMICEval(                    //
 }
 
 template <typename GroupElement>
-inline void grottoIntervalLutEval( //
+FAST_FSS_DEVICE inline void grottoIntervalLutEval( //
     GroupElement*                  sharedOutE,
     GroupElement*                  sharedOutT,
-    GroupElement                   maskedX,
     const GrottoKey<GroupElement>& key,
+    GroupElement                   maskedX,
     const void*                    seed,
     int                            partyId,
     const GroupElement*            leftBoundary,
@@ -434,7 +461,7 @@ inline void grottoIntervalLutEval( //
     const GroupElement*            lookUpTable,
     size_t                         intervalNum,
     std::size_t                    bitWidthIn,
-    grottoCache<GroupElement>*     cache = nullptr) noexcept
+    GrottoCache<GroupElement>*     cache = nullptr) noexcept
 {
     if (intervalNum == 0)
     {
@@ -450,8 +477,8 @@ inline void grottoIntervalLutEval( //
         GroupElement xP = maskedX - (leftBoundary[0] - 1);
         GroupElement xQ = maskedX - rightBoundary[0];
 
-        xP = mod_bits<GroupElement>(xP, bitWidth);
-        xQ = mod_bits<GroupElement>(xQ, bitWidth);
+        xP = modBits<GroupElement>(xP, bitWidth);
+        xQ = modBits<GroupElement>(xQ, bitWidth);
 
         sp = grottoEval<GroupElement>(key, xP, seed, partyId, bitWidth, true,
                                       cache);
@@ -470,9 +497,9 @@ inline void grottoIntervalLutEval( //
         GroupElement xQ        = maskedX - rightBoundary[i];
         GroupElement privQAdd1 = rightBoundary[i - 1] + 1;
 
-        xP        = mod_bits<GroupElement>(xP, bitWidth);
-        xQ        = mod_bits<GroupElement>(xQ, bitWidth);
-        privQAdd1 = mod_bits<GroupElement>(privQAdd1, bitWidth);
+        xP        = modBits<GroupElement>(xP, bitWidth);
+        xQ        = modBits<GroupElement>(xQ, bitWidth);
+        privQAdd1 = modBits<GroupElement>(privQAdd1, bitWidth);
 
         if (leftBoundary[i] == privQAdd1)
         {
@@ -499,6 +526,6 @@ inline void grottoIntervalLutEval( //
     }
 }
 
-} // namespace FastFss::cpu
+} // namespace FastFss::impl
 
 #endif
