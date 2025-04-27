@@ -24,7 +24,8 @@ int FastFss_cuda_prngGen(void*  prng,
                          void*  deviceDst,
                          size_t bitWidth,
                          size_t elementSize,
-                         size_t elementNum);
+                         size_t elementNum,
+                         void*  cudaStreamPtr);
 
 #ifdef __cplusplus
 }

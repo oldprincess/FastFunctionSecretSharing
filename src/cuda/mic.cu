@@ -1,215 +1,68 @@
-#include <FastFss/cuda/dcf.h>
 #include <FastFss/cuda/mic.h>
-#include <cuda_runtime.h>
 
-#include <cassert>
-#include <cstddef>
-#include <cstdint>
+#include "../impl/mic.h"
 
-#include "mic.cuh"
+using namespace FastFss;
 
-#define CUDA_CHECK(expression, do_something)                          \
-    if ((expression) != cudaSuccess)                                  \
-    {                                                                 \
-        std::printf("[error] %s in %s:%d\n",                          \
-                    cudaGetErrorString(cudaGetLastError()), __FILE__, \
-                    __LINE__);                                        \
-        do_something                                                  \
-    }
-
-#define CUDA_ERR_CHECK(do_something)                                  \
-    if (cudaDeviceSynchronize() != cudaSuccess)                       \
-    {                                                                 \
-        std::printf("[error] %s in %s:%d\n",                          \
-                    cudaGetErrorString(cudaGetLastError()), __FILE__, \
-                    __LINE__);                                        \
-        do_something                                                  \
-    }
-
-enum MIC_ERROR_CODE
+enum ERROR_CODE
 {
-    MIC_SUCCESS                            = 0,
-    MIC_RUNTIME_ERROR                      = -1,
-    MIC_INVALID_KEY_DATA_SIZE_ERROR        = -2,
-    MIC_INVALID_ALPHA_DATA_SIZE_ERROR      = -3,
-    MIC_INVALID_SEED_DATA_SIZE_ERROR       = -4,
-    MIC_INVALID_BOUNDARY_DATA_SIZE_ERROR   = -5,
-    MIC_INVALID_Z_DATA_SIZE_ERROR          = -6,
-    MIC_INVALID_SHARED_OUT_DATA_SIZE_ERROR = -7,
-    MIC_INVLIAD_MASKED_X_DATA_SIZE_ERROR   = -8,
-    MIC_INVALID_BITWIDTH_ERROR             = -9,
-    MIC_INVALID_ELEMENT_SIZE_ERROR         = -10,
-    MIC_INVALID_PARTY_ID_ERROR             = -11,
+    SUCCESS                            = 0,
+    RUNTIME_ERROR                      = -1,
+    INVALID_KEY_DATA_SIZE_ERROR        = -2,
+    INVALID_ALPHA_DATA_SIZE_ERROR      = -3,
+    INVALID_SEED_DATA_SIZE_ERROR       = -4,
+    INVALID_BOUNDARY_DATA_SIZE_ERROR   = -5,
+    INVALID_Z_DATA_SIZE_ERROR          = -6,
+    INVALID_SHARED_OUT_DATA_SIZE_ERROR = -7,
+    INVLIAD_MASKED_X_DATA_SIZE_ERROR   = -8,
+    INVALID_BITWIDTH_ERROR             = -9,
+    INVALID_ELEMENT_SIZE_ERROR         = -10,
+    INVALID_PARTY_ID_ERROR             = -11,
 };
 
-namespace FastFss::cuda {
-
 template <typename GroupElement>
-static int IMPL_FastFss_cuda_dcfMICKeyGen(void**      key,
-                                          size_t*     keyDataSize,
+__global__ static void dcfMICKeyGenKernel(void*       key,
                                           void*       z,
-                                          size_t      zDataSize,
                                           const void* alpha,
-                                          size_t      alphaDataSize,
                                           const void* seed0,
-                                          size_t      seedDataSize0,
                                           const void* seed1,
-                                          size_t      seedDataSize1,
                                           const void* leftBoundary,
-                                          size_t      leftBoundaryDataSize,
                                           const void* rightBoundary,
-                                          size_t      rightBoundaryDataSize,
+                                          size_t      intervalNum,
                                           size_t      bitWidthIn,
                                           size_t      bitWidthOut,
-                                          size_t      elementSize,
-                                          size_t      elementNum) noexcept
+                                          size_t      elementNum)
 {
-    assert(sizeof(GroupElement) == elementSize);
+    std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
+    std::size_t stride = blockDim.x * gridDim.x;
 
-    if (alphaDataSize != sizeof(GroupElement) * elementNum)
-    {
-        return MIC_INVALID_ALPHA_DATA_SIZE_ERROR;
-    }
-    if (leftBoundaryDataSize != rightBoundaryDataSize ||
-        leftBoundaryDataSize % sizeof(GroupElement) != 0)
-    {
-        return MIC_INVALID_BOUNDARY_DATA_SIZE_ERROR;
-    }
-    std::size_t intervalNum = leftBoundaryDataSize / sizeof(GroupElement);
-    if (!(seedDataSize0 == 16 * elementNum && seedDataSize1 == 16 * elementNum))
-    {
-        return MIC_INVALID_SEED_DATA_SIZE_ERROR;
-    }
-    if (!(bitWidthIn <= elementSize * 8 && bitWidthOut <= elementSize * 8))
-    {
-        return MIC_INVALID_BITWIDTH_ERROR;
-    }
-    if (zDataSize != intervalNum * elementNum * sizeof(GroupElement))
-    {
-        return MIC_INVALID_Z_DATA_SIZE_ERROR;
-    }
-    std::size_t needKeyDataSize = dcfGetKeyDataSize<GroupElement>( //
-        bitWidthIn, bitWidthOut, elementNum                        //
-    );                                                             //
+    GroupElement*       zPtr             = (GroupElement*)z;
+    const GroupElement* alphaPtr         = (const GroupElement*)alpha;
+    const std::uint8_t* seed0Ptr         = (const std::uint8_t*)seed0;
+    const std::uint8_t* seed1Ptr         = (const std::uint8_t*)seed1;
+    const GroupElement* leftBoundaryPtr  = (const GroupElement*)leftBoundary;
+    const GroupElement* rightBoundaryPtr = (const GroupElement*)rightBoundary;
 
-    bool mallocKey = false;
-    if (*key != nullptr)
+    impl::DcfKey<GroupElement> keyObj;
+    for (std::size_t i = idx; i < elementNum; i += stride)
     {
-        if (*keyDataSize != needKeyDataSize)
-        {
-            return MIC_INVALID_KEY_DATA_SIZE_ERROR;
-        }
+        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
+        impl::dcfMICKeyGen(keyObj,                 //
+                           zPtr + intervalNum * i, //
+                           alphaPtr[i],            //
+                           seed0Ptr + 16 * i,      //
+                           seed1Ptr + 16 * i,      //
+                           leftBoundaryPtr,        //
+                           rightBoundaryPtr,       //
+                           intervalNum,            //
+                           bitWidthIn,             //
+                           bitWidthOut             //
+        );
     }
-    else
-    {
-        CUDA_CHECK(cudaMalloc(key, needKeyDataSize),
-                   { return MIC_RUNTIME_ERROR; });
-        *keyDataSize = needKeyDataSize;
-        mallocKey    = true;
-    }
-
-    int BLOCK_SIZE = 512;
-    int GRID_SIZE  = (elementNum + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    if (GRID_SIZE > 128 * 32)
-    {
-        GRID_SIZE = 128 * 32;
-    }
-
-    dcfMICKeyGenKernel<GroupElement><<<BLOCK_SIZE, GRID_SIZE>>>(
-        *key, z, alpha, seed0, seed1, leftBoundary, rightBoundary, intervalNum,
-        bitWidthIn, bitWidthOut, elementNum);
-    CUDA_ERR_CHECK({
-        if (mallocKey)
-        {
-            cudaFree(*key);
-            *key = nullptr;
-        }
-        return MIC_RUNTIME_ERROR;
-    });
-
-    return MIC_SUCCESS;
 }
 
-template <typename GroupElement>
-static int IMPL_FastFss_cuda_dcfMICEval(void*       sharedOut,
-                                        size_t      sharedOutDataSize,
-                                        const void* maskedX,
-                                        size_t      maskedXDataSize,
-                                        const void* key,
-                                        size_t      keyDataSize,
-                                        const void* sharedZ,
-                                        size_t      sharedZDataSize,
-                                        const void* seed,
-                                        size_t      seedDataSize,
-                                        int         partyId,
-                                        const void* leftBoundary,
-                                        size_t      leftBoundaryDataSize,
-                                        const void* rightBoundary,
-                                        size_t      rightBoundaryDataSize,
-                                        size_t      bitWidthIn,
-                                        size_t      bitWidthOut,
-                                        size_t      elementSize,
-                                        size_t      elementNum) noexcept
-{
-    assert(sizeof(GroupElement) == elementSize);
-    if (leftBoundaryDataSize != rightBoundaryDataSize ||
-        leftBoundaryDataSize % sizeof(GroupElement) != 0)
-    {
-        return MIC_INVALID_BOUNDARY_DATA_SIZE_ERROR;
-    }
-    std::size_t intervalNum = leftBoundaryDataSize / sizeof(GroupElement);
-    if (sharedZDataSize != sizeof(GroupElement) * elementNum * intervalNum)
-    {
-        return MIC_INVALID_Z_DATA_SIZE_ERROR;
-    }
-    if (sharedOutDataSize != sizeof(GroupElement) * elementNum * intervalNum)
-    {
-        return MIC_INVALID_SHARED_OUT_DATA_SIZE_ERROR;
-    }
-
-    if (maskedXDataSize != sizeof(GroupElement) * elementNum)
-    {
-        return MIC_INVLIAD_MASKED_X_DATA_SIZE_ERROR;
-    }
-    if (seedDataSize != 16 * elementNum)
-    {
-        return MIC_INVALID_SEED_DATA_SIZE_ERROR;
-    }
-    if (!(bitWidthIn <= elementSize * 8 && bitWidthOut <= elementSize * 8))
-    {
-        return MIC_INVALID_BITWIDTH_ERROR;
-    }
-    std::size_t needKeyDataSize = dcfGetKeyDataSize<GroupElement>( //
-        bitWidthIn, bitWidthOut, elementNum                        //
-    );                                                             //
-    if (keyDataSize != needKeyDataSize)
-    {
-        return MIC_INVALID_KEY_DATA_SIZE_ERROR;
-    }
-    if (!(partyId == 0 || partyId == 1))
-    {
-        return MIC_INVALID_PARTY_ID_ERROR;
-    }
-
-    int BLOCK_SIZE = 512;
-    int GRID_SIZE  = (elementNum + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    if (GRID_SIZE > 128 * 32)
-    {
-        GRID_SIZE = 128 * 32;
-    }
-
-    dcfMICEvalKernel<GroupElement><<<GRID_SIZE, BLOCK_SIZE>>>(
-        sharedOut, maskedX, key, sharedZ, seed, partyId, leftBoundary,
-        rightBoundary, intervalNum, bitWidthIn, bitWidthOut, elementNum);
-
-    CUDA_ERR_CHECK({ return MIC_RUNTIME_ERROR; });
-    return MIC_SUCCESS;
-}
-
-}; // namespace FastFss::cuda
-
-int FastFss_cuda_dcfMICKeyGen(void**      key,
-                              size_t*     keyDataSize,
+int FastFss_cuda_dcfMICKeyGen(void*       key,
+                              size_t      keyDataSize,
                               void*       z,
                               size_t      zDataSize,
                               const void* alpha,
@@ -225,35 +78,70 @@ int FastFss_cuda_dcfMICKeyGen(void**      key,
                               size_t      bitWidthIn,
                               size_t      bitWidthOut,
                               size_t      elementSize,
-                              size_t      elementNum)
+                              size_t      elementNum,
+                              void*       cudaStreamPtr)
 {
-    switch (elementSize)
+    std::size_t BLOCK_DIM = 512;
+    std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
+    if (GRID_DIM > CUDA_MAX_GRID_DIM)
     {
-        case 1:
-            return FastFss::cuda::IMPL_FastFss_cuda_dcfMICKeyGen<std::uint8_t>(
-                key, keyDataSize, z, zDataSize, alpha, alphaDataSize, seed0,
-                seedDataSize0, seed1, seedDataSize1, leftBoundary,
-                leftBoundaryDataSize, rightBoundary, rightBoundaryDataSize,
-                bitWidthIn, bitWidthOut, elementSize, elementNum);
-        case 2:
-            return FastFss::cuda::IMPL_FastFss_cuda_dcfMICKeyGen<std::uint16_t>(
-                key, keyDataSize, z, zDataSize, alpha, alphaDataSize, seed0,
-                seedDataSize0, seed1, seedDataSize1, leftBoundary,
-                leftBoundaryDataSize, rightBoundary, rightBoundaryDataSize,
-                bitWidthIn, bitWidthOut, elementSize, elementNum);
-        case 4:
-            return FastFss::cuda::IMPL_FastFss_cuda_dcfMICKeyGen<std::uint32_t>(
-                key, keyDataSize, z, zDataSize, alpha, alphaDataSize, seed0,
-                seedDataSize0, seed1, seedDataSize1, leftBoundary,
-                leftBoundaryDataSize, rightBoundary, rightBoundaryDataSize,
-                bitWidthIn, bitWidthOut, elementSize, elementNum);
-        case 8:
-            return FastFss::cuda::IMPL_FastFss_cuda_dcfMICKeyGen<std::uint64_t>(
-                key, keyDataSize, z, zDataSize, alpha, alphaDataSize, seed0,
-                seedDataSize0, seed1, seedDataSize1, leftBoundary,
-                leftBoundaryDataSize, rightBoundary, rightBoundaryDataSize,
-                bitWidthIn, bitWidthOut, elementSize, elementNum);
-        default: return MIC_INVALID_ELEMENT_SIZE_ERROR;
+        GRID_DIM = CUDA_MAX_GRID_DIM;
+    }
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)(cudaStreamPtr) : 0;
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
+        [&] {
+            auto intervalNum = leftBoundaryDataSize / elementSize;
+            dcfMICKeyGenKernel<scalar_t><<<GRID_DIM, BLOCK_DIM, 0, stream>>>(
+                key, z, alpha, seed0, seed1, leftBoundary, rightBoundary,
+                intervalNum, bitWidthIn, bitWidthOut, elementNum);
+            return ERROR_CODE::SUCCESS;
+        });
+}
+
+template <typename GroupElement>
+__global__ static void dcfMICEvalKernel(void*       sharedOut,
+                                        const void* maskedX,
+                                        const void* key,
+                                        const void* sharedZ,
+                                        const void* seed,
+                                        int         partyId,
+                                        const void* leftBoundary,
+                                        const void* rightBoundary,
+                                        size_t      intervalNum,
+                                        size_t      bitWidthIn,
+                                        size_t      bitWidthOut,
+                                        size_t      elementSize,
+                                        size_t      elementNum,
+                                        void*       cache)
+{
+    std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
+    std::size_t stride = blockDim.x * gridDim.x;
+
+    GroupElement*       sharedOutPtr     = (GroupElement*)sharedOut;
+    const GroupElement* maskedXPtr       = (const GroupElement*)maskedX;
+    const GroupElement* sharedZPtr       = (const GroupElement*)sharedZ;
+    const std::uint8_t* seedPtr          = (const std::uint8_t*)seed;
+    const GroupElement* leftBoundaryPtr  = (const GroupElement*)leftBoundary;
+    const GroupElement* rightBoundaryPtr = (const GroupElement*)rightBoundary;
+
+    impl::DcfKey<GroupElement> keyObj;
+    for (std::size_t i = idx; i < elementNum; i += stride)
+    {
+        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
+        impl::dcfMICEval(sharedOutPtr + intervalNum * i, //
+                         maskedXPtr[i],                  //
+                         keyObj,                         //
+                         sharedZPtr + intervalNum * i,   //
+                         seedPtr + 16 * i,               //
+                         partyId,                        //
+                         leftBoundaryPtr,                //
+                         rightBoundaryPtr,               //
+                         intervalNum,                    //
+                         bitWidthIn,                     //
+                         bitWidthOut                     //
+        );
     }
 }
 
@@ -275,44 +163,33 @@ int FastFss_cuda_dcfMICEval(void*       sharedOut,
                             size_t      bitWidthIn,
                             size_t      bitWidthOut,
                             size_t      elementSize,
-                            size_t      elementNum)
+                            size_t      elementNum,
+                            void*       cache,
+                            size_t      cacheDataSize,
+                            void*       cudaStreamPtr)
 {
-    switch (elementSize)
+    std::size_t BLOCK_DIM = 512;
+    std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
+    if (GRID_DIM > CUDA_MAX_GRID_DIM)
     {
-        case 1:
-            return FastFss::cuda::IMPL_FastFss_cuda_dcfMICEval<std::uint8_t>(
-                sharedOut, sharedOutDataSize, maskedX, maskedXDataSize, key,
-                keyDataSize, sharedZ, sharedZDataSize, seed, seedDataSize,
-                partyId, leftBoundary, leftBoundaryDataSize, rightBoundary,
-                rightBoundaryDataSize, bitWidthIn, bitWidthOut, elementSize,
-                elementNum);
-        case 2:
-            return FastFss::cuda::IMPL_FastFss_cuda_dcfMICEval<std::uint16_t>(
-                sharedOut, sharedOutDataSize, maskedX, maskedXDataSize, key,
-                keyDataSize, sharedZ, sharedZDataSize, seed, seedDataSize,
-                partyId, leftBoundary, leftBoundaryDataSize, rightBoundary,
-                rightBoundaryDataSize, bitWidthIn, bitWidthOut, elementSize,
-                elementNum);
-        case 4:
-            return FastFss::cuda::IMPL_FastFss_cuda_dcfMICEval<std::uint32_t>(
-                sharedOut, sharedOutDataSize, maskedX, maskedXDataSize, key,
-                keyDataSize, sharedZ, sharedZDataSize, seed, seedDataSize,
-                partyId, leftBoundary, leftBoundaryDataSize, rightBoundary,
-                rightBoundaryDataSize, bitWidthIn, bitWidthOut, elementSize,
-                elementNum);
-        case 8:
-            return FastFss::cuda::IMPL_FastFss_cuda_dcfMICEval<std::uint64_t>(
-                sharedOut, sharedOutDataSize, maskedX, maskedXDataSize, key,
-                keyDataSize, sharedZ, sharedZDataSize, seed, seedDataSize,
-                partyId, leftBoundary, leftBoundaryDataSize, rightBoundary,
-                rightBoundaryDataSize, bitWidthIn, bitWidthOut, elementSize,
-                elementNum);
-        default: return MIC_INVALID_ELEMENT_SIZE_ERROR;
+        GRID_DIM = CUDA_MAX_GRID_DIM;
     }
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)(cudaStreamPtr) : 0;
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
+        [&] {
+            auto intervalNum = leftBoundaryDataSize / elementSize;
+            dcfMICEvalKernel<scalar_t><<<GRID_DIM, BLOCK_DIM, 0, stream>>>(
+                sharedOut, maskedX, key, sharedZ, seed, partyId, leftBoundary,
+                rightBoundary, intervalNum, bitWidthIn, bitWidthOut,
+                elementSize, elementNum, cache);
+            return ERROR_CODE::SUCCESS;
+        });
 }
 
-int FastFss_cuda_dcfMICKeyZip(void**      zippedKey,
-                              size_t*     zippedKeyDataSize,
+int FastFss_cuda_dcfMICKeyZip(void*       zippedKey,
+                              size_t      zippedKeyDataSize,
                               const void* key,
                               size_t      keyDataSize,
                               size_t      bitWidthIn,
@@ -320,13 +197,11 @@ int FastFss_cuda_dcfMICKeyZip(void**      zippedKey,
                               size_t      elementSize,
                               size_t      elementNum)
 {
-    return FastFss_cuda_dcfKeyZip(zippedKey, zippedKeyDataSize, key,
-                                  keyDataSize, bitWidthIn, bitWidthOut,
-                                  elementSize, elementNum);
+    return ERROR_CODE::RUNTIME_ERROR;
 }
 
-int FastFss_cuda_dcfMICKeyUnzip(void**      key,
-                                size_t*     keyDataSize,
+int FastFss_cuda_dcfMICKeyUnzip(void*       key,
+                                size_t      keyDataSize,
                                 const void* zippedKey,
                                 size_t      zippedKeyDataSize,
                                 size_t      bitWidthIn,
@@ -334,25 +209,44 @@ int FastFss_cuda_dcfMICKeyUnzip(void**      key,
                                 size_t      elementSize,
                                 size_t      elementNum)
 {
-    return FastFss_cuda_dcfKeyUnzip(key, keyDataSize, zippedKey,
-                                    zippedKeyDataSize, bitWidthIn, bitWidthOut,
-                                    elementSize, elementNum);
+    return ERROR_CODE::RUNTIME_ERROR;
 }
 
-int FastFss_cuda_dcfMICGetKeyDataSize(size_t bitWidthIn,
-                                      size_t bitWidthOut,
-                                      size_t elementSize,
-                                      size_t elementNum)
+int FastFss_cuda_dcfMICGetCacheDataSize(size_t* cacheDataSize,
+                                        size_t  bitWidthIn,
+                                        size_t  bitWidthOut,
+                                        size_t  elementSize,
+                                        size_t  elementNum)
 {
-    return FastFss_cuda_dcfGetKeyDataSize(bitWidthIn, bitWidthOut, elementSize,
-                                          elementNum);
+    return ERROR_CODE::RUNTIME_ERROR;
 }
 
-int FastFss_cuda_dcfMICGetZippedKeyDataSize(size_t bitWidthIn,
-                                            size_t bitWidthOut,
-                                            size_t elementSize,
-                                            size_t elementNum)
+int FastFss_cuda_dcfMICGetKeyDataSize(size_t* keyDataSize,
+                                      size_t  bitWidthIn,
+                                      size_t  bitWidthOut,
+                                      size_t  elementSize,
+                                      size_t  elementNum)
 {
-    return FastFss_cuda_dcfGetZippedKeyDataSize(bitWidthIn, bitWidthOut,
-                                                elementSize, elementNum);
+    *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return (std::size_t)0; },
+        [&] {
+            return impl::dcfGetKeyDataSize<scalar_t>(bitWidthIn, bitWidthOut,
+                                                     elementNum);
+        });
+    return ERROR_CODE::SUCCESS;
+}
+
+int FastFss_cuda_dcfMICGetZippedKeyDataSize(size_t* keyDataSize,
+                                            size_t  bitWidthIn,
+                                            size_t  bitWidthOut,
+                                            size_t  elementSize,
+                                            size_t  elementNum)
+{
+    *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return (std::size_t)0; },
+        [&] {
+            return impl::dcfGetZippedKeyDataSize<scalar_t>(
+                bitWidthIn, bitWidthOut, elementNum);
+        });
+    return ERROR_CODE::SUCCESS;
 }

@@ -10,8 +10,8 @@
 extern "C" {
 #endif
 
-int FastFss_cpu_dcfMICKeyGen(void**      key,
-                             size_t*     keyDataSize,
+int FastFss_cpu_dcfMICKeyGen(void*       key,
+                             size_t      keyDataSize,
                              void*       z,
                              size_t      zDataSize,
                              const void* alpha,
@@ -47,10 +47,12 @@ int FastFss_cpu_dcfMICEval(void*       sharedOut,
                            size_t      bitWidthIn,
                            size_t      bitWidthOut,
                            size_t      elementSize,
-                           size_t      elementNum);
+                           size_t      elementNum,
+                           void*       cache,
+                           size_t      cacheDataSize);
 
-int FastFss_cpu_dcfMICKeyZip(void**      zippedKey,
-                             size_t*     zippedKeyDataSize,
+int FastFss_cpu_dcfMICKeyZip(void*       zippedKey,
+                             size_t      zippedKeyDataSize,
                              const void* key,
                              size_t      keyDataSize,
                              size_t      bitWidthIn,
@@ -58,8 +60,8 @@ int FastFss_cpu_dcfMICKeyZip(void**      zippedKey,
                              size_t      elementSize,
                              size_t      elementNum);
 
-int FastFss_cpu_dcfMICKeyUnzip(void**      key,
-                               size_t*     keyDataSize,
+int FastFss_cpu_dcfMICKeyUnzip(void*       key,
+                               size_t      keyDataSize,
                                const void* zippedKey,
                                size_t      zippedKeyDataSize,
                                size_t      bitWidthIn,
@@ -67,15 +69,23 @@ int FastFss_cpu_dcfMICKeyUnzip(void**      key,
                                size_t      elementSize,
                                size_t      elementNum);
 
-int FastFss_cpu_dcfMICGetKeyDataSize(size_t bitWidthIn,
-                                     size_t bitWidthOut,
-                                     size_t elementSize,
-                                     size_t elementNum);
+int FastFss_cpu_dcfMICGetCacheDataSize(size_t* cacheDataSize,
+                                       size_t  bitWidthIn,
+                                       size_t  bitWidthOut,
+                                       size_t  elementSize,
+                                       size_t  elementNum);
 
-int FastFss_cpu_dcfMICGetZippedKeyDataSize(size_t bitWidthIn,
-                                           size_t bitWidthOut,
-                                           size_t elementSize,
-                                           size_t elementNum);
+int FastFss_cpu_dcfMICGetKeyDataSize(size_t* keyDataSize,
+                                     size_t  bitWidthIn,
+                                     size_t  bitWidthOut,
+                                     size_t  elementSize,
+                                     size_t  elementNum);
+
+int FastFss_cpu_dcfMICGetZippedKeyDataSize(size_t* keyDataSize,
+                                           size_t  bitWidthIn,
+                                           size_t  bitWidthOut,
+                                           size_t  elementSize,
+                                           size_t  elementNum);
 
 #ifdef __cplusplus
 }

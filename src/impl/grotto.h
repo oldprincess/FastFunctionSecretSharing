@@ -524,6 +524,17 @@ FAST_FSS_DEVICE inline void grottoIntervalLutEval( //
         sharedOutE[0] = (GroupElement)(-1) * sharedOutE[0];
         sharedOutT[0] = (GroupElement)(-1) * sharedOutT[0];
     }
+    // E = 1 or -1.
+    // E = ((E - 1) >> 1) & 1: 1(V need times -1) 0(V need not times -1)
+    if (partyId == 0)
+    {
+        sharedOutE[0] -= 1;
+        sharedOutE[0] = ((sharedOutE[0] >> 1) + (sharedOutE[0] & 1)) & 1;
+    }
+    else
+    {
+        sharedOutE[0] = (sharedOutE[0] >> 1) & 1;
+    }
 }
 
 } // namespace FastFss::impl

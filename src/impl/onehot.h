@@ -32,7 +32,7 @@ FAST_FSS_DEVICE static void onehotLutEval(GroupElement*       sharedOutE,
                                           GroupElement        maskedX,
                                           const void*         key,
                                           const GroupElement* lut,
-                                          int                 party_id,
+                                          int                 partyId,
                                           std::size_t bitWidthIn) noexcept
 {
     std::size_t  totalNum = (1ULL << bitWidthIn);
@@ -141,10 +141,21 @@ FAST_FSS_DEVICE static void onehotLutEval(GroupElement*       sharedOutE,
         num -= 8;
     }
 
-    if (party_id == 0)
+    if (partyId == 0)
     {
         sharedOutE[0] = (GroupElement)(0 - sharedOutE[0]);
         sharedOutT[0] = (GroupElement)(0 - sharedOutT[0]);
+    }
+    // E = 1 or -1. 
+    // E = ((E - 1) >> 1) & 1: 1(V need times -1) 0(V need not times -1)
+    if (partyId == 0)
+    {
+        sharedOutE[0] -= 1;
+        sharedOutE[0] = ((sharedOutE[0] >> 1) + (sharedOutE[0] & 1)) & 1;
+    }
+    else
+    {
+        sharedOutE[0] = (sharedOutE[0] >> 1) & 1;
     }
 }
 

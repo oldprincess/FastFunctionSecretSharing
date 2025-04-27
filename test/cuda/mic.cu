@@ -1,6 +1,6 @@
 // clang-format off
-// nvcc -I include src/cuda/dcf.cu src/cuda/mic.cu test/cuda/mic.cu -o cuda_mic.exe -std=c++20
-// nvcc -I include src/cuda/dcf.cu src/cuda/mic.cu test/cuda/mic.cu -o cuda_mic.exe -std=c++20 -lineinfo -O3
+// nvcc -I include src/cuda/mic.cu test/cuda/mic.cu -o cuda_mic.exe -std=c++17
+// nvcc -I include src/cuda/mic.cu test/cuda/mic.cu -o cuda_mic.exe -std=c++17 -lineinfo -O3
 // clang-format on
 #include <FastFss/cuda/mic.h>
 #include <cuda_runtime.h>
@@ -14,6 +14,20 @@
 using namespace FastFss;
 
 MT19937Rng rng;
+
+#define LOG(fmt, ...)                                                 \
+    std::fprintf(stderr, "[FastFss] " fmt ". %s:%d\n", ##__VA_ARGS__, \
+                 __FILE__, __LINE__)
+
+#define CHECK(exp)                    \
+    [&] {                             \
+        auto the_ret = exp;           \
+        if (the_ret)                  \
+        {                             \
+            LOG("ret = %d", the_ret); \
+            std::exit(-1);            \
+        }                             \
+    }()
 
 template <typename GroupElement>
 constexpr GroupElement mod_bits(GroupElement x, int bitWidth) noexcept
@@ -45,6 +59,7 @@ public:
             (int)elementNum);
 
         std::size_t intervalNum = leftBoundary.size();
+        std::size_t elementSize = sizeof(GroupElement);
 
         std::vector<GroupElement> x(elementNum);
         std::vector<GroupElement> maskedX(elementNum);
@@ -71,8 +86,17 @@ public:
         std::size_t rightBoundaryDataSize =
             rightBoundary.size() * sizeof(GroupElement);
 
+        int         ret;
         void*       deviceDcfMICKey   = nullptr;
         std::size_t dcfMICKeyDataSize = 0;
+
+        {
+            ret = FastFss_cuda_dcfMICGetKeyDataSize(&dcfMICKeyDataSize,
+                                                    bitWidthIn, bitWidthOut,
+                                                    elementSize, elementNum);
+            CHECK(ret);
+            deviceDcfMICKey = cuda::malloc_gpu(dcfMICKeyDataSize);
+        }
 
         for (std::size_t i = 0; i < elementNum; ++i)
         {
@@ -102,13 +126,13 @@ public:
             cuda::memcpy_cpu2gpu(deviceRightBoundary, rightBoundary.data(),
                                  rightBoundaryDataSize);
 
-            int ret0 = FastFss_cuda_dcfMICKeyGen(
-                &deviceDcfMICKey, &dcfMICKeyDataSize, deviceZ, zDataSize,
+            ret = FastFss_cuda_dcfMICKeyGen(
+                deviceDcfMICKey, dcfMICKeyDataSize, deviceZ, zDataSize,
                 deviceAlpha, alphaDataSize, deviceSeed0, seedDataSize,
                 deviceSeed1, seedDataSize, deviceLeftBoundary,
                 leftBoundaryDataSize, deviceRightBoundary,
                 rightBoundaryDataSize, bitWidthIn, bitWidthOut,
-                sizeof(GroupElement), elementNum);
+                sizeof(GroupElement), elementNum, nullptr);
 
             cuda::memcpy_gpu2cpu(z.data(), deviceZ, zDataSize);
 
@@ -119,12 +143,7 @@ public:
             cuda::free_gpu(deviceLeftBoundary);
             cuda::free_gpu(deviceRightBoundary);
 
-            if (ret0 != 0)
-            {
-                std::printf("[err] FastFss_cuda_dcfMICKeyGen failed ret = %d\n",
-                            ret0);
-                return;
-            }
+            CHECK(ret);
         }
 
         // split share
@@ -152,13 +171,13 @@ public:
             cuda::memcpy_cpu2gpu(deviceRightBoundary, rightBoundary.data(),
                                  rightBoundaryDataSize);
 
-            int ret1 = FastFss_cuda_dcfMICEval(
+            ret = FastFss_cuda_dcfMICEval(
                 deviceSharedOut0, sharedOutDataSize, deviceMaskedX,
                 maskedXDataSize, deviceDcfMICKey, dcfMICKeyDataSize,
                 deviceSharedZ0, sharedZDataSize, deviceSeed0, seedDataSize, 0,
                 deviceLeftBoundary, leftBoundaryDataSize, deviceRightBoundary,
                 rightBoundaryDataSize, bitWidthIn, bitWidthOut,
-                sizeof(GroupElement), elementNum);
+                sizeof(GroupElement), elementNum, nullptr, 0, nullptr);
 
             cuda::memcpy_gpu2cpu(sharedOut0.data(), deviceSharedOut0,
                                  sharedOutDataSize);
@@ -170,13 +189,7 @@ public:
             cuda::free_gpu(deviceLeftBoundary);
             cuda::free_gpu(deviceRightBoundary);
 
-            if (ret1 != 0)
-            {
-                cuda::free_gpu(deviceDcfMICKey);
-                std::printf("[err] FastFss_cuda_dcfMICEval failed ret = %d\n",
-                            ret1);
-                return;
-            }
+            CHECK(ret);
         }
 
         {
@@ -197,13 +210,13 @@ public:
             cuda::memcpy_cpu2gpu(deviceRightBoundary, rightBoundary.data(),
                                  rightBoundaryDataSize);
 
-            int ret2 = FastFss_cuda_dcfMICEval(
+            ret = FastFss_cuda_dcfMICEval(
                 deviceSharedOut1, sharedOutDataSize, deviceMaskedX,
                 maskedXDataSize, deviceDcfMICKey, dcfMICKeyDataSize,
                 deviceSharedZ1, sharedZDataSize, deviceSeed1, seedDataSize, 1,
                 deviceLeftBoundary, leftBoundaryDataSize, deviceRightBoundary,
                 rightBoundaryDataSize, bitWidthIn, bitWidthOut,
-                sizeof(GroupElement), elementNum);
+                sizeof(GroupElement), elementNum, nullptr, 0, nullptr);
 
             cuda::memcpy_gpu2cpu(sharedOut1.data(), deviceSharedOut1,
                                  sharedOutDataSize);
@@ -215,13 +228,7 @@ public:
             cuda::free_gpu(deviceLeftBoundary);
             cuda::free_gpu(deviceRightBoundary);
 
-            if (ret2 != 0)
-            {
-                cuda::free_gpu(deviceDcfMICKey);
-                std::printf("[err] FastFss_cuda_dcfMICEval failed ret = %d\n",
-                            ret2);
-                return;
-            }
+            CHECK(ret);
         }
 
         for (std::size_t i = 0; i < elementNum; ++i)

@@ -15,7 +15,7 @@
     }
 
 #define CUDA_ERR_CHECK(do_something)                                  \
-    if (cudaDeviceSynchronize() != cudaSuccess)                       \
+    if (cudaPeekAtLastError() != cudaSuccess)                         \
     {                                                                 \
         std::printf("[error] %s in %s:%d\n",                          \
                     cudaGetErrorString(cudaGetLastError()), __FILE__, \
@@ -187,7 +187,8 @@ int FastFss_cuda_prngGen(void*  prng,
                          void*  deviceDst,
                          size_t bitWidth,
                          size_t elementSize,
-                         size_t elementNum)
+                         size_t elementNum,
+                         void*  cudaStreamPtr)
 {
     if (prng == nullptr || deviceDst == nullptr)
     {
@@ -203,10 +204,15 @@ int FastFss_cuda_prngGen(void*  prng,
     int GRID_SIZE =
         (elementNum * elementSize + BLOCK_SIZE * 16 - 1) / (BLOCK_SIZE * 16);
 
-    FastFss::cuda::aes128_ctr_kernel<<<GRID_SIZE, BLOCK_SIZE>>>( //
-        prngObj->seed, prngObj->counterTmp, prngObj->counter, deviceDst,
-        elementNum * elementSize //
-    );                           //
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)cudaStreamPtr : 0;
+
+    FastFss::cuda::aes128_ctr_kernel<<<GRID_SIZE, BLOCK_SIZE, 0, stream>>>( //
+        prngObj->seed,                                                      //
+        prngObj->counterTmp,                                                //
+        prngObj->counter,                                                   //
+        deviceDst,                                                          //
+        elementNum * elementSize                                            //
+    );                                                                      //
     CUDA_ERR_CHECK({ return PRNG_RUNTIME_ERROR; });
     CUDA_CHECK(                               //
         cudaMemcpy(prngObj->counter,          //

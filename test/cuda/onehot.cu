@@ -203,12 +203,13 @@ public:
         {
             GroupElement outE    = sharedOutE0[i] + sharedOutE1[i];
             GroupElement outT    = sharedOutT0[i] + sharedOutT1[i];
-            GroupElement out     = outE * outT;
             GroupElement needOut = lut[x[i]];
 
-            outE = mod_bits<GroupElement>(outE, bitWidthOut);
+            outE = mod_bits<GroupElement>(outE, 1);
             outT = mod_bits<GroupElement>(outT, bitWidthOut);
-            out  = mod_bits<GroupElement>(out, bitWidthOut);
+
+            GroupElement out = (outE == 0) ? outT : (0 - outT);
+            out              = mod_bits<GroupElement>(out, bitWidthOut);
             if (out != needOut)
             {
                 std::printf("E = %lld\n", (long long)outE);

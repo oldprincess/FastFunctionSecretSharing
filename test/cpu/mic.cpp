@@ -1,5 +1,5 @@
 // clang-format off
-// g++ -I include src/cpu/dcf.cpp src/cpu/mic.cpp test/cpu/mic.cpp -o cpu_mic.exe -std=c++20 -maes
+// g++ -I include src/cpu/dcf.cpp src/cpu/mic.cpp test/cpu/mic.cpp -o cpu_mic.exe -std=c++17 -maes
 // clang-format on
 #include <FastFss/cpu/mic.h>
 
@@ -9,6 +9,20 @@
 #include "mt19937.hpp"
 
 MT19937Rng rng;
+
+#define LOG(fmt, ...)                                                 \
+    std::fprintf(stderr, "[FastFss] " fmt ". %s:%d\n", ##__VA_ARGS__, \
+                 __FILE__, __LINE__)
+
+#define CHECK(exp)                    \
+    [&] {                             \
+        auto the_ret = exp;           \
+        if (the_ret)                  \
+        {                             \
+            LOG("ret = %d", the_ret); \
+            std::exit(-1);            \
+        }                             \
+    }()
 
 template <typename GroupElement>
 constexpr GroupElement mod_bits(GroupElement x, int bitWidth) noexcept
@@ -53,6 +67,7 @@ public:
         std::vector<std::uint8_t> seed0(elementNum * 16);
         std::vector<std::uint8_t> seed1(elementNum * 16);
 
+        int         ret;
         void*       dcfMICKey         = nullptr;
         std::size_t dcfMICKeyDataSize = 0;
 
@@ -67,8 +82,17 @@ public:
             maskedX[i] = mod_bits<GroupElement>(maskedX[i], bitWidthIn);
         }
 
-        int ret0 = FastFss_cpu_dcfMICKeyGen(
-            &dcfMICKey, &dcfMICKeyDataSize,              //
+        {
+            ret = FastFss_cpu_dcfMICGetKeyDataSize(
+                &dcfMICKeyDataSize, bitWidthIn, bitWidthOut,
+                sizeof(GroupElement), elementNum);
+            CHECK(ret);
+            dcfMICKey = std::malloc(dcfMICKeyDataSize);
+            CHECK((!dcfMICKey));
+        }
+
+        ret = FastFss_cpu_dcfMICKeyGen(
+            dcfMICKey, dcfMICKeyDataSize,                //
             z.data(),                                    //
             z.size() * sizeof(GroupElement),             //
             alpha.data(),                                //
@@ -82,12 +106,7 @@ public:
             rightBoundary.data(),                        //
             rightBoundary.size() * sizeof(GroupElement), //
             bitWidthIn, bitWidthOut, sizeof(GroupElement), elementNum);
-        if (ret0 != 0)
-        {
-            std::printf("[err] FastFss_cpu_dcfMICKeyGen failed ret = %d\n",
-                        ret0);
-            return;
-        }
+        CHECK(ret);
         // split share
         for (std::size_t i = 0; i < z.size(); ++i)
         {
@@ -95,7 +114,7 @@ public:
             sharedZ1[i] = z[i] - sharedZ0[i];
         }
 
-        int ret1 = FastFss_cpu_dcfMICEval(
+        ret = FastFss_cpu_dcfMICEval(
             sharedOut0.data(),                           //
             sharedOut0.size() * sizeof(GroupElement),    //
             maskedX.data(),                              //
@@ -111,15 +130,11 @@ public:
             leftBoundary.size() * sizeof(GroupElement),  //
             rightBoundary.data(),                        //
             rightBoundary.size() * sizeof(GroupElement), //
-            bitWidthIn, bitWidthOut, sizeof(GroupElement), elementNum);
-        if (ret1 != 0)
-        {
-            std::free(dcfMICKey);
-            std::printf("[err] FastFss_cpu_dcfMICEval failed ret = %d\n", ret1);
-            return;
-        }
+            bitWidthIn, bitWidthOut, sizeof(GroupElement), elementNum, nullptr,
+            0);
+        CHECK(ret);
 
-        int ret2 = FastFss_cpu_dcfMICEval(
+        ret = FastFss_cpu_dcfMICEval(
             sharedOut1.data(),                           //
             sharedOut1.size() * sizeof(GroupElement),    //
             maskedX.data(),                              //
@@ -135,13 +150,9 @@ public:
             leftBoundary.size() * sizeof(GroupElement),  //
             rightBoundary.data(),                        //
             rightBoundary.size() * sizeof(GroupElement), //
-            bitWidthIn, bitWidthOut, sizeof(GroupElement), elementNum);
-        if (ret2 != 0)
-        {
-            std::free(dcfMICKey);
-            std::printf("[err] FastFss_cpu_dcfMICEval failed ret = %d\n", ret2);
-            return;
-        }
+            bitWidthIn, bitWidthOut, sizeof(GroupElement), elementNum, nullptr,
+            0);
+        CHECK(ret);
 
         for (std::size_t i = 0; i < elementNum; ++i)
         {
