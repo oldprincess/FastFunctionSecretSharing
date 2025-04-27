@@ -1,3 +1,5 @@
+#include "pyFastOnehot.h"
+
 #include <FastFss/cpu/onehot.h>
 #include <FastFss/cuda/onehot.h>
 #include <c10/cuda/CUDAStream.h>
@@ -6,8 +8,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
-
-#include "pyFastFss.h"
 
 #define ERR_LOG(fmt, ...)                                                    \
     std::fprintf(stderr, "[FastFss Grotto] " fmt ". %s:%d\n", ##__VA_ARGS__, \
@@ -20,6 +20,13 @@
         throw std::invalid_argument("assert fail: " #exp); \
     }
 
+#define CHECK_ERROR_CODE(ret, func)             \
+    if (ret != 0)                               \
+    {                                           \
+        ERR_LOG(func "ret = %d", ret);          \
+        throw std::runtime_error(func " fail"); \
+    }
+
 namespace pyFastFss {
 
 std::size_t onehot_get_key_data_size(std::size_t bitWidthIn,
@@ -28,18 +35,14 @@ std::size_t onehot_get_key_data_size(std::size_t bitWidthIn,
     std::size_t keyDataSize = 0;
     int         result =
         FastFss_cpu_onehotGetKeyDataSize(&keyDataSize, bitWidthIn, elementNum);
-    if (result < 0)
-    {
-        ERR_LOG("FastFss_cpu_onehotGetKeyDataSize ret = %d", result);
-        throw std::runtime_error("FastFss_cpu_onehotGetKeyDataSize fail");
-    }
+    CHECK_ERROR_CODE(result, "FastFss_cpu_onehotGetKeyDataSize");
     return keyDataSize;
 }
 
-void onehot_key_gen(torch::Tensor&       keyInOut,
-                    const torch::Tensor& alpha,
-                    std::size_t          bitWidthIn,
-                    std::size_t          elementNum)
+torch::Tensor& onehot_key_gen(torch::Tensor&       keyInOut,
+                              const torch::Tensor& alpha,
+                              std::size_t          bitWidthIn,
+                              std::size_t          elementNum)
 {
     // =====================================================
     // ===================== Check Input ===================
@@ -60,15 +63,12 @@ void onehot_key_gen(torch::Tensor&       keyInOut,
 
     ARG_ASSERT(keyInOut.device() == device);
 
+    ARG_ASSERT((std::size_t)keyInOut.numel() ==
+               onehot_get_key_data_size(bitWidthIn, elementNum));
+
     // =====================================================
     // ===================== FastFss =======================
     // =====================================================
-
-    std::size_t onehotKeyDataSize = onehot_get_key_data_size( //
-        bitWidthIn, elementNum                                //
-    );                                                        //
-
-    ARG_ASSERT((std::size_t)keyInOut.numel() == onehotKeyDataSize);
 
     if (device.type() == torch::kCPU)
     {
@@ -81,11 +81,7 @@ void onehot_key_gen(torch::Tensor&       keyInOut,
             elementSize,                              //
             elementNum                                //
         );
-        if (ret != 0)
-        {
-            ERR_LOG("FastFss_cpu_onehotKeyGen ret = %d", ret);
-            throw std::runtime_error("FastFss_cpu_onehotKeyGen fail");
-        }
+        CHECK_ERROR_CODE(ret, "FastFss_cpu_onehotKeyGen");
     }
     else if (device.type() == torch::kCUDA)
     {
@@ -101,51 +97,50 @@ void onehot_key_gen(torch::Tensor&       keyInOut,
             elementNum,                               //
             &stream                                   //
         );
-        if (ret != 0)
-        {
-            ERR_LOG("FastFss_cuda_onehotKeyGen ret = %d", ret);
-            throw std::runtime_error("FastFss_cuda_onehotKeyGen fail");
-        }
+        CHECK_ERROR_CODE(ret, "FastFss_cuda_onehotKeyGen");
     }
     else
     {
-        ERR_LOG("device must be CPU or CUDA");
         throw std::invalid_argument("device must be CPU or CUDA");
     }
+    return keyInOut;
 }
 
-void onehot_lut_eval(torch::Tensor&       sharedOutE,
-                     torch::Tensor&       sharedOutT,
-                     const torch::Tensor& maskedX,
-                     const torch::Tensor& key,
-                     int                  partyId,
-                     const torch::Tensor& lookUpTable,
-                     std::size_t          bitWidthIn,
-                     std::size_t          bitWidthOut,
-                     std::size_t          elementNum)
+py::tuple onehot_lut_eval(torch::Tensor&       sharedOutE,
+                          torch::Tensor&       sharedOutT,
+                          const torch::Tensor& maskedX,
+                          const torch::Tensor& key,
+                          int                  partyId,
+                          const torch::Tensor& lookUpTable,
+                          std::size_t          bitWidthIn,
+                          std::size_t          bitWidthOut,
+                          std::size_t          elementNum)
 {
     // =====================================================
     // ===================== Check Input ===================
     // =====================================================
-    ARG_ASSERT(sharedOutE.is_contiguous() && //
-               sharedOutT.is_contiguous() && //
-               maskedX.is_contiguous() &&    //
-               key.is_contiguous() &&        //
-               lookUpTable.is_contiguous());
+    ARG_ASSERT(sharedOutE.is_contiguous());
+    ARG_ASSERT(sharedOutT.is_contiguous());
+    ARG_ASSERT(maskedX.is_contiguous());
+    ARG_ASSERT(key.is_contiguous());
+    ARG_ASSERT(lookUpTable.is_contiguous());
 
     ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
     ARG_ASSERT(key.dtype() == torch::kUInt8);
 
     auto dtype = maskedX.dtype();
-    ARG_ASSERT(sharedOutE.dtype() == dtype && sharedOutT.dtype() == dtype &&
-               lookUpTable.dtype() == dtype);
+    ARG_ASSERT(sharedOutE.dtype() == dtype);
+    ARG_ASSERT(sharedOutT.dtype() == dtype);
+    ARG_ASSERT(lookUpTable.dtype() == dtype);
 
     std::size_t elementSize = maskedX.element_size();
     ARG_ASSERT(bitWidthIn <= elementSize * 8);
 
     auto device = maskedX.device();
-    ARG_ASSERT(sharedOutT.device() == device && sharedOutE.device() == device &&
-               key.device() == device && lookUpTable.device() == device);
+    ARG_ASSERT(sharedOutT.device() == device);
+    ARG_ASSERT(sharedOutE.device() == device);
+    ARG_ASSERT(key.device() == device);
+    ARG_ASSERT(lookUpTable.device() == device);
 
     ARG_ASSERT((std::size_t)key.numel() ==
                onehot_get_key_data_size(bitWidthIn, elementNum));
@@ -154,14 +149,8 @@ void onehot_lut_eval(torch::Tensor&       sharedOutE,
     // ===================== FastFss =======================
     // =====================================================
 
-    if ((std::size_t)sharedOutE.numel() != elementNum)
-    {
-        sharedOutE.resize_({(std::int64_t)(elementNum)});
-    }
-    if ((std::size_t)sharedOutT.numel() != elementNum)
-    {
-        sharedOutT.resize_({(std::int64_t)(elementNum)});
-    }
+    sharedOutE.resize_({(std::int64_t)(elementNum)});
+    sharedOutT.resize_({(std::int64_t)(elementNum)});
 
     if (device.type() == torch::kCPU)
     {
@@ -178,11 +167,7 @@ void onehot_lut_eval(torch::Tensor&       sharedOutE,
             bitWidthIn,                                     //
             elementSize,                                    //
             elementNum);
-        if (ret != 0)
-        {
-            ERR_LOG("FastFss_cpu_onehotLutEval fail ret = %d", ret);
-            throw std::runtime_error("FastFss_cpu_onehotLutEval fail");
-        }
+        CHECK_ERROR_CODE(ret, "FastFss_cpu_onehotLutEval");
     }
     else if (device.type() == torch::kCUDA)
     {
@@ -201,17 +186,13 @@ void onehot_lut_eval(torch::Tensor&       sharedOutE,
             bitWidthIn,                                     //
             elementSize,                                    //
             elementNum, &stream);
-        if (ret != 0)
-        {
-            ERR_LOG("FastFss_cuda_onehotLutEval ret = %d", ret);
-            throw std::runtime_error("FastFss_cuda_onehotLutEval fail");
-        }
+        CHECK_ERROR_CODE(ret, "FastFss_cuda_onehotLutEval");
     }
     else
     {
-        ERR_LOG("device must be CPU or CUDA");
         throw std::invalid_argument("device must be CPU or CUDA");
     }
+    return py::make_tuple(sharedOutE, sharedOutT);
 }
 
 } // namespace pyFastFss

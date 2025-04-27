@@ -1,14 +1,33 @@
+#include "pyFastDcfMIC.h"
+
 #include <FastFss/cpu/dcf.h>
 #include <FastFss/cpu/mic.h>
 #include <FastFss/cuda/dcf.h>
 #include <FastFss/cuda/mic.h>
+#include <c10/cuda/CUDAStream.h>
 #include <torch/extension.h>
 
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 
-#include "pyFastFss.h"
+#define ERR_LOG(fmt, ...)                                                     \
+    std::fprintf(stderr, "[FastFss DCF MIC] " fmt ". %s:%d\n", ##__VA_ARGS__, \
+                 __FILE__, __LINE__)
+
+#define ARG_ASSERT(exp)                                    \
+    if (!(exp))                                            \
+    {                                                      \
+        ERR_LOG("assert fail: " #exp);                     \
+        throw std::invalid_argument("assert fail: " #exp); \
+    }
+
+#define CHECK_ERROR_CODE(ret, func)             \
+    if (ret != 0)                               \
+    {                                           \
+        ERR_LOG(func "ret = %d", ret);          \
+        throw std::runtime_error(func " fail"); \
+    }
 
 namespace pyFastFss {
 
@@ -17,209 +36,13 @@ std::size_t dcf_mic_get_key_data_size(std::size_t bitWidthIn,
                                       std::size_t elementSize,
                                       std::size_t elementNum)
 {
-    int result = FastFss_cpu_dcfMICGetKeyDataSize(bitWidthIn, bitWidthOut,
-                                                  elementSize, elementNum);
-    if (result < 0)
-    {
-        std::fprintf(
-            stderr,                                                         //
-            "[FastFss] FastFss_cpu_dcfMICGetKeyDataSize ret = %d. %s:%d\n", //
-            result, __FILE__, __LINE__                                      //
-        );                                                                  //
-        throw std::runtime_error("FastFss_cpu_dcfMICGetKeyDataSize fail");
-    }
-    return (std::size_t)result;
+    std::size_t result = 0;
+    int ret = FastFss_cpu_dcfMICGetKeyDataSize(&result, bitWidthIn, bitWidthOut,
+                                               elementSize, elementNum);
+    CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfMICGetKeyDataSize");
+    return result;
 }
 
-std::size_t dcf_mic_get_zipped_key_data_size(std::size_t bitWidthIn,
-                                             std::size_t bitWidthOut,
-                                             std::size_t elementSize,
-                                             std::size_t elementNum)
-{
-    int result = FastFss_cpu_dcfMICGetZippedKeyDataSize(
-        bitWidthIn, bitWidthOut, elementSize, elementNum);
-    if (result < 0)
-    {
-        std::fprintf(
-            stderr,                                                       //
-            "[FastFss] FastFss_cpu_dcfMICGetZippedKeyDataSize ret = %d. " //
-            "%s:%d\n",                                                    //
-            result, __FILE__, __LINE__                                    //
-        );                                                                //
-        throw std::runtime_error("FastFss_cpu_dcfMICGetZippedKeyDataSize fail");
-    }
-    return (std::size_t)result;
-}
-
-void dcf_mic_key_zip(torch::Tensor zippedKeyOut,
-                     torch::Tensor key,
-                     std::size_t   bitWidthIn,
-                     std::size_t   bitWidthOut,
-                     std::size_t   elementNum)
-{
-    auto device = key.device();
-
-    if (zippedKeyOut.device() != device)
-    {
-        std::fprintf(stderr,                                             //
-                     "[FastFss] zippedKeyOut.device() != device. %s:%d", //
-                     __FILE__, __LINE__                                  //
-        );
-        throw std::invalid_argument("zippedKeyOut.device() != device");
-    }
-    if (zippedKeyOut.dtype() != torch::kUInt8 || key.dtype() != torch::kUInt8)
-    {
-        std::fprintf(stderr,                                               //
-                     "[FastFss] zippedKeyOut.dtype() != torch::kUInt8 || " //
-                     "key.dtype() != torch::kUInt8. %s:%d\n",              //
-                     __FILE__, __LINE__                                    //
-        );
-        throw std::invalid_argument("zippedKeyOut.dtype() != torch::kUInt8 || "
-                                    "key.dtype() != torch::kUInt8");
-    }
-
-    std::size_t zippedKeyDataSize = dcf_mic_get_zipped_key_data_size(
-        bitWidthIn, bitWidthOut, 1, elementNum);
-    if ((std::size_t)zippedKeyOut.numel() != zippedKeyDataSize)
-    {
-        zippedKeyOut.resize_({(std::int64_t)zippedKeyDataSize});
-    }
-
-    void*       zippedKeyOutPtr = zippedKeyOut.mutable_data_ptr();
-    std::size_t inputDataSize   = (std::size_t)zippedKeyOut.numel();
-    if (device.type() == torch::kCPU)
-    {
-        int ret = FastFss_cpu_dcfMICKeyZip(&zippedKeyOutPtr,         //
-                                           &inputDataSize,           //
-                                           key.const_data_ptr(),     //
-                                           (std::size_t)key.numel(), //
-                                           bitWidthIn,               //
-                                           bitWidthOut,              //
-                                           1,                        //
-                                           elementNum                //
-        );
-        if (ret < 0)
-        {
-            std::fprintf(stderr,
-                         "[FastFss] FastFss_cpu_dcfMICKeyZip ret = %d. %s:%d\n",
-                         ret, __FILE__, __LINE__);
-            throw std::runtime_error("FastFss_cpu_dcfMICKeyZip fail");
-        }
-    }
-    else if (device.type() == torch::kCUDA)
-    {
-        int ret = FastFss_cuda_dcfMICKeyZip(&zippedKeyOutPtr,         //
-                                            &inputDataSize,           //
-                                            key.const_data_ptr(),     //
-                                            (std::size_t)key.numel(), //
-                                            bitWidthIn,               //
-                                            bitWidthOut,              //
-                                            1,                        //
-                                            elementNum                //
-        );
-        if (ret < 0)
-        {
-            std::fprintf(
-                stderr, "[FastFss] FastFss_cuda_dcfMICKeyZip ret = %d. %s:%d\n",
-                ret, __FILE__, __LINE__);
-            throw std::runtime_error("FastFss_cuda_dcfMICKeyZip fail");
-        }
-    }
-    else
-    {
-        std::fprintf(stderr,                                          //
-                     "[FastFss] device must be CPU or CUDA. %s:%d\n", //
-                     __FILE__, __LINE__                               //
-        );
-        throw std::invalid_argument("device must be CPU or CUDA");
-    }
-}
-
-void dcf_mic_key_unzip(torch::Tensor keyOut,
-                       torch::Tensor zippedKey,
-                       std::size_t   bitWidthIn,
-                       std::size_t   bitWidthOut,
-                       std::size_t   elementNum)
-{
-    auto device = zippedKey.device();
-
-    if (keyOut.device() != device)
-    {
-        std::fprintf(stderr,                                       //
-                     "[FastFss] keyOut.device() != device. %s:%d", //
-                     __FILE__, __LINE__                            //
-        );
-        throw std::invalid_argument("keyOut.device() != device");
-    }
-    if (keyOut.dtype() != torch::kUInt8 || zippedKey.dtype() != torch::kUInt8)
-    {
-        std::fprintf(stderr,                                         //
-                     "[FastFss] keyOut.dtype() != torch::kUInt8 || " //
-                     "zippedKey.dtype() != torch::kUInt8. %s:%d\n",  //
-                     __FILE__, __LINE__                              //
-        );
-        throw std::invalid_argument("keyOut.dtype() != torch::kUInt8 || "
-                                    "zippedKey.dtype() != torch::kUInt8");
-    }
-
-    std::size_t keyDataSize =
-        dcf_mic_get_key_data_size(bitWidthIn, bitWidthOut, 1, elementNum);
-    if ((std::size_t)keyOut.numel() != keyDataSize)
-    {
-        keyOut.resize_({(std::int64_t)keyDataSize});
-    }
-
-    void*       keyOutPtr     = keyOut.mutable_data_ptr();
-    std::size_t inputDataSize = (std::size_t)keyOut.numel();
-    if (device.type() == torch::kCPU)
-    {
-        int ret = FastFss_cpu_dcfMICKeyUnzip(&keyOutPtr,                     //
-                                             &inputDataSize,                 //
-                                             zippedKey.const_data_ptr(),     //
-                                             (std::size_t)zippedKey.numel(), //
-                                             bitWidthIn,                     //
-                                             bitWidthOut,                    //
-                                             1,                              //
-                                             elementNum                      //
-        );
-        if (ret < 0)
-        {
-            std::fprintf(
-                stderr,
-                "[FastFss] FastFss_cpu_dcfMICKeyUnzip ret = %d. %s:%d\n", ret,
-                __FILE__, __LINE__);
-            throw std::runtime_error("FastFss_cpu_dcfMICKeyUnzip fail");
-        }
-    }
-    else if (device.type() == torch::kCUDA)
-    {
-        int ret = FastFss_cuda_dcfMICKeyUnzip(&keyOutPtr,                     //
-                                              &inputDataSize,                 //
-                                              zippedKey.const_data_ptr(),     //
-                                              (std::size_t)zippedKey.numel(), //
-                                              bitWidthIn,                     //
-                                              bitWidthOut,                    //
-                                              1,                              //
-                                              elementNum                      //
-        );
-        if (ret < 0)
-        {
-            std::fprintf(
-                stderr,
-                "[FastFss] FastFss_cuda_dcfMICKeyUnzip ret = %d. %s:%d\n", ret,
-                __FILE__, __LINE__);
-            throw std::runtime_error("FastFss_cuda_dcfMICKeyUnzip fail");
-        }
-    }
-    else
-    {
-        std::fprintf(stderr,                                          //
-                     "[FastFss] device must be CPU or CUDA. %s:%d\n", //
-                     __FILE__, __LINE__                               //
-        );
-        throw std::invalid_argument("device must be CPU or CUDA");
-    }
-}
 void dcf_mic_key_gen(torch::Tensor keyOut,
                      torch::Tensor zOut,
                      torch::Tensor alpha,
@@ -235,106 +58,46 @@ void dcf_mic_key_gen(torch::Tensor keyOut,
     // ===================== Check Input ===================
     // =====================================================
 
-    if (!keyOut.is_contiguous() || !zOut.is_contiguous() ||
-        !alpha.is_contiguous() || !seed0.is_contiguous() ||
-        !seed1.is_contiguous() || !leftBoundary.is_contiguous() ||
-        !rightBoundary.is_contiguous())
-    {
-        std::fprintf(stderr,                                         //
-                     "[FastFss] tensor must be contiguous. %s:%d\n", //
-                     __FILE__, __LINE__);                            //
-        throw std::invalid_argument("tensor must be contiguous");
-    }
+    ARG_ASSERT(keyOut.is_contiguous());
+    ARG_ASSERT(zOut.is_contiguous());
+    ARG_ASSERT(alpha.is_contiguous());
+    ARG_ASSERT(seed0.is_contiguous());
+    ARG_ASSERT(seed1.is_contiguous());
+    ARG_ASSERT(leftBoundary.is_contiguous());
+    ARG_ASSERT(rightBoundary.is_contiguous());
 
-    if ((std::size_t)alpha.numel() != elementNum)
-    {
-        std::fprintf(stderr,                                            //
-                     "[FastFss]  alpha.numel() != elementNum. %s:%d\n", //
-                     __FILE__, __LINE__                                 //
-        );                                                              //
-        throw std::invalid_argument("alpha.numel() != elementNum");
-    }
+    ARG_ASSERT((std::size_t)alpha.numel() == elementNum);
+    ARG_ASSERT((std::size_t)seed0.numel() == 16 * elementNum);
+    ARG_ASSERT((std::size_t)seed1.numel() == 16 * elementNum);
 
-    if ((std::size_t)seed0.numel() != 16 * elementNum ||
-        (std::size_t)seed1.numel() != 16 * elementNum)
-    {
-        std::fprintf(stderr, //
-                     "[FastFss] seed0.numel() != 16 * elementNum || "
-                     "seed1.numel() != 16 * elementNum. %s:%d\n", //
-                     __FILE__, __LINE__                           //
-        );                                                        //
-        throw std::invalid_argument("seed0.numel() != 16 * elementNum || "
-                                    "seed1.numel() != 16 * elementNum");
-    }
+    ARG_ASSERT(keyOut.dtype() == torch::kUInt8);
+    ARG_ASSERT(seed0.dtype() == torch::kUInt8);
+    ARG_ASSERT(seed1.dtype() == torch::kUInt8);
 
-    if (keyOut.dtype() != torch::kUInt8 || seed0.dtype() != torch::kUInt8 ||
-        seed1.dtype() != torch::kUInt8)
-    {
-        std::fprintf(
-            stderr,                                                      //
-            "[FastFss] keyOut.dtype seed0.dtype seed1.dtype must be "    //
-            "torch::kUInt8. %s:%d\n",                                    //
-            __FILE__, __LINE__                                           //
-        );                                                               //
-        throw std::invalid_argument(                                     //
-            "keyOut.dtype seed0.dtype seed1.dtype must be torch::kUInt8" //
-        );                                                               //
-    }
-    if (alpha.dtype() != zOut.dtype() ||
-        alpha.dtype() != leftBoundary.dtype() ||
-        alpha.dtype() != rightBoundary.dtype())
-    {
-        std::fprintf(stderr,                                                  //
-                     "[FastFss] alpha zOut leftBoundary rightBoundary dtype " //
-                     "must be same. %s:%d\n",                                 //
-                     __FILE__, __LINE__                                       //
-        );                                                                    //
-        throw std::invalid_argument(
-            "alpha zOut leftBoundary rightBoundary dtype must be same");
-    }
+    auto dtype = alpha.dtype();
+    ARG_ASSERT(zOut.dtype() == dtype);
+    ARG_ASSERT(leftBoundary.dtype() == dtype);
+    ARG_ASSERT(rightBoundary.dtype() == dtype);
 
     std::size_t elementSize = alpha.element_size();
-    if (bitWidthIn > elementSize * 8 || bitWidthOut > elementSize * 8)
-    {
-        std::fprintf(stderr,                                      //
-                     "[FastFss] bitWidthIn <= elementSize *8 && " //
-                     "bitWidthOut <= elementSize *8. %s:%d\n",    //
-                     __FILE__, __LINE__                           //
-        );                                                        //
-        throw std::invalid_argument(                              //
-            "bitWidthIn > elementSize * 8 || "                    //
-            "bitWidthOut > elementSize *8"                        //
-        );                                                        //
-    }
+
+    ARG_ASSERT(bitWidthIn <= elementSize * 8);
+    ARG_ASSERT(bitWidthOut <= elementSize * 8);
 
     auto device = alpha.device();
-    if (keyOut.device() != device || zOut.device() != device ||
-        seed0.device() != device || seed1.device() != device ||
-        leftBoundary.device() != device || rightBoundary.device() != device)
-    {
-        std::fprintf(stderr,                                   //
-                     "[FastFss] device must be same. %s:%d\n", //
-                     __FILE__, __LINE__                        //
-        );
-        throw std::invalid_argument("device must be same");
-    }
 
-    if (leftBoundary.numel() != rightBoundary.numel())
-    {
-        std::fprintf(
-            stderr,                                                    //
-            "[FastFss] intervalNum != rightBoundary.numel(). %s:%d\n", //
-            __FILE__, __LINE__                                         //
-        );
-        throw std::invalid_argument("intervalNum != rightBoundary.numel()");
-    }
+    ARG_ASSERT(keyOut.device() == device);
+    ARG_ASSERT(zOut.device() == device);
+    ARG_ASSERT(seed0.device() == device);
+    ARG_ASSERT(seed1.device() == device);
+    ARG_ASSERT(leftBoundary.device() == device);
+    ARG_ASSERT(rightBoundary.device() == device);
+
+    ARG_ASSERT(leftBoundary.numel() == rightBoundary.numel());
 
     std::size_t intervalNum = (std::size_t)leftBoundary.numel();
 
-    if ((std::size_t)zOut.numel() != intervalNum * elementNum)
-    {
-        zOut.resize_({(std::int64_t)(intervalNum * elementNum)});
-    }
+    zOut.resize_({(std::int64_t)(intervalNum * elementNum)});
 
     // =====================================================
     // ===================== FastFss =======================
@@ -344,18 +107,13 @@ void dcf_mic_key_gen(torch::Tensor keyOut,
         bitWidthIn, bitWidthOut, elementSize, elementNum       //
     );                                                         //
 
-    if ((std::size_t)keyOut.numel() != dcfMICKeyDataSize)
-    {
-        keyOut.resize_({(std::int64_t)dcfMICKeyDataSize});
-    }
+    keyOut.resize_({(std::int64_t)dcfMICKeyDataSize});
 
-    void*       dcfKeyPtr    = keyOut.mutable_data_ptr();
-    std::size_t inputKeySize = (std::size_t)keyOut.numel();
     if (device.type() == torch::kCPU)
     {
         int ret = FastFss_cpu_dcfMICKeyGen(
-            &dcfKeyPtr,                                       //
-            &inputKeySize,                                    //
+            keyOut.mutable_data_ptr(),                        //
+            (std::size_t)keyOut.numel(),                      //
             zOut.mutable_data_ptr(),                          //
             (std::size_t)zOut.numel() * elementSize,          //
             alpha.const_data_ptr(),                           //
@@ -373,21 +131,15 @@ void dcf_mic_key_gen(torch::Tensor keyOut,
             elementSize,                                      //
             elementNum                                        //
         );
-        if (ret != 0)
-        {
-            std::fprintf(
-                stderr,                                                 //
-                "[FastFss] FastFss_cpu_dcfMICKeyGen ret = %d. %s:%d\n", //
-                ret, __FILE__, __LINE__                                 //
-            );                                                          //
-            throw std::runtime_error("FastFss_cpu_dcfMICKeyGen fail");
-        }
+        CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfMICKeyGen");
     }
     else if (device.type() == torch::kCUDA)
     {
+        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
+
         int ret = FastFss_cuda_dcfMICKeyGen(
-            &dcfKeyPtr,                                       //
-            &inputKeySize,                                    //
+            keyOut.mutable_data_ptr(),                        //
+            (std::size_t)keyOut.numel(),                      //
             zOut.mutable_data_ptr(),                          //
             (std::size_t)zOut.numel() * elementSize,          //
             alpha.const_data_ptr(),                           //
@@ -403,25 +155,13 @@ void dcf_mic_key_gen(torch::Tensor keyOut,
             bitWidthIn,                                       //
             bitWidthOut,                                      //
             elementSize,                                      //
-            elementNum                                        //
+            elementNum,                                       //
+            &stream                                           //
         );
-        if (ret != 0)
-        {
-            std::fprintf( //
-                stderr,
-                "[FastFss] FastFss_cuda_dcfMICKeyGen ret = %d. %s:%d\n", //
-                ret, __FILE__, __LINE__                                  //
-            );                                                           //
-            throw std::runtime_error("FastFss_cuda_dcfMICKeyGen fail");
-        }
+        CHECK_ERROR_CODE(ret, "FastFss_cuda_dcfMICKeyGen");
     }
     else
     {
-        std::fprintf(                                                     //
-            stderr,                                                       //
-            "[FastFss] device must be CPU or CUDA. device = %s. %s:%d\n", //
-            device.str().c_str(), __FILE__, __LINE__                      //
-        );
         throw std::invalid_argument("device must be CPU or CUDA");
     }
 }
@@ -566,10 +306,7 @@ void dcf_mic_eval(torch::Tensor sharedOut,
     // ===================== FastFss =======================
     // =====================================================
 
-    if ((std::size_t)sharedOut.numel() != intervalNum * elementNum)
-    {
-        sharedOut.resize_({(std::int64_t)(intervalNum * elementNum)});
-    }
+    sharedOut.resize_({(std::int64_t)(intervalNum * elementNum)});
 
     if (device.type() == torch::kCPU)
     {
@@ -592,19 +329,13 @@ void dcf_mic_eval(torch::Tensor sharedOut,
             bitWidthIn,                                       //
             bitWidthOut,                                      //
             elementSize,                                      //
-            elementNum);
-        if (ret != 0)
-        {
-            std::fprintf(
-                stderr,                                               //
-                "[FastFss] FastFss_cpu_dcfMICEval ret = %d. %s:%d\n", //
-                ret, __FILE__, __LINE__                               //
-            );                                                        //
-            throw std::runtime_error("FastFss_cpu_dcfMICEval fail");
-        }
+            elementNum, nullptr, 0);
+        CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfMICEval");
     }
     else if (device.type() == torch::kCUDA)
     {
+        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
+
         int ret = FastFss_cuda_dcfMICEval(                    //
             sharedOut.mutable_data_ptr(),                     //
             (std::size_t)sharedOut.numel() * elementSize,     //
@@ -624,24 +355,11 @@ void dcf_mic_eval(torch::Tensor sharedOut,
             bitWidthIn,                                       //
             bitWidthOut,                                      //
             elementSize,                                      //
-            elementNum);
-        if (ret != 0)
-        {
-            std::fprintf(
-                stderr,                                                //
-                "[FastFss] FastFss_cuda_dcfMICEval ret = %d. %s:%d\n", //
-                ret, __FILE__, __LINE__                                //
-            );                                                         //
-            throw std::runtime_error("FastFss_cuda_dcfMICEval fail");
-        }
+            elementNum, nullptr, 0, &stream);
+        CHECK_ERROR_CODE(ret, "FastFss_cuda_dcfMICEval");
     }
     else
     {
-        std::fprintf(                                                     //
-            stderr,                                                       //
-            "[FastFss] device must be CPU or CUDA. device = %s. %s:%d\n", //
-            device.str().c_str(), __FILE__, __LINE__                      //
-        );
         throw std::invalid_argument("device must be CPU or CUDA");
     }
 }

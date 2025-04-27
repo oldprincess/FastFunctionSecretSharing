@@ -33,72 +33,6 @@ Raises:
     ValueError:   If the input argument is invalid.
         )");
 
-    m.def("dcf_get_zipped_key_data_size",
-          &pyFastFss::dcf_get_zipped_key_data_size,
-          py::arg("bitWidthIn"),  //
-          py::arg("bitWidthOut"), //
-          py::arg("elementSize"), //
-          py::arg("elementNum"),  //
-          R"(
-GetDCF zipped key data size.
-
-Args:
-    bitWidthIn (int):       bit width of input data
-    bitWidthOut (int):      bit width of output data
-    elementSize (int):      element size of input data
-    elementNum (int):       element number of input data
-
-Returns:
-    size (int):             DCF zipped key data size
-
-Raises:
-    ValueError:   If the input argument is invalid.
-        )");
-
-    m.def("dcf_key_zip",           //
-          &pyFastFss::dcf_key_zip, //
-          py::arg("zippedKeyOut"), //
-          py::arg("key"),          //
-          py::arg("bitWidthIn"),   //
-          py::arg("bitWidthOut"),  //
-          py::arg("elementNum"),   //
-          R"(
-Zip DCF key.
-
-Args:
-    zippedKeyOut (torch.Tensor):  zipped DCF key tensor
-    key (torch.Tensor):           DCF key tensor
-    bitWidthIn (int):             bitwidth of input data
-    bitWidthOut (int):            bitwidth of output data
-    elementNum (int):             element number of input data
-    
-Raises:
-    ValueError:   If the input argument is invalid.
-    RuntimeError: If the FastFss_cpu_dcfKeyZip or FastFss_cuda_dcfKeyZip fail.
-        )");
-
-    m.def("dcf_key_unzip",           //
-          &pyFastFss::dcf_key_unzip, //
-          py::arg("keyOut"),         //
-          py::arg("zippedKey"),      //
-          py::arg("bitWidthIn"),     //
-          py::arg("bitWidthOut"),    //
-          py::arg("elementNum"),     //
-          R"(
-Unzip DCF key.
-
-Args:
-    keyOut (torch.Tensor):  DCF key tensor
-    zippedKey (torch.Tensor):  zipped DCF key tensor
-    bitWidthIn (int):      bit width of input data
-    bitWidthOut (int):      bit width of output data
-    elementNum (int):      element number of input data
-    
-Raises:
-    ValueError:   If the input argument is invalid.
-    RuntimeError: If the FastFss_cpu_dcfKeyUnzip or FastFss_cuda_dcfKeyUnzip fail.
-        )");
-
     m.def(                       //
         "dcf_key_gen",           //
         &pyFastFss::dcf_key_gen, //
@@ -181,26 +115,6 @@ Raises:
     ValueError:   If the input argument is invalid.
         )");
 
-    m.def("grotto_get_zipped_key_data_size",           //
-          &pyFastFss::grotto_get_zipped_key_data_size, //
-          py::arg("bitWidthIn"),                       //
-          py::arg("elementSize"),                      //
-          py::arg("elementNum"),                       //
-          R"(
-GetGrotto zipped key data size.
-
-Args:
-    bitWidthIn (int):      bit width of input data
-    elementSize (int):     element size of input data
-    elementNum (int):      element number of input data
-    
-Returns:
-    zipped key data size
-
-Raises:
-    ValueError:   If the input argument is invalid.
-        )");
-
     m.def("grotto_key_gen",           //
           &pyFastFss::grotto_key_gen, //
           py::arg("keyOut"),          //
@@ -223,45 +137,6 @@ Args:
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_grottoKeyGen or FastFss_cuda_grottoKeyGen fail.
-        )");
-
-    m.def("grotto_key_zip",           //
-          &pyFastFss::grotto_key_zip, //
-          py::arg("zippedKeyOut"),    //
-          py::arg("key"),             //
-          py::arg("bitWidthIn"),      //
-          py::arg("elementNum"),      //
-          R"(
-Zip Grotto key.
-
-Args:
-    zippedKeyOut (torch.Tensor):  zipped Grotto key tensor
-    key (torch.Tensor):           Grotto key tensor
-    bitWidthIn (int):             bit width of input data
-    elementNum (int):             element number of input data
-    
-Raises:
-    ValueError:   If the input argument is invalid.
-    RuntimeError: If the FastFss_cpu_grottoKeyZip or FastFss_cuda_grottoKeyZip fail.
-        )");
-
-    m.def("grotto_key_unzip",           //
-          &pyFastFss::grotto_key_unzip, //
-          py::arg("keyOut"),            //
-          py::arg("zippedKey"),         //
-          py::arg("bitWidthIn"),        //
-          py::arg("elementNum"),        //
-          R"(
-Unzip Grotto key.
-
-Args:
-    keyOut (torch.Tensor):  Grotto key tensor
-    zippedKey (torch.Tensor):  zipped Grotto key tensor
-    bitWidthIn (int):       bit width of input data
-    elementNum (int):       element number of input data
-    
-Raises:
-    ValueError:   If the input argument is invalid.        
         )");
 
     m.def("grotto_eval",           //
@@ -408,72 +283,6 @@ Returns:
 
 Raises:
     ValueError:   If the input argument is invalid.
-        )");
-
-    m.def("dcf_mic_get_zipped_key_data_size",           //
-          &pyFastFss::dcf_mic_get_zipped_key_data_size, //
-          py::arg("bitWidthIn"),                        //
-          py::arg("bitWidthOut"),                       //
-          py::arg("elementSize"),                       //
-          py::arg("elementNum"),                        //
-          R"(
-Get DCF MIC zipped key data size.
-
-Args:
-    bitWidthIn (int):      bit width of input data
-    bitWidthOut (int):     bit width of output data
-    elementSize (int):     element size of input data
-    elementNum (int):      element number of input data
-
-Returns:
-    zipped key data size
-
-Raises:
-    ValueError:   If the input argument is invalid.
-        )");
-
-    m.def("dcf_mic_key_zip",           //
-          &pyFastFss::dcf_mic_key_zip, //
-          py::arg("zippedKeyOut"),     //
-          py::arg("key"),              //
-          py::arg("bitWidthIn"),       //
-          py::arg("bitWidthOut"),      //
-          py::arg("elementNum"),       //
-          R"(
-Zip DCF MIC key.
-
-Args:
-    zippedKeyOut (torch.Tensor):    zipped key tensor
-    key (torch.Tensor):             key tensor
-    bitWidthIn (int):               bit width of input data
-    bitWidthOut (int):              bit width of output data
-    elementNum (int):               element number of input data
-
-Raises:
-    ValueError:   If the input argument is invalid.
-    RuntimeError: If the FastFss_cpu_dcfMicKeyZip or FastFss_cuda_dcfMicKeyZip fail.
-        )");
-
-    m.def("dcf_mic_key_unzip",           //
-          &pyFastFss::dcf_mic_key_unzip, //
-          py::arg("keyOut"),             //
-          py::arg("zippedKey"),          //
-          py::arg("bitWidthIn"),         //
-          py::arg("bitWidthOut"),        //
-          py::arg("elementNum"),         //
-          R"(
-Unzip DCF MIC key.
-
-Args:
-    keyOut (torch.Tensor):      key tensor
-    zippedKey (torch.Tensor):   zipped key tensor
-    bitWidthIn (int):           bit width of input data
-    bitWidthOut (int):          bit width of output data
-    elementNum (int):           element number of input data
-    
-Raises:
-    ValueError:   If the input argument is invalid.
-    RuntimeError: If the FastFss_cpu_dcfMicKeyUnzip or FastFss_cuda_dcfMicKeyUnzip fail.
         )");
 
     m.def("dcf_mic_key_gen",           //

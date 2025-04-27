@@ -1,3 +1,5 @@
+#include "pyFastDcf.h"
+
 #include <FastFss/cpu/dcf.h>
 #include <FastFss/cpu/mic.h>
 #include <FastFss/cuda/dcf.h>
@@ -7,8 +9,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
-
-#include "pyFastFss.h"
 
 #define ERR_LOG(fmt, ...)                                                 \
     std::fprintf(stderr, "[FastFss DCF] " fmt ". %s:%d\n", ##__VA_ARGS__, \

@@ -1,12 +1,32 @@
+#include "pyFastPrng.h"
+
 #include <FastFss/cpu/prng.h>
 #include <FastFss/cuda/prng.h>
+#include <c10/cuda/CUDAStream.h>
+#include <torch/extension.h>
 #include <torch/python.h>
 
-#include "pyFastFss.h"
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
 
 #define ERR_LOG(fmt, ...)                                                  \
     std::fprintf(stderr, "[FastFss PRNG] " fmt ". %s:%d\n", ##__VA_ARGS__, \
                  __FILE__, __LINE__)
+
+#define ARG_ASSERT(exp)                                    \
+    if (!(exp))                                            \
+    {                                                      \
+        ERR_LOG("assert fail: " #exp);                     \
+        throw std::invalid_argument("assert fail: " #exp); \
+    }
+
+#define CHECK_ERROR_CODE(ret, func)             \
+    if (ret != 0)                               \
+    {                                           \
+        ERR_LOG(func "ret = %d", ret);          \
+        throw std::runtime_error(func " fail"); \
+    }
 
 namespace pyFastFss {
 
@@ -135,21 +155,21 @@ torch::Device Prng::device() const
     return device_;
 }
 
-void Prng::to_(torch::Device device)
+Prng &Prng::to_(torch::Device device)
 {
     // early check
     if (device.type() == torch::kCPU)
     {
         if (device_.type() == torch::kCPU)
         {
-            return;
+            return *this;
         }
     }
     else if (device.type() == torch::kCUDA)
     {
         if (device_.type() == torch::kCUDA)
         {
-            return;
+            return *this;
         }
     }
     else
@@ -223,48 +243,44 @@ void Prng::to_(torch::Device device)
     }
     ctx_    = newCtx;
     device_ = device;
-}
-torch::Tensor Prng::rand_(torch::Tensor out, std::size_t bitWidth)
-{
-    if (!out.is_contiguous())
-    {
-        ERR_LOG("out tensor must be contiguous");
-        throw std::invalid_argument("out tensor must be contiguous");
-    }
-    if (device_.type() != out.device().type())
-    {
-        ERR_LOG("device type mismatch");
-        throw std::invalid_argument("device type mismatch");
-    }
-    std::size_t elementSize = out.dtype().itemsize();
-    if (bitWidth > elementSize * 8)
-    {
-        ERR_LOG("bitWidth = %zu is too large", bitWidth);
-        throw std::invalid_argument("bitWidth is too large");
-    }
 
-    int ret = -1;
+    return *this;
+}
+
+torch::Tensor &Prng::rand_(torch::Tensor &out, std::size_t bitWidth)
+{
+    ARG_ASSERT(out.is_contiguous());
+    ARG_ASSERT(device_.type() == out.device().type());
+
+    std::size_t elementSize = out.dtype().itemsize();
+    ARG_ASSERT(bitWidth <= elementSize * 8);
+
     if (device_.type() == torch::kCPU)
     {
-        ret = FastFss_cpu_prngGen(ctx_,                   //
-                                  out.mutable_data_ptr(), //
-                                  bitWidth,               //
-                                  elementSize,            //
-                                  out.numel()             //
-        );                                                //
+        int ret = FastFss_cpu_prngGen(ctx_,                   //
+                                      out.mutable_data_ptr(), //
+                                      bitWidth,               //
+                                      elementSize,            //
+                                      out.numel()             //
+        );                                                    //
+        CHECK_ERROR_CODE(ret, "FastFss_cpu_prngGen");
     }
-    if (device_.type() == torch::kCUDA)
+    else if (device_.type() == torch::kCUDA)
     {
-        ret = FastFss_cuda_prngGen(ctx_,                   //
-                                   out.mutable_data_ptr(), //
-                                   bitWidth,               //
-                                   elementSize,            //
-                                   out.numel()             //
-        );                                                 //
+        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
+
+        int ret = FastFss_cuda_prngGen(ctx_,                   //
+                                       out.mutable_data_ptr(), //
+                                       bitWidth,               //
+                                       elementSize,            //
+                                       out.numel(),            //
+                                       &stream                 //
+        );                                                     //
+        CHECK_ERROR_CODE(ret, "FastFss_cuda_prngGen");
     }
-    if (ret != 0)
+    else
     {
-        throw std::runtime_error("FastFss_prngGen failed");
+        throw std::runtime_error("Unsupported device type");
     }
     return out;
 }
