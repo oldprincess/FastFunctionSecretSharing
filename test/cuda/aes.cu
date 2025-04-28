@@ -3,7 +3,7 @@
 
 #include <cstdio>
 
-#include "../../src/cuda/aes.cuh"
+#include "../../src/impl/aes.h"
 
 __device__ static std::uint8_t user_key[32] = {
     0x04, 0xb5, 0xf0, 0x47, 0x03, 0xe2, 0x02, 0x5f, 0x5d, 0x08, 0x46,
@@ -41,7 +41,7 @@ __device__ static std::uint8_t ct128[] = {
 
 __global__ void aesTestKernel(int* ret)
 {
-    FastFss::cuda::AES128 aes128ctx;
+    FastFss::impl::AES128 aes128ctx;
 
     std::uint8_t output_buffer[sizeof(pt)];
     if (threadIdx.x == 0 && blockIdx.x == 0)
@@ -65,7 +65,7 @@ __global__ void aesTestKernel2(int* ret)
     std::uint8_t output_buffer[sizeof(pt)];
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
-        FastFss::cuda::internal::aes128_enc_n_block<sizeof(pt) / 16>(
+        FastFss::impl::internal::aes128_enc_n_block<sizeof(pt) / 16>(
             output_buffer, pt, user_key);
 
         *ret = 0;

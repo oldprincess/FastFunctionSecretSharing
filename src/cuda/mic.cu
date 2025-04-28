@@ -4,6 +4,9 @@
 
 using namespace FastFss;
 
+#define FSS_ASSERT(cond, errCode) \
+    if (!(cond)) return errCode
+
 enum ERROR_CODE
 {
     SUCCESS                            = 0,
@@ -18,6 +21,7 @@ enum ERROR_CODE
     INVALID_BITWIDTH_ERROR             = -9,
     INVALID_ELEMENT_SIZE_ERROR         = -10,
     INVALID_PARTY_ID_ERROR             = -11,
+    INVALID_MASKED_X_DATA_SIZE_ERROR   = -12,
 };
 
 template <typename GroupElement>
@@ -81,6 +85,34 @@ int FastFss_cuda_dcfMICKeyGen(void*       key,
                               size_t      elementNum,
                               void*       cudaStreamPtr)
 {
+    int         ret;
+    std::size_t needKeyDataSize;
+    ret = FastFss_cuda_dcfMICGetKeyDataSize(
+        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum);
+    FSS_ASSERT(ret != 0, ERROR_CODE::RUNTIME_ERROR);
+
+    FSS_ASSERT(keyDataSize == needKeyDataSize,
+               ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
+    FSS_ASSERT(zDataSize == elementNum * elementSize,
+               ERROR_CODE::INVALID_Z_DATA_SIZE_ERROR);
+    FSS_ASSERT(alphaDataSize == elementNum * elementSize,
+               ERROR_CODE::INVALID_ALPHA_DATA_SIZE_ERROR);
+    FSS_ASSERT(seedDataSize0 == 16 * elementNum,
+               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
+    FSS_ASSERT(seedDataSize1 == 16 * elementNum,
+               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
+
+    std::size_t intervalNum = leftBoundaryDataSize / elementSize;
+    FSS_ASSERT(leftBoundaryDataSize == intervalNum * elementSize,
+               ERROR_CODE::INVALID_BOUNDARY_DATA_SIZE_ERROR);
+    FSS_ASSERT(rightBoundaryDataSize == intervalNum * elementSize,
+               ERROR_CODE::INVALID_BOUNDARY_DATA_SIZE_ERROR);
+
+    FSS_ASSERT(bitWidthIn <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    FSS_ASSERT(bitWidthOut <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)
@@ -168,6 +200,36 @@ int FastFss_cuda_dcfMICEval(void*       sharedOut,
                             size_t      cacheDataSize,
                             void*       cudaStreamPtr)
 {
+    int         ret;
+    std::size_t needKeyDataSize;
+    ret = FastFss_cuda_dcfMICGetKeyDataSize(
+        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum);
+    FSS_ASSERT(ret != 0, ERROR_CODE::RUNTIME_ERROR);
+
+    FSS_ASSERT(sharedOutDataSize == elementNum * elementSize,
+               ERROR_CODE::INVALID_SHARED_OUT_DATA_SIZE_ERROR);
+    FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
+               ERROR_CODE::INVALID_MASKED_X_DATA_SIZE_ERROR);
+    FSS_ASSERT(keyDataSize == needKeyDataSize,
+               ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
+    FSS_ASSERT(sharedZDataSize == elementNum * elementSize,
+               ERROR_CODE::INVALID_Z_DATA_SIZE_ERROR);
+    FSS_ASSERT(seedDataSize == 16 * elementNum,
+               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
+    FSS_ASSERT(partyId == 0 || partyId == 1,
+               ERROR_CODE::INVALID_PARTY_ID_ERROR);
+
+    std::size_t intervalNum = leftBoundaryDataSize / elementSize;
+    FSS_ASSERT(leftBoundaryDataSize == intervalNum * elementSize,
+               ERROR_CODE::INVALID_BOUNDARY_DATA_SIZE_ERROR);
+    FSS_ASSERT(rightBoundaryDataSize == intervalNum * elementSize,
+               ERROR_CODE::INVALID_BOUNDARY_DATA_SIZE_ERROR);
+
+    FSS_ASSERT(bitWidthIn <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    FSS_ASSERT(bitWidthOut <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)

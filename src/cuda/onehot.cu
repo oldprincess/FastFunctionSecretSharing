@@ -4,6 +4,9 @@
 
 using namespace FastFss;
 
+#define FSS_ASSERT(cond, errCode) \
+    if (!(cond)) return errCode
+
 enum ERR_CODE
 {
     SUCCESS                        = 0,
@@ -13,6 +16,7 @@ enum ERR_CODE
     INVALID_KEY_DATA_SIZE          = -4,
     INVALID_ALPHA_DATA_SIZE        = -5,
     INVALID_LOOKUP_TABLE_DATA_SIZE = -6,
+    INVALID_MASKED_X_DATA_SIZE     = -7,
 };
 
 template <typename GroupElement>
@@ -79,21 +83,15 @@ int FastFss_cuda_onehotKeyGen(void*       key,
                               void*       cudaStreamPtr) // cudaStream_t*
 {
     using namespace impl;
-    if (bitWidthIn < 3)
-    {
-        return ERR_CODE::INVALID_BIT_WIDTH_IN;
-    }
+    FSS_ASSERT(bitWidthIn >= 3, ERR_CODE::INVALID_BIT_WIDTH_IN);
+
     std::size_t needKeyDataSize = onehotGetKeyDataSize( //
         bitWidthIn, elementNum                          //
     );                                                  //
-    if (needKeyDataSize != keyDataSize)
-    {
-        return ERR_CODE::INVALID_KEY_DATA_SIZE;
-    }
-    if (alphaDataSize != elementSize * elementNum)
-    {
-        return ERR_CODE::INVALID_ALPHA_DATA_SIZE;
-    }
+    FSS_ASSERT(needKeyDataSize == keyDataSize, ERR_CODE::INVALID_KEY_DATA_SIZE);
+
+    FSS_ASSERT(alphaDataSize == elementSize * elementNum,
+               ERR_CODE::INVALID_ALPHA_DATA_SIZE);
 
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
@@ -139,25 +137,16 @@ int FastFss_cuda_onehotLutEval(void*       sharedOutE,
                                void*       cudaStreamPtr) // cudaStream_t*
 {
     using namespace impl;
-    if (bitWidthIn < 3)
-    {
-        return ERR_CODE::INVALID_BIT_WIDTH_IN;
-    }
+
+    FSS_ASSERT(bitWidthIn >= 3, ERR_CODE::INVALID_BIT_WIDTH_IN);
+
     std::size_t needKeyDataSize = onehotGetKeyDataSize( //
         bitWidthIn, elementNum                          //
     );                                                  //
-    if (needKeyDataSize != keyDataSize)
-    {
-        return ERR_CODE::INVALID_KEY_DATA_SIZE;
-    }
-    if (maskedXDataSize != elementSize * elementNum)
-    {
-        return ERR_CODE::INVALID_ALPHA_DATA_SIZE;
-    }
-    if (lookUpTableDataSize != elementSize * (1ULL << bitWidthIn))
-    {
-        return ERR_CODE::INVALID_LOOKUP_TABLE_DATA_SIZE;
-    }
+    FSS_ASSERT(maskedXDataSize == elementSize * elementNum,
+               ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
+    FSS_ASSERT(lookUpTableDataSize == elementSize * (1ULL << bitWidthIn),
+               ERR_CODE::INVALID_LOOKUP_TABLE_DATA_SIZE);
 
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
@@ -198,10 +187,7 @@ int FastFss_cuda_onehotGetKeyDataSize(size_t* keyDataSize,
                                       size_t  bitWidthIn,
                                       size_t  elementNum)
 {
-    if (bitWidthIn < 3)
-    {
-        return (int)ERR_CODE::INVALID_BIT_WIDTH_IN;
-    }
+    FSS_ASSERT(bitWidthIn >= 3, ERR_CODE::INVALID_BIT_WIDTH_IN);
     *keyDataSize = impl::onehotGetKeyDataSize(bitWidthIn, elementNum);
     return (int)ERR_CODE::SUCCESS;
 }

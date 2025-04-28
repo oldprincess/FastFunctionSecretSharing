@@ -43,16 +43,16 @@ std::size_t dcf_mic_get_key_data_size(std::size_t bitWidthIn,
     return result;
 }
 
-void dcf_mic_key_gen(torch::Tensor keyOut,
-                     torch::Tensor zOut,
-                     torch::Tensor alpha,
-                     torch::Tensor seed0,
-                     torch::Tensor seed1,
-                     torch::Tensor leftBoundary,
-                     torch::Tensor rightBoundary,
-                     std::size_t   bitWidthIn,
-                     std::size_t   bitWidthOut,
-                     std::size_t   elementNum)
+py::tuple dcf_mic_key_gen(torch::Tensor&       keyOut,
+                          torch::Tensor&       zOut,
+                          const torch::Tensor& alpha,
+                          const torch::Tensor& seed0,
+                          const torch::Tensor& seed1,
+                          const torch::Tensor& leftBoundary,
+                          const torch::Tensor& rightBoundary,
+                          std::size_t          bitWidthIn,
+                          std::size_t          bitWidthOut,
+                          std::size_t          elementNum)
 {
     // =====================================================
     // ===================== Check Input ===================
@@ -164,143 +164,65 @@ void dcf_mic_key_gen(torch::Tensor keyOut,
     {
         throw std::invalid_argument("device must be CPU or CUDA");
     }
+    return py::make_tuple(keyOut, zOut);
 }
 
-void dcf_mic_eval(torch::Tensor sharedOut,
-                  torch::Tensor maskedX,
-                  torch::Tensor key,
-                  torch::Tensor sharedZ,
-                  torch::Tensor seed,
-                  int           partyId,
-                  torch::Tensor leftBoundary,
-                  torch::Tensor rightBoundary,
-                  std::size_t   bitWidthIn,
-                  std::size_t   bitWidthOut,
-                  std::size_t   elementNum)
+torch::Tensor& dcf_mic_eval(torch::Tensor&       sharedOut,
+                            const torch::Tensor& maskedX,
+                            const torch::Tensor& key,
+                            const torch::Tensor& sharedZ,
+                            const torch::Tensor& seed,
+                            int                  partyId,
+                            const torch::Tensor& leftBoundary,
+                            const torch::Tensor& rightBoundary,
+                            std::size_t          bitWidthIn,
+                            std::size_t          bitWidthOut,
+                            std::size_t          elementNum)
 {
     // =====================================================
     // ===================== Check Input ===================
     // =====================================================
 
-    if (!sharedOut.is_contiguous() || !maskedX.is_contiguous() ||
-        !key.is_contiguous() || !sharedZ.is_contiguous() ||
-        !seed.is_contiguous() || !leftBoundary.is_contiguous() ||
-        !rightBoundary.is_contiguous())
-    {
-        std::fprintf(stderr,                                         //
-                     "[FastFss] tensor must be contiguous. %s:%d\n", //
-                     __FILE__, __LINE__);                            //
-        throw std::invalid_argument("tensor must be contiguous");
-    }
+    ARG_ASSERT(sharedOut.is_contiguous());
+    ARG_ASSERT(maskedX.is_contiguous());
+    ARG_ASSERT(key.is_contiguous());
+    ARG_ASSERT(sharedZ.is_contiguous());
+    ARG_ASSERT(seed.is_contiguous());
+    ARG_ASSERT(leftBoundary.is_contiguous());
+    ARG_ASSERT(rightBoundary.is_contiguous());
 
-    if ((std::size_t)maskedX.numel() != elementNum)
-    {
-        std::fprintf(stderr,                                              //
-                     "[FastFss]  maskedX.numel() != elementNum. %s:%d\n", //
-                     __FILE__, __LINE__                                   //
-        );                                                                //
-        throw std::invalid_argument("maskedX.numel() != elementNum");
-    }
+    ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
+    ARG_ASSERT((std::size_t)seed.numel() == 16 * elementNum);
 
-    if ((std::size_t)seed.numel() != 16 * elementNum)
-    {
-        std::fprintf(stderr,                                               //
-                     "[FastFss] seed.numel() != 16 * elementNum. %s:%d\n", //
-                     __FILE__, __LINE__                                    //
-        );                                                                 //
-        throw std::invalid_argument("seed.numel() != 16 * elementNum");
-    }
+    ARG_ASSERT(key.dtype() == torch::kUInt8);
+    ARG_ASSERT(seed.dtype() == torch::kUInt8);
 
-    if (key.dtype() != torch::kUInt8 || seed.dtype() != torch::kUInt8)
-    {
-        std::fprintf(
-            stderr,                                                          //
-            "[FastFss] key.dtype seed.dtype must be torch::kUInt8. %s:%d\n", //
-            __FILE__, __LINE__                                               //
-        );                                                                   //
-        throw std::invalid_argument(                                         //
-            "key.dtype seed.dtype must be torch::kUInt8"                     //
-        );                                                                   //
-    }
-
-    if (maskedX.dtype() != sharedOut.dtype() ||
-        maskedX.dtype() != sharedZ.dtype() ||
-        maskedX.dtype() != leftBoundary.dtype() ||
-        maskedX.dtype() != rightBoundary.dtype())
-    {
-        std::fprintf(stderr,                                             //
-                     "[FastFss] maskedX sharedOut sharedZ leftBoundary " //
-                     "rightBoundary dtype "                              //
-                     "must be same. %s:%d\n",                            //
-                     __FILE__, __LINE__                                  //
-        );                                                               //
-        throw std::invalid_argument("maskedX sharedOut sharedZ leftBoundary "
-                                    "rightBoundary dtype must be same");
-    }
+    auto dtype = maskedX.dtype();
+    ARG_ASSERT(sharedOut.dtype() == dtype);
+    ARG_ASSERT(sharedZ.dtype() == dtype);
+    ARG_ASSERT(leftBoundary.dtype() == dtype);
+    ARG_ASSERT(rightBoundary.dtype() == dtype);
 
     std::size_t elementSize = maskedX.element_size();
-    if (bitWidthIn > elementSize * 8 || bitWidthOut > elementSize * 8)
-    {
-        std::fprintf(stderr,                                      //
-                     "[FastFss] bitWidthIn <= elementSize *8 && " //
-                     "bitWidthOut <= elementSize *8. %s:%d\n",    //
-                     __FILE__, __LINE__                           //
-        );                                                        //
-        throw std::invalid_argument(                              //
-            "bitWidthIn > elementSize * 8 || "                    //
-            "bitWidthOut > elementSize *8"                        //
-        );                                                        //
-    }
+    ARG_ASSERT(bitWidthIn <= elementSize * 8);
+    ARG_ASSERT(bitWidthOut <= elementSize * 8);
 
     auto device = maskedX.device();
-    if (sharedOut.device() != device || key.device() != device ||
-        sharedZ.device() != device || seed.device() != device ||
-        leftBoundary.device() != device || rightBoundary.device() != device)
-    {
-        std::fprintf(stderr,                                   //
-                     "[FastFss] device must be same. %s:%d\n", //
-                     __FILE__, __LINE__                        //
-        );
-        throw std::invalid_argument("device must be same");
-    }
+    ARG_ASSERT(sharedOut.device() == device);
+    ARG_ASSERT(key.device() == device);
+    ARG_ASSERT(sharedZ.device() == device);
+    ARG_ASSERT(seed.device() == device);
+    ARG_ASSERT(leftBoundary.device() == device);
+    ARG_ASSERT(rightBoundary.device() == device);
 
-    if (leftBoundary.numel() != rightBoundary.numel())
-    {
-        std::fprintf(
-            stderr,                                                    //
-            "[FastFss] intervalNum != rightBoundary.numel(). %s:%d\n", //
-            __FILE__, __LINE__                                         //
-        );
-        throw std::invalid_argument("intervalNum != rightBoundary.numel()");
-    }
+    ARG_ASSERT(leftBoundary.numel() == rightBoundary.numel());
 
     std::size_t intervalNum = (std::size_t)leftBoundary.numel();
+    ARG_ASSERT((std::size_t)sharedZ.numel() == intervalNum * elementNum);
 
-    if ((std::size_t)sharedZ.numel() != intervalNum * elementNum)
-    {
-        std::fprintf(
-            stderr,                                                           //
-            "[FastFss] sharedZ.numel() != intervalNum * elementNum. %s:%d\n", //
-            __FILE__, __LINE__                                                //
-        );
-        throw std::invalid_argument(                      //
-            "sharedZ.numel() != intervalNum * elementNum" //
-        );                                                //
-    }
-
-    if ((std::size_t)key.numel() !=
-        dcf_mic_get_key_data_size(bitWidthIn, bitWidthOut, elementSize,
-                                  elementNum))
-    {
-        std::fprintf(
-            stderr,                                                        //
-            "[FastFss] key.numel() != dcf_mic_get_key_data_size. %s:%d\n", //
-            __FILE__, __LINE__                                             //
-        );
-        throw std::invalid_argument(                   //
-            "key.numel() != dcf_mic_get_key_data_size" //
-        );
-    }
+    std::size_t keyDataSize = dcf_mic_get_key_data_size(
+        bitWidthIn, bitWidthOut, elementSize, elementNum);
+    ARG_ASSERT((std::size_t)key.numel() == keyDataSize);
 
     // =====================================================
     // ===================== FastFss =======================
@@ -362,6 +284,7 @@ void dcf_mic_eval(torch::Tensor sharedOut,
     {
         throw std::invalid_argument("device must be CPU or CUDA");
     }
+    return sharedOut;
 }
 
 } // namespace pyFastFss

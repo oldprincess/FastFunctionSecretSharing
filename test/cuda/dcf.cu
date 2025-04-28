@@ -14,6 +14,21 @@
 
 MT19937Rng rng;
 
+#define LOG(fmt, ...)                                                 \
+    std::fprintf(stderr, "[FastFss] " fmt ". %s:%d\n", ##__VA_ARGS__, \
+                 __FILE__, __LINE__)
+
+#define CHECK(exp)                    \
+    [&] {                             \
+        cudaDeviceSynchronize();      \
+        auto the_ret = (exp);         \
+        if (the_ret)                  \
+        {                             \
+            LOG("ret = %d", the_ret); \
+            std::exit(-1);            \
+        }                             \
+    }()
+
 template <typename GroupElement>
 constexpr GroupElement mod_bits(GroupElement x, int bitWidth) noexcept
 {
@@ -84,6 +99,13 @@ public:
 
         void*       deviceDcfKey = nullptr;
         std::size_t dcfKeyDataSize;
+        int         ret;
+
+        ret = FastFss_cuda_dcfGetKeyDataSize(&dcfKeyDataSize, bitWidthIn,
+                                             bitWidthOut, sizeof(GroupElement),
+                                             elementNum);
+        CHECK(ret);
+        deviceDcfKey = cuda::malloc_gpu(dcfKeyDataSize);
 
         {
             void* deviceAlpha = cuda::malloc_gpu(alphaDataSize);
@@ -96,18 +118,17 @@ public:
             cuda::memcpy_cpu2gpu(deviceSeed0, seed0.get(), seedDataSize0);
             cuda::memcpy_cpu2gpu(deviceSeed1, seed1.get(), seedDataSize1);
 
-            int ret1 = FastFss_cuda_dcfKeyGen(
-                &deviceDcfKey, &dcfKeyDataSize, deviceAlpha, alphaDataSize,
+            ret = FastFss_cuda_dcfKeyGen(
+                deviceDcfKey, dcfKeyDataSize, deviceAlpha, alphaDataSize,
                 deviceBeta, betaDataSize, deviceSeed0, seedDataSize0,
                 deviceSeed1, seedDataSize1, bitWidthIn, bitWidthOut,
-                sizeof(GroupElement), elementNum);
+                sizeof(GroupElement), elementNum, nullptr);
+            CHECK(ret);
 
-            if (ret1 != 0)
-            {
-                std::printf("\n[%d] err. FastFss_cuda_dcfKeyGen ret = %d\n",
-                            __LINE__, ret1);
-                return;
-            }
+            cuda::free_gpu(deviceAlpha);
+            cuda::free_gpu(deviceBeta);
+            cuda::free_gpu(deviceSeed0);
+            cuda::free_gpu(deviceSeed1);
         }
 
         {
@@ -118,10 +139,11 @@ public:
             cuda::memcpy_cpu2gpu(deviceMaskedX, maskedX.get(), maskedXDataSize);
             cuda::memcpy_cpu2gpu(deviceSeed0, seed0.get(), seedDataSize0);
 
-            int ret2 = FastFss_cuda_dcfEval(
+            ret = FastFss_cuda_dcfEval(
                 deviceSharedOut0, deviceMaskedX, maskedXDataSize, deviceDcfKey,
                 dcfKeyDataSize, deviceSeed0, seedDataSize0, 0, bitWidthIn,
-                bitWidthOut, sizeof(GroupElement), elementNum);
+                bitWidthOut, sizeof(GroupElement), elementNum, nullptr, 0,
+                nullptr);
 
             cuda::memcpy_gpu2cpu(sharedOut0.get(), deviceSharedOut0,
                                  maskedXDataSize);
@@ -129,13 +151,7 @@ public:
             cuda::free_gpu(deviceSharedOut0);
             cuda::free_gpu(deviceMaskedX);
             cuda::free_gpu(deviceSeed0);
-            if (ret2 != 0)
-            {
-                std::printf("\n[%d] err. FastFss_cuda_dcfEval ret = %d\n",
-                            __LINE__, ret2);
-                std::free(deviceDcfKey);
-                return;
-            }
+            CHECK(ret);
         }
 
         {
@@ -146,10 +162,11 @@ public:
             cuda::memcpy_cpu2gpu(deviceMaskedX, maskedX.get(), maskedXDataSize);
             cuda::memcpy_cpu2gpu(deviceSeed1, seed1.get(), seedDataSize1);
 
-            int ret3 = FastFss_cuda_dcfEval(
+            ret = FastFss_cuda_dcfEval(
                 deviceSharedOut1, deviceMaskedX, maskedXDataSize, deviceDcfKey,
                 dcfKeyDataSize, deviceSeed1, seedDataSize1, 1, bitWidthIn,
-                bitWidthOut, sizeof(GroupElement), elementNum);
+                bitWidthOut, sizeof(GroupElement), elementNum, nullptr, 0,
+                nullptr);
 
             cuda::memcpy_gpu2cpu(sharedOut1.get(), deviceSharedOut1,
                                  maskedXDataSize);
@@ -158,13 +175,7 @@ public:
             cuda::free_gpu(deviceMaskedX);
             cuda::free_gpu(deviceSeed1);
 
-            if (ret3 != 0)
-            {
-                std::printf("\n[%d] err. FastFss_cuda_dcfEval ret = %d\n",
-                            __LINE__, ret3);
-                std::free(deviceDcfKey);
-                return;
-            }
+            CHECK(ret);
         }
 
         for (int i = 0; i < elementNum; i++)
@@ -192,7 +203,7 @@ public:
 int main()
 {
     constexpr std::size_t elementNum = 256 * 512;
-    
+
     rng.reseed(7);
     // uint8
     TestDcf<std::uint8_t>::run(1, 8, elementNum);

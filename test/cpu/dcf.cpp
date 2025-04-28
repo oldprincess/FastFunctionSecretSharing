@@ -13,6 +13,20 @@
 
 MT19937Rng rng;
 
+#define LOG(fmt, ...)                                                 \
+    std::fprintf(stderr, "[FastFss] " fmt ". %s:%d\n", ##__VA_ARGS__, \
+                 __FILE__, __LINE__)
+
+#define CHECK(exp)                    \
+    [&] {                             \
+        auto the_ret = (exp);         \
+        if (the_ret)                  \
+        {                             \
+            LOG("ret = %d", the_ret); \
+            std::exit(-1);            \
+        }                             \
+    }()
+
 template <typename GroupElement>
 constexpr GroupElement mod_bits(GroupElement x, int bitWidth) noexcept
 {
@@ -76,50 +90,40 @@ public:
             maskedX[i] = x[i] + alpha[i];
             maskedX[i] = mod_bits<GroupElement>(maskedX[i], bitWidthIn);
         }
-
+        int         ret;
         void*       dcfKey = nullptr;
         std::size_t dcfKeyDataSize;
 
+        ret = FastFss_cpu_dcfGetKeyDataSize(&dcfKeyDataSize, bitWidthIn,
+                                            bitWidthOut, sizeof(GroupElement),
+                                            elementNum);
+        CHECK(ret);
+        dcfKey = std::malloc(dcfKeyDataSize);
+        CHECK(dcfKey == nullptr);
+
         {
-            int ret1 = FastFss_cpu_dcfKeyGen(
-                &dcfKey, &dcfKeyDataSize, alpha.get(), alphaDataSize,
-                beta.get(), betaDataSize, seed0.get(), seedDataSize0,
-                seed1.get(), seedDataSize1, bitWidthIn, bitWidthOut,
-                sizeof(GroupElement), elementNum);
-            if (ret1 != 0)
-            {
-                std::printf("\n[%d] err. FastFss_cpu_dcfKeyGen ret = %d\n",
-                            __LINE__, ret1);
-                return;
-            }
+            ret = FastFss_cpu_dcfKeyGen(dcfKey, dcfKeyDataSize, alpha.get(),
+                                        alphaDataSize, beta.get(), betaDataSize,
+                                        seed0.get(), seedDataSize0, seed1.get(),
+                                        seedDataSize1, bitWidthIn, bitWidthOut,
+                                        sizeof(GroupElement), elementNum);
+            CHECK(ret);
         }
 
         {
-            int ret2 = FastFss_cpu_dcfEval(
+            ret = FastFss_cpu_dcfEval(
                 sharedOut0.get(), maskedX.get(), maskedXDataSize, dcfKey,
                 dcfKeyDataSize, seed0.get(), seedDataSize0, 0, bitWidthIn,
-                bitWidthOut, sizeof(GroupElement), elementNum);
-            if (ret2 != 0)
-            {
-                std::printf("\n[%d] err. FastFss_cpu_dcfEval ret = %d\n",
-                            __LINE__, ret2);
-                std::free(dcfKey);
-                return;
-            }
+                bitWidthOut, sizeof(GroupElement), elementNum, nullptr, 0);
+            CHECK(ret);
         }
 
         {
-            int ret3 = FastFss_cpu_dcfEval(
+            ret = FastFss_cpu_dcfEval(
                 sharedOut1.get(), maskedX.get(), maskedXDataSize, dcfKey,
                 dcfKeyDataSize, seed1.get(), seedDataSize1, 1, bitWidthIn,
-                bitWidthOut, sizeof(GroupElement), elementNum);
-            if (ret3 != 0)
-            {
-                std::printf("\n[%d] err. FastFss_cpu_dcfEval ret = %d\n",
-                            __LINE__, ret3);
-                std::free(dcfKey);
-                return;
-            }
+                bitWidthOut, sizeof(GroupElement), elementNum, nullptr, 0);
+            CHECK(ret);
         }
 
         for (int i = 0; i < elementNum; i++)

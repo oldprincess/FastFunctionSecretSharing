@@ -27,7 +27,7 @@ Args:
     elementNum (int):       element number of input data
 
 Returns:
-    size (int):             DCF key data size
+    int:             DCF key data size
 
 Raises:
     ValueError:   If the input argument is invalid.
@@ -58,6 +58,9 @@ Args:
     elementSize (int):      element size of input data
     elementNum (int):       element number of input data
 
+Returns:
+    torch.Tensor: keyOut
+
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_dcfKeyGen or FastFss_cuda_dcfKeyGen fail.
@@ -86,6 +89,9 @@ Args:
     bitWidthOut (int):         bit width of output data
     elementNum (int):          element number of input data
     
+Returns:
+    torch.Tensor: sharedOut
+
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_dcfEval or FastFss_cuda_dcfEval fail.
@@ -109,7 +115,7 @@ Args:
     elementNum (int):      element number of input data
 
 Returns:
-    key data size
+    int: key data size
 
 Raises:
     ValueError:   If the input argument is invalid.
@@ -134,6 +140,9 @@ Args:
     bitWidthIn (int):       bit width of input data
     elementNum (int):       element number of input data
     
+Returns:
+    torch.Tensor: keyOut
+
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_grottoKeyGen or FastFss_cuda_grottoKeyGen fail.
@@ -162,6 +171,9 @@ Args:
     bitWidthIn (int):               bit width of input data
     elementNum (int):               element number of input data
     
+Returns:
+    torch.Tensor: sharedOut
+
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_grottoEval or FastFss_cuda_grottoEval fail.
@@ -187,7 +199,10 @@ Args:
     partyId (int):                  party id
     bitWidthIn (int):               bit width of input data
     elementNum (int):               element number of input data
-    
+
+Returns:
+    torch.Tensor: sharedOut
+
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_grottoEvalEq or FastFss_cuda_grottoEvalEq fail.
@@ -217,7 +232,10 @@ Args:
     rightBoundary(torch.Tensor):    rightBoundary tensor
     bitWidthIn(int):                bit width of input data
     elementNum(int):                element number of input data
-    
+
+Returns:
+    torch.Tensor: sharedOut
+
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_grottoMICEval or FastFss_cuda_grottoMICEval fail.
@@ -253,7 +271,10 @@ Args:
     bitWidthIn(int):                bit width of input data
     bitWidthOut(int):               bit width of output data
     elementNum(int):                element number of input data
-    
+
+Returns:
+    tuple[torch.Tensor, torch.Tensor]: sharedOutE, sharedOutT
+
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_grottoIntervalLutEval or FastFss_cuda_grottoIntervalLutEval fail.
@@ -279,7 +300,7 @@ Args:
     elementNum (int):      element number of input data
 
 Returns:
-    key data size
+    int: key data size
 
 Raises:
     ValueError:   If the input argument is invalid.
@@ -311,7 +332,7 @@ Args:
     bitWidthIn (int):                   bit width of input data
     bitWidthOut (int):                  bit width of output data
     elementNum (int):                   element number of input data
-    
+
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_dcfMicKeyGen or FastFss_cuda_dcfMicKeyGen fail.

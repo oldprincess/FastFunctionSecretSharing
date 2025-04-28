@@ -3,7 +3,7 @@
 
 #include <cstdio>
 
-#include "aes.cuh"
+#include "../impl/aes.h"
 
 #define CUDA_CHECK(expression, do_something)                          \
     if ((expression) != cudaSuccess)                                  \
@@ -42,7 +42,7 @@ static __global__ void aes128_ctr_kernel(const void* seed,
     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
     std::size_t stride = blockDim.x * gridDim.x;
 
-    __shared__ AES128 aes128ctx;
+    __shared__ impl::AES128 aes128ctx;
     if (threadIdx.x == 0)
     {
         aes128ctx.set_enc_key(seed);

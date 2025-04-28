@@ -3,7 +3,10 @@
 #include <cstring>
 #include <vector>
 
-#include "aes.hpp"
+#if !defined(AES_IMPL)
+#include "../impl/aesni.h"
+#define AES_IMPL
+#endif
 
 namespace FastFss::cpu {
 
@@ -19,7 +22,7 @@ static void aes128_ctr(const void* seed,
                        void*       dst,
                        size_t      bytesNum) noexcept
 {
-    AES128 aes128ctx;
+    impl::AES128 aes128ctx;
     aes128ctx.set_enc_key(seed);
 
     std::size_t    blockNum   = bytesNum / 16;

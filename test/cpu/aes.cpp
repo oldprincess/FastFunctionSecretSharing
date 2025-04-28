@@ -1,5 +1,5 @@
 // g++ -I include test/cpu/aes.cpp -o cpu_aes.exe -std=c++17 -maes
-#include "../../src/cpu/aes.hpp"
+#include "../../src/impl/aesni.h"
 
 #include <cstdio>
 #include <cstring>
@@ -40,7 +40,7 @@ static std::uint8_t ct128[] = {
 
 int main()
 {
-    FastFss::cpu::AES128 aes128ctx;
+    FastFss::impl::AES128 aes128ctx;
 
     std::uint8_t output_buffer[sizeof(pt)];
     aes128ctx.set_enc_key(user_key);
