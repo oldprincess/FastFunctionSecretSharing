@@ -4,9 +4,9 @@ import sys
 
 cxx_flags = []
 if sys.platform == "linux":
-    cxx_flags = ["-maes", "-std=c++17", "-O3"]
+    cxx_flags = ["-maes", "-std=c++17", "-O3", "-fopenmp"]
 else:
-    cxx_flags = ["/std:c++17", "/O2"]
+    cxx_flags = ["/std:c++17", "/O2", "/openmp"]
 
 setup(
     name="pyFastFss",
@@ -26,6 +26,7 @@ setup(
                 "pyFastFss/src/pyFastGrotto.cpp",
                 "pyFastFss/src/pyFastOnehot.cpp",
                 "pyFastFss/src/pyFastPrng.cpp",
+                "../../src/cpu/config.cpp",
                 "../../src/cpu/dcf.cpp",
                 "../../src/cpu/grotto.cpp",
                 "../../src/cpu/mic.cpp",

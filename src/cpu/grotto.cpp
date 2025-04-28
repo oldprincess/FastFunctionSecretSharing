@@ -1,4 +1,6 @@
+#include <FastFss/cpu/config.h>
 #include <FastFss/cpu/grotto.h>
+#include <omp.h>
 
 #if !defined(AES_IMPL)
 #include "../impl/aesni.h"
@@ -131,19 +133,21 @@ static void grottoKeyGenKernel(void*       key,
                                size_t      bitWidthIn,
                                size_t      elementNum)
 {
-    std::size_t idx    = 0;
-    std::size_t stride = 1;
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
 
     const GroupElement* alphaPtr = (const GroupElement*)alpha;
     const std::uint8_t* seed0Ptr = (const std::uint8_t*)seed0;
     const std::uint8_t* seed1Ptr = (const std::uint8_t*)seed1;
 
-    impl::GrottoKey<GroupElement> keyObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < elementNum; i += stride)
     {
-        std::size_t alphaOffset = i;
-        std::size_t seed0Offset = 16 * i;
-        std::size_t seed1Offset = 16 * i;
+        impl::GrottoKey<GroupElement> keyObj;
+        std::size_t                   alphaOffset = i;
+        std::size_t                   seed0Offset = 16 * i;
+        std::size_t                   seed1Offset = 16 * i;
         impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
         impl::grottoKeyGen(keyObj,                 //
                            alphaPtr[alphaOffset],  //
@@ -193,17 +197,20 @@ static void grottoEvalKernel(void*       out,
                              size_t      elementNum,
                              void*       cache)
 {
-    std::size_t idx    = 0;
-    std::size_t stride = 1;
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
 
     const GroupElement* maskedXPtr = (const GroupElement*)maskedX;
     const std::uint8_t* seedPtr    = (const std::uint8_t*)seed;
     GroupElement*       outPtr     = (GroupElement*)out;
 
-    impl::GrottoKey<GroupElement>   keyObj;
-    impl::GrottoCache<GroupElement> cacheObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < elementNum; i += stride)
     {
+        impl::GrottoKey<GroupElement>   keyObj;
+        impl::GrottoCache<GroupElement> cacheObj;
+
         impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
         std::size_t                      maskedXOffset = i;
         std::size_t                      seedOffset    = 16 * i;
@@ -277,17 +284,19 @@ static void grottoEvalEqKernel(void*       out,
                                size_t      elementNum,
                                void*       cache)
 {
-    std::size_t idx    = 0;
-    std::size_t stride = 1;
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
 
     const GroupElement* maskedXPtr = (const GroupElement*)maskedX;
     const std::uint8_t* seedPtr    = (const std::uint8_t*)seed;
     GroupElement*       outPtr     = (GroupElement*)out;
 
-    impl::GrottoKey<GroupElement>   keyObj;
-    impl::GrottoCache<GroupElement> cacheObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < elementNum; i += stride)
     {
+        impl::GrottoKey<GroupElement>    keyObj;
+        impl::GrottoCache<GroupElement>  cacheObj;
         impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
         std::size_t                      maskedXOffset = i;
         std::size_t                      seedOffset    = 16 * i;
@@ -361,8 +370,8 @@ static void grottoMICEvalKernel(void*       out,
                                 size_t      elementNum,
                                 void*       cache)
 {
-    std::size_t idx    = 0;
-    std::size_t stride = 1;
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
 
     const GroupElement* maskedXPtr       = (const GroupElement*)maskedX;
     const std::uint8_t* seedPtr          = (const std::uint8_t*)seed;
@@ -370,10 +379,12 @@ static void grottoMICEvalKernel(void*       out,
     const GroupElement* leftBoundaryPtr  = (GroupElement*)leftBoundary;
     const GroupElement* rightBoundaryPtr = (GroupElement*)rightBoundary;
 
-    impl::GrottoKey<GroupElement>   keyObj;
-    impl::GrottoCache<GroupElement> cacheObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < elementNum; i += stride)
     {
+        impl::GrottoKey<GroupElement>    keyObj;
+        impl::GrottoCache<GroupElement>  cacheObj;
         impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
         std::size_t                      maskedXOffset = i;
         std::size_t                      seedOffset    = 16 * i;
@@ -470,8 +481,8 @@ static void grottoIntervalLutEvalKernel(void*       outE,
                                         size_t      elementNum,
                                         void*       cache)
 {
-    std::size_t idx    = 0;
-    std::size_t stride = 1;
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
 
     const GroupElement* maskedXPtr       = (const GroupElement*)maskedX;
     const std::uint8_t* seedPtr          = (const std::uint8_t*)seed;
@@ -481,10 +492,13 @@ static void grottoIntervalLutEvalKernel(void*       outE,
     const GroupElement* rightBoundaryPtr = (GroupElement*)rightBoundary;
     const GroupElement* lookUpTablePtr   = (GroupElement*)lookUpTable;
 
-    impl::GrottoKey<GroupElement>   keyObj;
-    impl::GrottoCache<GroupElement> cacheObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
+        impl::GrottoKey<GroupElement>   keyObj;
+        impl::GrottoCache<GroupElement> cacheObj;
+
         impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
         std::size_t                      maskedXOffset = i;
         std::size_t                      seedOffset    = 16 * i;

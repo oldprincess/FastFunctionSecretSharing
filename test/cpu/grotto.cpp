@@ -1,5 +1,5 @@
 // clang-format off
-// g++ -I include src/cpu/grotto.cpp test/cpu/grotto.cpp -o cpu_grotto.exe -std=c++17 -maes
+// g++ -I include src/cpu/config.cpp src/cpu/grotto.cpp test/cpu/grotto.cpp -o cpu_grotto.exe -std=c++17 -maes -fopenmp
 // clang-format on
 #include <FastFss/cpu/grotto.h>
 

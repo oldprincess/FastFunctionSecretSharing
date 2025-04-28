@@ -3,7 +3,7 @@
 #include <mutex>
 #include <thread>
 
-static int        gNumThreads = 1;
+static int        gNumThreads = std::thread::hardware_concurrency();
 static std::mutex gMutex;
 
 int FastFss_cpu_setNumThreads(int num)
