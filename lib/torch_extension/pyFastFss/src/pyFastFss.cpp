@@ -1,5 +1,6 @@
 #include "pyFastFss.h"
 
+#include <FastFss/cpu/config.h>
 #include <torch/extension.h>
 
 // ======================================================
@@ -7,6 +8,24 @@
 // ======================================================
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
+    m.def(
+        "set_num_threads", [](int num) { FastFss_cpu_setNumThreads(num); },
+        py::arg("num"),
+        R"(
+Args:
+    num (int):   number of threads
+
+Returns:
+    None
+)");
+
+    m.def(
+        "get_num_threads", []() { return FastFss_cpu_getNumThreads(); },
+        R"(
+Returns:
+    int: number of threads
+)");
+
     // ==========================================
     // ==================== DCF =================
     // ==========================================

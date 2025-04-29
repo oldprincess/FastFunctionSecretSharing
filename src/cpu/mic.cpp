@@ -42,8 +42,8 @@ static void dcfMICKeyGenKernel(void*       key,
                                size_t      bitWidthOut,
                                size_t      elementNum)
 {
-    std::size_t idx    = 0;
-    std::size_t stride = 1;
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
 
     GroupElement*       zPtr             = (GroupElement*)z;
     const GroupElement* alphaPtr         = (const GroupElement*)alpha;
@@ -52,9 +52,11 @@ static void dcfMICKeyGenKernel(void*       key,
     const GroupElement* leftBoundaryPtr  = (const GroupElement*)leftBoundary;
     const GroupElement* rightBoundaryPtr = (const GroupElement*)rightBoundary;
 
-    impl::DcfKey<GroupElement> keyObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
+        impl::DcfKey<GroupElement> keyObj;
         impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
         impl::dcfMICKeyGen(keyObj,                 //
                            zPtr + intervalNum * i, //
@@ -144,8 +146,8 @@ static void dcfMICEvalKernel(void*       sharedOut,
                              size_t      elementNum,
                              void*       cache)
 {
-    std::size_t idx    = 0;
-    std::size_t stride = 1;
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
 
     GroupElement*       sharedOutPtr     = (GroupElement*)sharedOut;
     const GroupElement* maskedXPtr       = (const GroupElement*)maskedX;
@@ -154,9 +156,11 @@ static void dcfMICEvalKernel(void*       sharedOut,
     const GroupElement* leftBoundaryPtr  = (const GroupElement*)leftBoundary;
     const GroupElement* rightBoundaryPtr = (const GroupElement*)rightBoundary;
 
-    impl::DcfKey<GroupElement> keyObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
+        impl::DcfKey<GroupElement> keyObj;
         impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
         impl::dcfMICEval(sharedOutPtr + intervalNum * i, //
                          maskedXPtr[i],                  //

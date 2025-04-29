@@ -25,6 +25,7 @@ enum ERROR_CODE
     INVALID_BITWIDTH_ERROR             = -10,
     INVALID_ELEMENT_SIZE_ERROR         = -11,
     INVALID_PARTY_ID_ERROR             = -12,
+    INVALID_CACHE_DATA_SIZE_ERROR      = -13,
 };
 
 template <typename GroupElement>
@@ -76,6 +77,30 @@ int FastFss_cuda_dcfKeyGen(void*       key,
                            size_t      elementNum,
                            void*       cudaStreamPtr)
 {
+    int         ret;
+    std::size_t needKeySize = 0;
+    ret = FastFss_cuda_dcfGetKeyDataSize(&needKeySize, bitWidthIn, bitWidthOut,
+                                         elementSize, elementNum);
+    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
+
+    FSS_ASSERT(keyDataSize == needKeySize,
+               ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
+    FSS_ASSERT(alphaDataSize == elementNum * elementSize,
+               ERROR_CODE::INVALID_ALPHA_DATA_SIZE_ERROR);
+    if (betaDataSize != 0)
+    {
+        FSS_ASSERT(betaDataSize == elementNum * elementSize,
+                   ERROR_CODE::INVALID_BETA_DATA_SIZE_ERROR);
+    }
+    FSS_ASSERT(seedDataSize0 == elementNum * 16,
+               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
+    FSS_ASSERT(seedDataSize1 == elementNum * 16,
+               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    FSS_ASSERT(bitWidthOut <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)
@@ -147,6 +172,36 @@ int FastFss_cuda_dcfEval(void*       sharedOut,
                          size_t      cacheDataSize,
                          void*       cudaStreamPtr)
 {
+    int         ret;
+    std::size_t needKeySize = 0;
+    ret = FastFss_cuda_dcfGetKeyDataSize(&needKeySize, bitWidthIn, bitWidthOut,
+                                         elementSize, elementNum);
+    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
+
+    FSS_ASSERT(keyDataSize == needKeySize,
+               ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
+    FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
+               ERROR_CODE::INVLIAD_MASKED_X_DATA_SIZE_ERROR);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
+    FSS_ASSERT(partyId == 0 || partyId == 1,
+               ERROR_CODE::INVALID_PARTY_ID_ERROR);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    FSS_ASSERT(bitWidthOut <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    if (cacheDataSize != 0)
+    {
+        std::size_t needCacheSize = 0;
+
+        ret = FastFss_cuda_dcfGetCacheDataSize(
+            &needCacheSize, bitWidthIn, bitWidthOut, elementSize, elementNum);
+
+        FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
+        FSS_ASSERT(cacheDataSize == needCacheSize,
+                   ERROR_CODE::INVALID_CACHE_DATA_SIZE_ERROR);
+    }
+
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)

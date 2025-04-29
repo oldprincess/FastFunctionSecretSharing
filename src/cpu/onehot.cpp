@@ -1,6 +1,8 @@
 #include "../impl/onehot.h"
 
+#include <FastFss/cpu/config.h>
 #include <FastFss/cpu/onehot.h>
+#include <omp.h>
 
 using namespace FastFss;
 
@@ -25,17 +27,18 @@ static void onehotKeyGenKernel(void*       key,
                                std::size_t bitWidthIn,
                                std::size_t elementNum)
 {
-    std::size_t idx    = 0;
-    std::size_t stride = 1;
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
 
     const GroupElement* alphaPtr = (const GroupElement*)alpha;
     std::uint8_t*       keyPtr   = (std::uint8_t*)key;
-    for (std::size_t i = idx; i < elementNum; i += stride)
+
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
-        std::size_t keyOffset = i * (1ULL << bitWidthIn) / 8; //
-        impl::onehotKeyGen<GroupElement>(                     //
-            keyPtr + keyOffset, alphaPtr[i], bitWidthIn       //
-        );                                                    //
+        std::size_t keyOffset = i * (1ULL << bitWidthIn) / 8;
+        impl::onehotKeyGen(keyPtr + keyOffset, alphaPtr[i], bitWidthIn);
     }
 }
 
@@ -49,8 +52,8 @@ static void onehotLutEvalKernel(void*       sharedOutE,
                                 std::size_t bitWidthIn,
                                 std::size_t elementNum)
 {
-    std::size_t idx    = 0;
-    std::size_t stride = 1;
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
 
     const GroupElement* maskedXPtr    = (const GroupElement*)maskedX;
     const std::uint8_t* keyPtr        = (const std::uint8_t*)key;
@@ -58,7 +61,9 @@ static void onehotLutEvalKernel(void*       sharedOutE,
     GroupElement*       sharedOutEPtr = (GroupElement*)sharedOutE;
     GroupElement*       sharedOutTPtr = (GroupElement*)sharedOutT;
 
-    for (std::size_t i = idx; i < elementNum; i += stride)
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
         std::size_t keyOffset = i * (1ULL << bitWidthIn) / 8; //
 

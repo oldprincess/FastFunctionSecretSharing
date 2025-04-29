@@ -1,7 +1,6 @@
+#include <FastFss/cpu/config.h>
 #include <FastFss/cpu/dcf.h>
-
-#include <cassert>
-#include <memory>
+#include <omp.h>
 
 #if !defined(AES_IMPL)
 #include "../impl/aesni.h"
@@ -30,6 +29,7 @@ enum ERROR_CODE
     INVALID_BITWIDTH_ERROR             = -10,
     INVALID_ELEMENT_SIZE_ERROR         = -11,
     INVALID_PARTY_ID_ERROR             = -12,
+    INVALID_CACHE_DATA_SIZE_ERROR      = -13,
 };
 
 template <typename GroupElement>
@@ -42,17 +42,19 @@ static void dcfKeyGenKernel(void*       key,
                             std::size_t bitWidthOut,
                             std::size_t elementNum)
 {
-    std::size_t idx    = 0;
-    std::size_t stride = 1;
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
 
     const GroupElement* alphaPtr = (const GroupElement*)alpha;
     const GroupElement* betaPtr  = (const GroupElement*)beta;
     const std::uint8_t* seed0Ptr = (const std::uint8_t*)seed0;
     const std::uint8_t* seed1Ptr = (const std::uint8_t*)seed1;
 
-    impl::DcfKey<GroupElement> keyObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
+        impl::DcfKey<GroupElement> keyObj;
         impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
         impl::dcfKeyGen(keyObj,                                   //
                         alphaPtr[i],                              //
@@ -80,6 +82,30 @@ int FastFss_cpu_dcfKeyGen(void*       key,
                           size_t      elementSize,
                           size_t      elementNum)
 {
+    int         ret;
+    std::size_t needKeySize = 0;
+    ret = FastFss_cpu_dcfGetKeyDataSize(&needKeySize, bitWidthIn, bitWidthOut,
+                                        elementSize, elementNum);
+    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
+
+    FSS_ASSERT(keyDataSize == needKeySize,
+               ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
+    FSS_ASSERT(alphaDataSize == elementNum * elementSize,
+               ERROR_CODE::INVALID_ALPHA_DATA_SIZE_ERROR);
+    if (betaDataSize != 0)
+    {
+        FSS_ASSERT(betaDataSize == elementNum * elementSize,
+                   ERROR_CODE::INVALID_BETA_DATA_SIZE_ERROR);
+    }
+    FSS_ASSERT(seedDataSize0 == elementNum * 16,
+               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
+    FSS_ASSERT(seedDataSize1 == elementNum * 16,
+               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    FSS_ASSERT(bitWidthOut <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
@@ -102,16 +128,18 @@ static void dcfEvalKernel(void*       sharedOut,
                           size_t      elementNum,
                           void*       cache)
 {
-    std::size_t idx    = 0;
-    std::size_t stride = 1;
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
 
     GroupElement*       sharedOutPtr = (GroupElement*)sharedOut;
     const GroupElement* maskedXPtr   = (const GroupElement*)maskedX;
     const std::uint8_t* seedPtr      = (const std::uint8_t*)seed;
 
-    impl::DcfKey<GroupElement> keyObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
+        impl::DcfKey<GroupElement> keyObj;
         impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
         sharedOutPtr[i] = impl::dcfEval(keyObj,           //
                                         maskedXPtr[i],    //
@@ -137,6 +165,36 @@ int FastFss_cpu_dcfEval(void*       sharedOut,
                         void*       cache,
                         size_t      cacheDataSize)
 {
+    int         ret;
+    std::size_t needKeySize = 0;
+    ret = FastFss_cpu_dcfGetKeyDataSize(&needKeySize, bitWidthIn, bitWidthOut,
+                                        elementSize, elementNum);
+    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
+
+    FSS_ASSERT(keyDataSize == needKeySize,
+               ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
+    FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
+               ERROR_CODE::INVLIAD_MASKED_X_DATA_SIZE_ERROR);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
+    FSS_ASSERT(partyId == 0 || partyId == 1,
+               ERROR_CODE::INVALID_PARTY_ID_ERROR);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    FSS_ASSERT(bitWidthOut <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    if (cacheDataSize != 0)
+    {
+        std::size_t needCacheSize = 0;
+
+        ret = FastFss_cpu_dcfGetCacheDataSize(
+            &needCacheSize, bitWidthIn, bitWidthOut, elementSize, elementNum);
+
+        FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
+        FSS_ASSERT(cacheDataSize == needCacheSize,
+                   ERROR_CODE::INVALID_CACHE_DATA_SIZE_ERROR);
+    }
+
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
@@ -176,6 +234,11 @@ int FastFss_cpu_dcfGetKeyDataSize(size_t* keyDataSize,
                                   size_t  elementSize,
                                   size_t  elementNum)
 {
+    FSS_ASSERT(bitWidthIn <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    FSS_ASSERT(bitWidthOut <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (std::size_t)0; },
         [&] {
@@ -191,6 +254,11 @@ int FastFss_cpu_dcfGetZippedKeyDataSize(size_t* keyDataSize,
                                         size_t  elementSize,
                                         size_t  elementNum)
 {
+    FSS_ASSERT(bitWidthIn <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    FSS_ASSERT(bitWidthOut <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (std::size_t)0; },
         [&] {
@@ -206,5 +274,10 @@ int FastFss_cpu_dcfGetCacheDataSize(size_t* cacheDataSize,
                                     size_t  elementSize,
                                     size_t  elementNum)
 {
+    FSS_ASSERT(bitWidthIn <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    FSS_ASSERT(bitWidthOut <= elementSize * 8,
+               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+
     return ERROR_CODE::RUNTIME_ERROR;
 }

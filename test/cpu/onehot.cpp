@@ -1,5 +1,5 @@
 // clang-format off
-// g++ -I include src/cpu/onehot.cpp test/cpu/onehot.cpp -o cpu_onehot.exe -std=c++17
+// g++ -I include src/cpu/onehot.cpp src/cpu/config.cpp test/cpu/onehot.cpp -o cpu_onehot.exe -std=c++17 -fopenmp
 // clang-format on
 #include <FastFss/cpu/onehot.h>
 

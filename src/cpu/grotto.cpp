@@ -142,7 +142,7 @@ static void grottoKeyGenKernel(void*       key,
 
     omp_set_num_threads(FastFss_cpu_getNumThreads());
 #pragma omp parallel for
-    for (std::int64_t i = idx; i < elementNum; i += stride)
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
         impl::GrottoKey<GroupElement> keyObj;
         std::size_t                   alphaOffset = i;
@@ -206,7 +206,7 @@ static void grottoEvalKernel(void*       out,
 
     omp_set_num_threads(FastFss_cpu_getNumThreads());
 #pragma omp parallel for
-    for (std::int64_t i = idx; i < elementNum; i += stride)
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
         impl::GrottoKey<GroupElement>   keyObj;
         impl::GrottoCache<GroupElement> cacheObj;
@@ -293,7 +293,7 @@ static void grottoEvalEqKernel(void*       out,
 
     omp_set_num_threads(FastFss_cpu_getNumThreads());
 #pragma omp parallel for
-    for (std::int64_t i = idx; i < elementNum; i += stride)
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
         impl::GrottoKey<GroupElement>    keyObj;
         impl::GrottoCache<GroupElement>  cacheObj;
@@ -381,7 +381,7 @@ static void grottoMICEvalKernel(void*       out,
 
     omp_set_num_threads(FastFss_cpu_getNumThreads());
 #pragma omp parallel for
-    for (std::int64_t i = idx; i < elementNum; i += stride)
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
         impl::GrottoKey<GroupElement>    keyObj;
         impl::GrottoCache<GroupElement>  cacheObj;
