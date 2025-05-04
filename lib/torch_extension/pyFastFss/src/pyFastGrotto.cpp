@@ -23,7 +23,7 @@
 #define CHECK_ERROR_CODE(ret, func)             \
     if (ret != 0)                               \
     {                                           \
-        ERR_LOG(func "ret = %d", ret);          \
+        ERR_LOG(func " ret = %d", ret);         \
         throw std::runtime_error(func " fail"); \
     }
 
@@ -356,6 +356,16 @@ torch::Tensor& grotto_mic_eval(torch::Tensor&       sharedBooleanOut,
 
     sharedBooleanOut.resize_({(std::int64_t)(intervalNum * elementNum)});
 
+    std::size_t cacheSize;
+    {
+        int ret = FastFss_cpu_grottoGetCacheDataSize(&cacheSize, bitWidthIn,
+                                                     elementSize, elementNum);
+        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoGetCacheDataSize");
+    }
+    torch::TensorOptions options;
+    options             = options.dtype(torch::kUInt8).device(device.type());
+    torch::Tensor cache = torch::empty({(std::int64_t)(cacheSize)}, options);
+
     if (device.type() == torch::kCPU)
     {
         int ret = FastFss_cpu_grottoMICEval(                     //
@@ -375,8 +385,7 @@ torch::Tensor& grotto_mic_eval(torch::Tensor&       sharedBooleanOut,
             bitWidthIn,                                          //
             elementSize,                                         //
             elementNum,                                          //
-            nullptr,                                             //
-            0);
+            cache.mutable_data_ptr(), cacheSize);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoMICEval");
     }
     else if (device.type() == torch::kCUDA)
@@ -400,8 +409,7 @@ torch::Tensor& grotto_mic_eval(torch::Tensor&       sharedBooleanOut,
             bitWidthIn,                                          //
             elementSize,                                         //
             elementNum,                                          //
-            nullptr,                                             //
-            0,                                                   //
+            cache.mutable_data_ptr(), cacheSize,                 //
             &stream                                              //
         );
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoMICEval");

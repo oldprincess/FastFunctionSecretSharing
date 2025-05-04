@@ -89,12 +89,10 @@ int FastFss_cuda_dcfMICKeyGen(void*       key,
     std::size_t needKeyDataSize;
     ret = FastFss_cuda_dcfMICGetKeyDataSize(
         &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum);
-    FSS_ASSERT(ret != 0, ERROR_CODE::RUNTIME_ERROR);
+    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
 
     FSS_ASSERT(keyDataSize == needKeyDataSize,
                ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
-    FSS_ASSERT(zDataSize == elementNum * elementSize,
-               ERROR_CODE::INVALID_Z_DATA_SIZE_ERROR);
     FSS_ASSERT(alphaDataSize == elementNum * elementSize,
                ERROR_CODE::INVALID_ALPHA_DATA_SIZE_ERROR);
     FSS_ASSERT(seedDataSize0 == 16 * elementNum,
@@ -103,6 +101,8 @@ int FastFss_cuda_dcfMICKeyGen(void*       key,
                ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
 
     std::size_t intervalNum = leftBoundaryDataSize / elementSize;
+    FSS_ASSERT(zDataSize == elementNum * intervalNum * elementSize,
+               ERROR_CODE::INVALID_Z_DATA_SIZE_ERROR);
     FSS_ASSERT(leftBoundaryDataSize == intervalNum * elementSize,
                ERROR_CODE::INVALID_BOUNDARY_DATA_SIZE_ERROR);
     FSS_ASSERT(rightBoundaryDataSize == intervalNum * elementSize,
@@ -204,22 +204,22 @@ int FastFss_cuda_dcfMICEval(void*       sharedOut,
     std::size_t needKeyDataSize;
     ret = FastFss_cuda_dcfMICGetKeyDataSize(
         &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum);
-    FSS_ASSERT(ret != 0, ERROR_CODE::RUNTIME_ERROR);
+    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
 
-    FSS_ASSERT(sharedOutDataSize == elementNum * elementSize,
-               ERROR_CODE::INVALID_SHARED_OUT_DATA_SIZE_ERROR);
     FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
                ERROR_CODE::INVALID_MASKED_X_DATA_SIZE_ERROR);
     FSS_ASSERT(keyDataSize == needKeyDataSize,
                ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
-    FSS_ASSERT(sharedZDataSize == elementNum * elementSize,
-               ERROR_CODE::INVALID_Z_DATA_SIZE_ERROR);
     FSS_ASSERT(seedDataSize == 16 * elementNum,
                ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
     FSS_ASSERT(partyId == 0 || partyId == 1,
                ERROR_CODE::INVALID_PARTY_ID_ERROR);
 
     std::size_t intervalNum = leftBoundaryDataSize / elementSize;
+    FSS_ASSERT(sharedOutDataSize == intervalNum * elementNum * elementSize,
+               ERROR_CODE::INVALID_SHARED_OUT_DATA_SIZE_ERROR);
+    FSS_ASSERT(sharedZDataSize == elementNum * intervalNum * elementSize,
+               ERROR_CODE::INVALID_Z_DATA_SIZE_ERROR);
     FSS_ASSERT(leftBoundaryDataSize == intervalNum * elementSize,
                ERROR_CODE::INVALID_BOUNDARY_DATA_SIZE_ERROR);
     FSS_ASSERT(rightBoundaryDataSize == intervalNum * elementSize,

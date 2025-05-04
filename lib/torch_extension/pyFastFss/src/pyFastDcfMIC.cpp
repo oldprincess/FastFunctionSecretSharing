@@ -25,7 +25,7 @@
 #define CHECK_ERROR_CODE(ret, func)             \
     if (ret != 0)                               \
     {                                           \
-        ERR_LOG(func "ret = %d", ret);          \
+        ERR_LOG(func " ret = %d", ret);         \
         throw std::runtime_error(func " fail"); \
     }
 
