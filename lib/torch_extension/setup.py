@@ -10,7 +10,7 @@ else:
 
 setup(
     name="pyFastFss",
-    version="0.0.202504271418",
+    version="0.0.202505051334",
     description="Fast Function Secret Sharing (Dpf and Dcf)",
     long_description="",
     author="oldprincess",
@@ -20,19 +20,25 @@ setup(
         cpp_extension.CUDAExtension(
             name="pyFastFss" + "._C",
             sources=[
+                # python
                 "pyFastFss/src/pyFastDcf.cpp",
                 "pyFastFss/src/pyFastDcfMIC.cpp",
+                "pyFastFss/src/pyFastDpf.cpp",
                 "pyFastFss/src/pyFastFss.cpp",
                 "pyFastFss/src/pyFastGrotto.cpp",
                 "pyFastFss/src/pyFastOnehot.cpp",
                 "pyFastFss/src/pyFastPrng.cpp",
+                # cpu
                 "../../src/cpu/config.cpp",
                 "../../src/cpu/dcf.cpp",
+                "../../src/cpu/dpf.cpp",
                 "../../src/cpu/grotto.cpp",
                 "../../src/cpu/mic.cpp",
                 "../../src/cpu/onehot.cpp",
                 "../../src/cpu/prng.cpp",
+                # cuda
                 "../../src/cuda/dcf.cu",
+                "../../src/cuda/dpf.cu",
                 "../../src/cuda/grotto.cu",
                 "../../src/cuda/mic.cu",
                 "../../src/cuda/onehot.cu",

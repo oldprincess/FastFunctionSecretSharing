@@ -116,6 +116,129 @@ Raises:
     RuntimeError: If the FastFss_cpu_dcfEval or FastFss_cuda_dcfEval fail.
         )");
 
+    // ==========================================
+    // ==================== DPF =================
+    // ==========================================
+
+    m.def("dpf_get_key_data_size",           //
+          &pyFastFss::dpf_get_key_data_size, //
+          py::arg("bitWidthIn"),             //
+          py::arg("bitWidthOut"),            //
+          py::arg("elementSize"),            //
+          py::arg("elementNum"),             //
+          R"(
+Get DPF key data size.
+
+Args:
+  bitWidthIn (int):       bit width of input data
+  bitWidthOut (int):      bit width of output data
+  elementSize (int):      element size of input data
+  elementNum (int):       element number of input data
+
+Returns:
+  int:             DPF key data size
+
+Raises:
+  ValueError:   If the input argument is invalid.
+      )");
+
+    m.def(                       //
+        "dpf_key_gen",           //
+        &pyFastFss::dpf_key_gen, //
+        py::arg("keyOut"),       //
+        py::arg("alpha"),        //
+        py::arg("beta"),         //
+        py::arg("seed0"),        //
+        py::arg("seed1"),        //
+        py::arg("bitWidthIn"),   //
+        py::arg("bitWidthOut"),  //
+        py::arg("elementNum"),   //
+        R"(
+Generate DCF key.
+
+Args:
+  keyOut (torch.Tensor):  DPF key tensor
+  alpha (torch.Tensor):   alpha tensor
+  beta (torch.Tensor):    beta tensor
+  seed0 (torch.Tensor):   seed0 tensor
+  seed1 (torch.Tensor):   seed1 tensor
+  bitWidthIn (int):       bit width of input data
+  bitWidthOut (int):      bit width of output data
+  elementSize (int):      element size of input data
+  elementNum (int):       element number of input data
+
+Returns:
+  torch.Tensor: keyOut
+
+Raises:
+  ValueError:   If the input argument is invalid.
+  RuntimeError: If the FastFss_cpu_dpfKeyGen or FastFss_cuda_dpfKeyGen fail.
+      )");
+
+    m.def("dpf_eval",             //
+          &pyFastFss::dpf_eval,   //
+          py::arg("sharedOut"),   //
+          py::arg("maskedX"),     //
+          py::arg("key"),         //
+          py::arg("seed"),        //
+          py::arg("partyId"),     //
+          py::arg("bitWidthIn"),  //
+          py::arg("bitWidthOut"), //
+          py::arg("elementNum"),  //
+          R"(
+Evaluate DCF.
+
+Args:
+  sharedOut (torch.Tensor):  shared tensor
+  maskedX (torch.Tensor):    masked tensor
+  key (torch.Tensor):        key tensor
+  seed (torch.Tensor):       seed tensor
+  partyId (int):             party id
+  bitWidthIn (int):          bit width of input data
+  bitWidthOut (int):         bit width of output data
+  elementNum (int):          element number of input data
+  
+Returns:
+  torch.Tensor: sharedOut
+
+Raises:
+  ValueError:   If the input argument is invalid.
+  RuntimeError: If the FastFss_cpu_dpfEval or FastFss_cuda_dpfEval fail.
+      )");
+
+    m.def("dpf_eval_multi",           //
+          &pyFastFss::dpf_eval_multi, //
+          py::arg("sharedOut"),       //
+          py::arg("maskedX"),         //
+          py::arg("key"),             //
+          py::arg("seed"),            //
+          py::arg("partyId"),         //
+          py::arg("point"),           //
+          py::arg("bitWidthIn"),      //
+          py::arg("bitWidthOut"),     //
+          py::arg("elementNum"),      //
+          R"(
+Evaluate DCF.
+
+Args:
+  sharedOut (torch.Tensor):  shared tensor
+  maskedX (torch.Tensor):    masked tensor
+  key (torch.Tensor):        key tensor
+  seed (torch.Tensor):       seed tensor
+  partyId (int):             party id
+  point (torch.Tensor):      point list
+  bitWidthIn (int):          bit width of input data
+  bitWidthOut (int):         bit width of output data
+  elementNum (int):          element number of input data
+  
+Returns:
+  torch.Tensor: sharedOut
+
+Raises:
+  ValueError:   If the input argument is invalid.
+  RuntimeError: If the FastFss_cpu_dpfEvalMulti or FastFss_cuda_dpfEvalMulti fail.
+      )");
+
     // ===========================================
     // ================== GROTTO =================
     // ===========================================

@@ -3,6 +3,7 @@
 
 #include "pyFastDcf.h"
 #include "pyFastDcfMIC.h"
+#include "pyFastDpf.h"
 #include "pyFastGrotto.h"
 #include "pyFastOnehot.h"
 #include "pyFastPrng.h"
