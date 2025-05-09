@@ -265,29 +265,29 @@ FAST_FSS_DEVICE static inline void aes128_enc_key_init(
     static const std::uint32_t Rcon[10] = {
         0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36,
     };
-    int            nr = 10; // Nr
-    int            nk = 4;  // Nk
-    std::uint32_t  tmp, tmp1;
-    std::uint32_t *w = round_key;
+
+    constexpr int  nr = 10; // Nr
+    constexpr int  nk = 4;  // Nk
+    std::uint32_t *w  = round_key;
     //--------------Load as BigEndian---------------
     for (int i = 0; i < nk; i++)
     {
         w[i] = MEM_LOAD32BE(user_key + 4 * i);
     }
     //------------KeyExpand-----------------
-    for (int i = nk; i < 4 * (nr + 1); i++)
+    for (int i = nk; i < 4 * (nr + 1); i += 4)
     {
-        tmp = w[i - 1];
-        if (i % nk == 0)
-        {
-            // tmp = SubWord(RotWord(w[i-1]))
-            tmp1 = tmp;
-            tmp  = SBOX[(tmp1 >> 24) & 0xFF];
-            tmp |= SBOX[(tmp1 >> 0) & 0xFF] << 8;
-            tmp |= SBOX[(tmp1 >> 8) & 0xFF] << 16;
-            tmp |= (SBOX[(tmp1 >> 16) & 0xFF] ^ Rcon[i / nk - 1]) << 24;
-        }
-        w[i] = w[i - nk] ^ tmp;
+        auto tmp = w[i - 1];
+        // tmp = SubWord(RotWord(w[i-1]))
+        auto tmp1 = tmp;
+        tmp       = SBOX[(tmp1 >> 24) & 0xFF];
+        tmp |= SBOX[(tmp1 >> 0) & 0xFF] << 8;
+        tmp |= SBOX[(tmp1 >> 8) & 0xFF] << 16;
+        tmp |= (SBOX[(tmp1 >> 16) & 0xFF] ^ Rcon[i / nk - 1]) << 24;
+        w[i]     = w[i - nk] ^ tmp;
+        w[i + 1] = w[i + 1 - nk] ^ w[i + 1 - 1];
+        w[i + 2] = w[i + 2 - nk] ^ w[i + 2 - 1];
+        w[i + 3] = w[i + 3 - nk] ^ w[i + 3 - 1];
     }
 }
 
@@ -334,8 +334,9 @@ FAST_FSS_DEVICE static inline void aes_enc_round(
  * @param s     4-dword state (128-bit)
  * @param rk    4-dword round key (128-bit)
  */
-FAST_FSS_DEVICE inline void aes_enc_last(std::uint32_t       s[4],
-                                         const std::uint32_t rk[4]) noexcept
+FAST_FSS_DEVICE static inline void aes_enc_last(
+    std::uint32_t       s[4],
+    const std::uint32_t rk[4]) noexcept
 {
     std::uint32_t t[4];
     //------------ShiftRow + SubByte-----------
@@ -366,8 +367,8 @@ FAST_FSS_DEVICE inline void aes_enc_last(std::uint32_t       s[4],
     s[3] = t[3] ^ rk[3];
 }
 
-FAST_FSS_DEVICE inline void aes_key_schedule_next(std::uint32_t w[4],
-                                                  int           round) noexcept
+FAST_FSS_DEVICE static inline void aes_key_schedule_next(std::uint32_t w[4],
+                                                         int round) noexcept
 {
     static const std::uint32_t Rcon[10] = {
         0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36,
@@ -432,7 +433,7 @@ FAST_FSS_DEVICE inline void aes128_compute_n_block(
     void               *ciphertext,
     const void         *plaintext) noexcept
 {
-    int           nr = 10;
+    constexpr int nr = 10;
     std::uint32_t state[N][4];
     //----------------AddRoundKey----------------
     for (int j = 0; j < N; j++)
@@ -532,21 +533,30 @@ public:
                                                   const void *plaintext,
                                                   const void *user_key) noexcept
     {
-        internal::aes128_enc_n_block<1>(ciphertext, plaintext, user_key);
+        std::uint32_t rk[32];
+        internal::aes128_enc_key_init(rk, (const std::uint8_t *)user_key);
+        internal::aes128_compute_block(rk, ciphertext, plaintext);
+        // internal::aes128_enc_n_block<1>(ciphertext, plaintext, user_key);
     }
 
     FAST_FSS_DEVICE static void aes128_enc2_block(void       *ciphertext,
                                                   const void *plaintext,
                                                   const void *user_key) noexcept
     {
-        internal::aes128_enc_n_block<2>(ciphertext, plaintext, user_key);
+        std::uint32_t rk[32];
+        internal::aes128_enc_key_init(rk, (const std::uint8_t *)user_key);
+        internal::aes128_compute_n_block<2>(rk, ciphertext, plaintext);
+        // internal::aes128_enc_n_block<2>(ciphertext, plaintext, user_key);
     }
 
     FAST_FSS_DEVICE static void aes128_enc4_block(void       *ciphertext,
                                                   const void *plaintext,
                                                   const void *user_key) noexcept
     {
-        internal::aes128_enc_n_block<4>(ciphertext, plaintext, user_key);
+        std::uint32_t rk[32];
+        internal::aes128_enc_key_init(rk, (const std::uint8_t *)user_key);
+        internal::aes128_compute_n_block<4>(rk, ciphertext, plaintext);
+        // internal::aes128_enc_n_block<4>(ciphertext, plaintext, user_key);
     }
 
 public:
