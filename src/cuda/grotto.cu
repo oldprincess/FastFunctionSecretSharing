@@ -2,23 +2,27 @@
 
 #include "../impl/grotto.h"
 
+#define FSS_ASSERT(cond, errCode) \
+    if (!(cond)) return errCode
+
 using namespace FastFss;
 
 enum ERR_CODE
 {
-    SUCCESS                    = 0,
-    RUNTIME_ERROR              = -1,
-    INVALID_ELEMENT_SIZE       = -2,
-    INVALID_ALPHA_DATA_SIZE    = -3,
-    INVALID_SEED_DATA_SIZE     = -4,
-    INVALID_BITWIDTH           = -5,
-    INVALID_PARTY_ID           = -6,
-    INVALID_KEY_DATA_SIZE      = -7,
-    INVLIAD_MASKED_X_DATA_SIZE = -8,
-    INVALID_CACHE_DATA_SIZE    = -9,
-    INVALID_BOUNDARY_DATA_SIZE = -10,
-    INVALID_LUT_DATA_SIZE      = -11,
-    INVALID_MIC_OUT_DATA_SIZE  = -12,
+    SUCCESS                      = 0,
+    RUNTIME_ERROR                = -1,
+    INVALID_ELEMENT_SIZE         = -2,
+    INVALID_ALPHA_DATA_SIZE      = -3,
+    INVALID_SEED_DATA_SIZE       = -4,
+    INVALID_BITWIDTH             = -5,
+    INVALID_PARTY_ID             = -6,
+    INVALID_KEY_DATA_SIZE        = -7,
+    INVALID_MASKED_X_DATA_SIZE   = -8,
+    INVALID_CACHE_DATA_SIZE      = -9,
+    INVALID_BOUNDARY_DATA_SIZE   = -10,
+    INVALID_LUT_DATA_SIZE        = -11,
+    INVALID_MIC_OUT_DATA_SIZE    = -12,
+    INVALID_SHARED_OUT_DATA_SIZE = -13,
 };
 
 static std::size_t grottoGetKeyDataSize(size_t bitWidthIn,
@@ -43,80 +47,6 @@ static std::size_t grottoGetCacheDataSize(size_t bitWidthIn,
                                                           elementNum);
         });
 }
-
-#define CHECK_ALPHA_DATA_SIZE(alphaDataSize, elementSize, elementNum) \
-    if (alphaDataSize != elementSize * elementNum)                    \
-    {                                                                 \
-        return ERR_CODE::INVALID_ALPHA_DATA_SIZE;                     \
-    }
-
-#define CHECK_MASKED_X_DATA_SIZE(maskedXDataSize, elementSize, elementNum) \
-    if (maskedXDataSize != elementSize * elementNum)                       \
-    {                                                                      \
-        return ERR_CODE::INVLIAD_MASKED_X_DATA_SIZE;                       \
-    }
-
-#define CHECK_SEED_DATA_SIZE(seedDataSize, elementNum) \
-    if (seedDataSize != 16 * elementNum)               \
-    {                                                  \
-        return ERR_CODE::INVALID_SEED_DATA_SIZE;       \
-    }
-
-#define CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize)         \
-    if (!(bitWidthIn <= elementSize * 8 && bitWidthIn > 6)) \
-    {                                                       \
-        return ERR_CODE::INVALID_BITWIDTH;                  \
-    }
-
-#define CHECK_PARTY_ID(partyId)            \
-    if (!(partyId == 0 || partyId == 1))   \
-    {                                      \
-        return ERR_CODE::INVALID_PARTY_ID; \
-    }
-
-#define CHECK_KEY_DATA_SIZE(keyDataSize, bitWidthIn, elementSize, elementNum) \
-    if (!(keyDataSize ==                                                      \
-          grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum)))         \
-    {                                                                         \
-        return ERR_CODE::INVALID_KEY_DATA_SIZE;                               \
-    }
-
-#define CHECK_CACHE_DATA_SIZE(cachePtr, cacheDataSize, bitWidthIn,            \
-                              elementSize, elementNum)                        \
-    if (!(cachePtr == nullptr ||                                              \
-          (cachePtr != nullptr &&                                             \
-           cacheDataSize ==                                                   \
-               grottoGetCacheDataSize(bitWidthIn, elementSize, elementNum)))) \
-    {                                                                         \
-        return ERR_CODE::INVALID_CACHE_DATA_SIZE;                             \
-    }
-
-#define CHECK_BOUNDARY_DATA_SIZE(leftBoundaryDataSize, rightBoundaryDataSize, \
-                                 elementSize)                                 \
-    if (!(leftBoundaryDataSize == rightBoundaryDataSize &&                    \
-          leftBoundaryDataSize % elementSize == 0))                           \
-    {                                                                         \
-        return ERR_CODE::INVALID_BOUNDARY_DATA_SIZE;                          \
-    }
-
-#define CHECK_MIC_OUT_DATA_SIZE(outDataSize, intervalNum, elementSize, \
-                                elementNum)                            \
-    if (!(outDataSize == intervalNum * elementSize * elementNum))      \
-    {                                                                  \
-        return ERR_CODE::INVALID_MIC_OUT_DATA_SIZE;                    \
-    }
-
-#define CHECK_LUT_DATA_SIZE(lutDataSize, intervalNum, elementSize) \
-    if (!(lutDataSize == intervalNum * elementSize))               \
-    {                                                              \
-        return ERR_CODE::INVALID_LUT_DATA_SIZE;                    \
-    }
-
-#define CAL_INTERVAL_NUM(boundaryDataSize, elementSize) \
-    ((boundaryDataSize) / (elementSize))
-
-#define CAST_CUDA_STREAM_PTR(cudaStreamPtr) \
-    ((cudaStreamPtr) == nullptr) ? 0 : *(cudaStream_t*)(cudaStreamPtr)
 
 template <typename GroupElement>
 __global__ static void grottoKeyGenKernel(void*       key,
@@ -161,11 +91,17 @@ int FastFss_cuda_grottoKeyGen(void*       key,
                               size_t      elementNum,
                               void*       cudaStreamPtr)
 {
-    CHECK_ALPHA_DATA_SIZE(alphaDataSize, elementSize, elementNum);
-    CHECK_SEED_DATA_SIZE(seedDataSize0, elementNum);
-    CHECK_SEED_DATA_SIZE(seedDataSize1, elementNum);
-    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
-    CHECK_KEY_DATA_SIZE(keyDataSize, bitWidthIn, elementSize, elementNum);
+    FSS_ASSERT(alphaDataSize == elementSize * elementNum,
+               ERR_CODE::INVALID_ALPHA_DATA_SIZE);
+    FSS_ASSERT(seedDataSize0 == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(seedDataSize1 == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
+    FSS_ASSERT(keyDataSize ==
+                   grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
+               ERR_CODE::INVALID_KEY_DATA_SIZE);
 
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
@@ -173,7 +109,7 @@ int FastFss_cuda_grottoKeyGen(void*       key,
     {
         GRID_DIM = CUDA_MAX_GRID_DIM;
     }
-    cudaStream_t stream = CAST_CUDA_STREAM_PTR(cudaStreamPtr);
+    cudaStream_t stream = (cudaStreamPtr) ? *((cudaStream_t*)cudaStreamPtr) : 0;
 
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
@@ -248,13 +184,23 @@ int FastFss_cuda_grottoEval(void*       sharedBooleanOut,
                             size_t      cacheDataSize,
                             void*       cudaStreamPtr)
 {
-    CHECK_MASKED_X_DATA_SIZE(maskedXDataSize, elementSize, elementNum);
-    CHECK_SEED_DATA_SIZE(seedDataSize, elementNum);
-    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
-    CHECK_KEY_DATA_SIZE(keyDataSize, bitWidthIn, elementSize, elementNum);
-    CHECK_CACHE_DATA_SIZE(cache, cacheDataSize, bitWidthIn, elementSize,
-                          elementNum);
-    CHECK_PARTY_ID(partyId);
+    FSS_ASSERT(maskedXDataSize == elementSize * elementNum,
+               ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
+    FSS_ASSERT(keyDataSize ==
+                   grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
+               ERR_CODE::INVALID_KEY_DATA_SIZE);
+    if (cache != nullptr)
+    {
+        std::size_t needCacheDataSize =
+            grottoGetCacheDataSize(bitWidthIn, elementSize, elementNum);
+        FSS_ASSERT(cacheDataSize == needCacheDataSize,
+                   ERR_CODE::INVALID_CACHE_DATA_SIZE);
+    }
+    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
 
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
@@ -262,7 +208,7 @@ int FastFss_cuda_grottoEval(void*       sharedBooleanOut,
     {
         GRID_DIM = CUDA_MAX_GRID_DIM;
     }
-    cudaStream_t stream = CAST_CUDA_STREAM_PTR(cudaStreamPtr);
+    cudaStream_t stream = (cudaStreamPtr) ? *((cudaStream_t*)cudaStreamPtr) : 0;
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
         [&] {
@@ -341,13 +287,23 @@ int FastFss_cuda_grottoEvalEq(void*       sharedBooleanOut,
                               size_t      cacheDataSize,
                               void*       cudaStreamPtr)
 {
-    CHECK_MASKED_X_DATA_SIZE(maskedXDataSize, elementSize, elementNum);
-    CHECK_SEED_DATA_SIZE(seedDataSize, elementNum);
-    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
-    CHECK_KEY_DATA_SIZE(keyDataSize, bitWidthIn, elementSize, elementNum);
-    CHECK_CACHE_DATA_SIZE(cache, cacheDataSize, bitWidthIn, elementSize,
-                          elementNum);
-    CHECK_PARTY_ID(partyId);
+    FSS_ASSERT(maskedXDataSize == elementSize * elementNum,
+               ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
+    FSS_ASSERT(keyDataSize ==
+                   grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
+               ERR_CODE::INVALID_KEY_DATA_SIZE);
+    if (cache != nullptr)
+    {
+        std::size_t needCacheDataSize =
+            grottoGetCacheDataSize(bitWidthIn, elementSize, elementNum);
+        FSS_ASSERT(cacheDataSize == needCacheDataSize,
+                   ERR_CODE::INVALID_CACHE_DATA_SIZE);
+    }
+    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
 
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
@@ -355,7 +311,7 @@ int FastFss_cuda_grottoEvalEq(void*       sharedBooleanOut,
     {
         GRID_DIM = CUDA_MAX_GRID_DIM;
     }
-    cudaStream_t stream = CAST_CUDA_STREAM_PTR(cudaStreamPtr);
+    cudaStream_t stream = (cudaStreamPtr) ? *((cudaStream_t*)cudaStreamPtr) : 0;
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
         [&] {
@@ -449,27 +405,39 @@ int FastFss_cuda_grottoMICEval(void*       sharedBooleanOut,
                                size_t      cacheDataSize,
                                void*       cudaStreamPtr)
 {
-    CHECK_MASKED_X_DATA_SIZE(maskedXDataSize, elementSize, elementNum);
-    CHECK_SEED_DATA_SIZE(seedDataSize, elementNum);
-    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
-    CHECK_KEY_DATA_SIZE(keyDataSize, bitWidthIn, elementSize, elementNum);
-    CHECK_CACHE_DATA_SIZE(cache, cacheDataSize, bitWidthIn, elementSize,
-                          elementNum);
-    CHECK_PARTY_ID(partyId);
-    CHECK_BOUNDARY_DATA_SIZE(leftBoundaryDataSize, rightBoundaryDataSize,
-                             elementSize);
-    CHECK_MIC_OUT_DATA_SIZE(sharedBooleanOutDataSize,
-                            CAL_INTERVAL_NUM(leftBoundaryDataSize, elementSize),
-                            elementSize, elementNum);
+    FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
+               ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
+    FSS_ASSERT(keyDataSize ==
+                   grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
+               ERR_CODE::INVALID_KEY_DATA_SIZE);
+    if (cache != nullptr)
+    {
+        std::size_t needCacheDataSize =
+            grottoGetCacheDataSize(bitWidthIn, elementSize, elementNum);
+        FSS_ASSERT(cacheDataSize == needCacheDataSize,
+                   ERR_CODE::INVALID_CACHE_DATA_SIZE);
+    }
+    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
+    FSS_ASSERT(leftBoundaryDataSize == rightBoundaryDataSize &&
+                   leftBoundaryDataSize % elementSize == 0,
+               ERR_CODE::INVALID_BOUNDARY_DATA_SIZE);
+    std::size_t intervalNum = leftBoundaryDataSize / elementSize;
 
-    size_t intervalNum    = CAL_INTERVAL_NUM(leftBoundaryDataSize, elementSize);
+    FSS_ASSERT(
+        sharedBooleanOutDataSize == intervalNum * elementNum * elementSize,
+        ERR_CODE::INVALID_MIC_OUT_DATA_SIZE);
+
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)
     {
         GRID_DIM = CUDA_MAX_GRID_DIM;
     }
-    cudaStream_t stream = CAST_CUDA_STREAM_PTR(cudaStreamPtr);
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)cudaStreamPtr : 0;
 
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
@@ -506,6 +474,7 @@ __global__ static void grottoIntervalLutEvalKernel(void*       outE,
                                                    const void* leftBoundary,
                                                    const void* rightBoundary,
                                                    const void* lookUpTable,
+                                                   size_t      lutNum,
                                                    size_t      intervalNum,
                                                    size_t      bitWidthIn,
                                                    size_t      elementNum,
@@ -537,7 +506,7 @@ __global__ static void grottoIntervalLutEvalKernel(void*       outE,
         }
         impl::grottoIntervalLutEval(   //
             outEPtr + i,               //
-            outTPtr + i,               //
+            outTPtr + i * lutNum,      //
             keyObj,                    //
             maskedXPtr[maskedXOffset], //
             seedPtr + seedOffset,      //
@@ -545,6 +514,7 @@ __global__ static void grottoIntervalLutEvalKernel(void*       outE,
             leftBoundaryPtr,           //
             rightBoundaryPtr,          //
             lookUpTablePtr,            //
+            lutNum,                    //
             intervalNum,               //
             bitWidthIn,                //
             cacheObjPtr                //
@@ -575,29 +545,39 @@ int FastFss_cuda_grottoIntervalLutEval(void*       sharedOutE,
                                        size_t      cacheDataSize,
                                        void*       cudaStreamPtr)
 {
-    CHECK_MASKED_X_DATA_SIZE(maskedXDataSize, elementSize, elementNum);
-    CHECK_SEED_DATA_SIZE(seedDataSize, elementNum);
-    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
-    CHECK_KEY_DATA_SIZE(keyDataSize, bitWidthIn, elementSize, elementNum);
-    CHECK_CACHE_DATA_SIZE(cache, cacheDataSize, bitWidthIn, elementSize,
-                          elementNum);
-    CHECK_PARTY_ID(partyId);
-    CHECK_BOUNDARY_DATA_SIZE(leftBoundaryDataSize, rightBoundaryDataSize,
-                             elementSize);
+    FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
+               ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
+    FSS_ASSERT(keyDataSize ==
+                   grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
+               ERR_CODE::INVALID_KEY_DATA_SIZE);
+    if (cache != nullptr)
+    {
+        std::size_t needCacheDataSize =
+            grottoGetCacheDataSize(bitWidthIn, elementSize, elementNum);
+        FSS_ASSERT(cacheDataSize == needCacheDataSize,
+                   ERR_CODE::INVALID_CACHE_DATA_SIZE);
+    }
+    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
+    FSS_ASSERT(leftBoundaryDataSize == rightBoundaryDataSize &&
+                   leftBoundaryDataSize % elementSize == 0,
+               ERR_CODE::INVALID_BOUNDARY_DATA_SIZE);
+    std::size_t intervalNum = leftBoundaryDataSize / elementSize;
 
-    CHECK_LUT_DATA_SIZE(lookUpTableDataSize,
-                        CAL_INTERVAL_NUM(leftBoundaryDataSize, elementSize),
-                        elementSize);
+    FSS_ASSERT(lookUpTableDataSize % (elementSize * intervalNum) == 0,
+               INVALID_LUT_DATA_SIZE);
+    std::size_t lutNum = lookUpTableDataSize / leftBoundaryDataSize;
 
-    std::size_t intervalNum =
-        CAL_INTERVAL_NUM(leftBoundaryDataSize, elementSize);
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)
     {
         GRID_DIM = CUDA_MAX_GRID_DIM;
     }
-    cudaStream_t stream = CAST_CUDA_STREAM_PTR(cudaStreamPtr);
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)cudaStreamPtr : 0;
 
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
@@ -613,6 +593,7 @@ int FastFss_cuda_grottoIntervalLutEval(void*       sharedOutE,
                     leftBoundary,                     //
                     rightBoundary,                    //
                     lookUpTable,                      //
+                    lutNum,                           //
                     intervalNum,                      //
                     bitWidthIn,                       //
                     elementNum,                       //
@@ -655,6 +636,8 @@ int FastFss_cuda_grottoGetKeyDataSize(size_t* keyDataSize,
                                       size_t  elementSize,
                                       size_t  elementNum)
 {
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (size_t)0; },
         [&] {
@@ -668,7 +651,8 @@ int FastFss_cuda_grottoGetZippedKeyDataSize(size_t* keyDataSize,
                                             size_t  elementSize,
                                             size_t  elementNum)
 {
-    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (size_t)0; },
         [&] {
@@ -683,7 +667,8 @@ int FastFss_cuda_grottoGetCacheDataSize(size_t* cacheDataSize,
                                         size_t  elementSize,
                                         size_t  elementNum)
 {
-    CHECK_BIT_WIDTH_IN(bitWidthIn, elementSize);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
     *cacheDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (size_t)0; },
         [&] {

@@ -4,13 +4,13 @@ import sys
 
 cxx_flags = []
 if sys.platform == "linux":
-    cxx_flags = ["-maes", "-std=c++17", "-O3", "-fopenmp"]
+    cxx_flags = ["-maes", "-std=c++17", "-O3", "-fopenmp", "-fvisibility=hidden"]
 else:
     cxx_flags = ["/std:c++17", "/O2", "/openmp"]
 
 setup(
     name="pyFastFss",
-    version="0.0.202505051334",
+    version="0.0.202505151420",
     description="Fast Function Secret Sharing (Dpf and Dcf)",
     long_description="",
     author="oldprincess",

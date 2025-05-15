@@ -471,17 +471,19 @@ py::tuple grotto_interval_lut_eval(torch::Tensor&       sharedOutE,
     ARG_ASSERT(lookUpTable.device() == device);
 
     ARG_ASSERT(leftBoundary.numel() == rightBoundary.numel());
-    ARG_ASSERT(leftBoundary.numel() == lookUpTable.numel());
 
     ARG_ASSERT((std::size_t)key.numel() ==
                grotto_get_key_data_size(bitWidthIn, elementSize, elementNum));
+
+    auto lutNum = lookUpTable.numel() / leftBoundary.numel();
+    ARG_ASSERT(lookUpTable.numel() == lutNum * leftBoundary.numel());
 
     // =====================================================
     // ===================== FastFss =======================
     // =====================================================
 
     sharedOutE.resize_({(std::int64_t)(elementNum)});
-    sharedOutT.resize_({(std::int64_t)(elementNum)});
+    sharedOutT.resize_({(std::int64_t)(elementNum)*lutNum});
 
     std::size_t cacheSize;
     {

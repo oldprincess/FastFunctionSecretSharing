@@ -533,7 +533,7 @@ public:
                                                   const void *plaintext,
                                                   const void *user_key) noexcept
     {
-        std::uint32_t rk[32];
+        std::uint32_t rk[44];
         internal::aes128_enc_key_init(rk, (const std::uint8_t *)user_key);
         internal::aes128_compute_block(rk, ciphertext, plaintext);
         // internal::aes128_enc_n_block<1>(ciphertext, plaintext, user_key);
@@ -543,7 +543,7 @@ public:
                                                   const void *plaintext,
                                                   const void *user_key) noexcept
     {
-        std::uint32_t rk[32];
+        std::uint32_t rk[44];
         internal::aes128_enc_key_init(rk, (const std::uint8_t *)user_key);
         internal::aes128_compute_n_block<2>(rk, ciphertext, plaintext);
         // internal::aes128_enc_n_block<2>(ciphertext, plaintext, user_key);
@@ -553,7 +553,7 @@ public:
                                                   const void *plaintext,
                                                   const void *user_key) noexcept
     {
-        std::uint32_t rk[32];
+        std::uint32_t rk[44];
         internal::aes128_enc_key_init(rk, (const std::uint8_t *)user_key);
         internal::aes128_compute_n_block<4>(rk, ciphertext, plaintext);
         // internal::aes128_enc_n_block<4>(ciphertext, plaintext, user_key);

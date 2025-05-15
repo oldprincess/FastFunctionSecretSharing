@@ -459,7 +459,8 @@ FAST_FSS_DEVICE inline void grottoIntervalLutEval( //
     const GroupElement*            leftBoundary,
     const GroupElement*            rightBoundary,
     const GroupElement*            lookUpTable,
-    size_t                         intervalNum,
+    std::size_t                    lutNum,
+    std::size_t                    intervalNum,
     std::size_t                    bitWidthIn,
     GrottoCache<GroupElement>*     cache = nullptr) noexcept
 {
@@ -469,7 +470,10 @@ FAST_FSS_DEVICE inline void grottoIntervalLutEval( //
     }
 
     sharedOutE[0] = 0;
-    sharedOutT[0] = 0;
+    for (std::size_t j = 0; j < lutNum; j++)
+    {
+        sharedOutT[j] = 0;
+    }
 
     std::size_t  bitWidth = bitWidthIn;
     GroupElement sp = 0, sq = 0;
@@ -489,7 +493,10 @@ FAST_FSS_DEVICE inline void grottoIntervalLutEval( //
 
         tmp &= 1;
         sharedOutE[0] += tmp;
-        sharedOutT[0] += tmp * lookUpTable[0];
+        for (std::size_t j = 0; j < lutNum; j++)
+        {
+            sharedOutT[j] += tmp * lookUpTable[0 + j * intervalNum];
+        }
     }
     for (std::size_t i = 1; i < intervalNum; i++)
     {
@@ -517,12 +524,18 @@ FAST_FSS_DEVICE inline void grottoIntervalLutEval( //
 
         tmp &= 1;
         sharedOutE[0] += tmp;
-        sharedOutT[0] += tmp * lookUpTable[i];
+        for (std::size_t j = 0; j < lutNum; j++)
+        {
+            sharedOutT[j] += tmp * lookUpTable[i + j * intervalNum];
+        }
     }
     if (partyId)
     {
         sharedOutE[0] = (GroupElement)(-1) * sharedOutE[0];
-        sharedOutT[0] = (GroupElement)(-1) * sharedOutT[0];
+        for (std::size_t j = 0; j < lutNum; j++)
+        {
+            sharedOutT[j] = (GroupElement)(-1) * sharedOutT[j];
+        }
     }
     // E = 1 or -1.
     // E = ((E - 1) >> 1) & 1: 1(V need times -1) 0(V need not times -1)
