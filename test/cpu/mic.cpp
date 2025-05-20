@@ -1,5 +1,5 @@
 // clang-format off
-// g++ -I include src/cpu/dcf.cpp src/cpu/mic.cpp test/cpu/mic.cpp -o cpu_mic.exe -std=c++17 -maes
+// g++ -I include src/cpu/config.cpp src/cpu/mic.cpp test/cpu/mic.cpp -o cpu_mic.exe -std=c++17 -maes -fopenmp
 // clang-format on
 #include <FastFss/cpu/mic.h>
 
@@ -70,6 +70,8 @@ public:
         int         ret;
         void*       dcfMICKey         = nullptr;
         std::size_t dcfMICKeyDataSize = 0;
+        void*       dcfCache          = nullptr;
+        std::size_t dcfCacheDataSize  = 0;
 
         for (std::size_t i = 0; i < elementNum; ++i)
         {
@@ -89,6 +91,12 @@ public:
             CHECK(ret);
             dcfMICKey = std::malloc(dcfMICKeyDataSize);
             CHECK((!dcfMICKey));
+            ret = FastFss_cpu_dcfMICGetCacheDataSize(
+                &dcfCacheDataSize, bitWidthIn, bitWidthOut,
+                sizeof(GroupElement), elementNum);
+            CHECK(ret);
+            dcfCache = std::malloc(dcfCacheDataSize);
+            CHECK((!dcfCache));
         }
 
         ret = FastFss_cpu_dcfMICKeyGen(
@@ -135,23 +143,23 @@ public:
         CHECK(ret);
 
         ret = FastFss_cpu_dcfMICEval(
-            sharedOut1.data(),                           //
-            sharedOut1.size() * sizeof(GroupElement),    //
-            maskedX.data(),                              //
-            maskedX.size() * sizeof(GroupElement),       //
-            dcfMICKey,                                   //
-            dcfMICKeyDataSize,                           //
-            sharedZ1.data(),                             //
-            sharedZ1.size() * sizeof(GroupElement),      //
-            seed1.data(),                                //
-            seed1.size(),                                //
-            1,                                           //
-            leftBoundary.data(),                         //
-            leftBoundary.size() * sizeof(GroupElement),  //
-            rightBoundary.data(),                        //
-            rightBoundary.size() * sizeof(GroupElement), //
-            bitWidthIn, bitWidthOut, sizeof(GroupElement), elementNum, nullptr,
-            0);
+            sharedOut1.data(),                                         //
+            sharedOut1.size() * sizeof(GroupElement),                  //
+            maskedX.data(),                                            //
+            maskedX.size() * sizeof(GroupElement),                     //
+            dcfMICKey,                                                 //
+            dcfMICKeyDataSize,                                         //
+            sharedZ1.data(),                                           //
+            sharedZ1.size() * sizeof(GroupElement),                    //
+            seed1.data(),                                              //
+            seed1.size(),                                              //
+            1,                                                         //
+            leftBoundary.data(),                                       //
+            leftBoundary.size() * sizeof(GroupElement),                //
+            rightBoundary.data(),                                      //
+            rightBoundary.size() * sizeof(GroupElement),               //
+            bitWidthIn, bitWidthOut, sizeof(GroupElement), elementNum, //
+            dcfCache, dcfCacheDataSize);
         CHECK(ret);
 
         for (std::size_t i = 0; i < elementNum; ++i)
@@ -182,6 +190,7 @@ public:
         }
 
         std::free(dcfMICKey);
+        std::free(dcfCache);
         std::puts("  pass");
     }
 };

@@ -158,10 +158,18 @@ __global__ static void dcfMICEvalKernel(void*       sharedOut,
     const GroupElement* leftBoundaryPtr  = (const GroupElement*)leftBoundary;
     const GroupElement* rightBoundaryPtr = (const GroupElement*)rightBoundary;
 
-    impl::DcfKey<GroupElement> keyObj;
+    impl::DcfKey<GroupElement>    keyObj;
+    impl::DcfCache<GroupElement>  cacheObj;
+    impl::DcfCache<GroupElement>* cachePtr = nullptr;
     for (std::size_t i = idx; i < elementNum; i += stride)
     {
         impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
+        if (cache != nullptr)
+        {
+            impl::dcfCacheSetPtr(cacheObj, cache, bitWidthIn, bitWidthOut, i,
+                                 elementNum);
+            cachePtr = &cacheObj;
+        }
         impl::dcfMICEval(sharedOutPtr + intervalNum * i, //
                          maskedXPtr[i],                  //
                          keyObj,                         //
@@ -172,7 +180,8 @@ __global__ static void dcfMICEvalKernel(void*       sharedOut,
                          rightBoundaryPtr,               //
                          intervalNum,                    //
                          bitWidthIn,                     //
-                         bitWidthOut                     //
+                         bitWidthOut,                    //
+                         cachePtr                        //
         );
     }
 }
@@ -280,7 +289,12 @@ int FastFss_cuda_dcfMICGetCacheDataSize(size_t* cacheDataSize,
                                         size_t  elementSize,
                                         size_t  elementNum)
 {
-    return ERROR_CODE::RUNTIME_ERROR;
+    *cacheDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return (std::size_t)0; },
+        [&] {
+            return impl::dcfGetCacheDataSize<scalar_t>(bitWidthIn, elementNum);
+        });
+    return ERROR_CODE::SUCCESS;
 }
 
 int FastFss_cuda_dcfMICGetKeyDataSize(size_t* keyDataSize,

@@ -43,6 +43,18 @@ std::size_t dcf_mic_get_key_data_size(std::size_t bitWidthIn,
     return result;
 }
 
+std::size_t dcf_mic_get_cache_data_size(std::size_t bitWidthIn,
+                                        std::size_t bitWidthOut,
+                                        std::size_t elementSize,
+                                        std::size_t elementNum)
+{
+    std::size_t result = 0;
+    int         ret    = FastFss_cpu_dcfMICGetCacheDataSize(
+        &result, bitWidthIn, bitWidthOut, elementSize, elementNum);
+    CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfMICGetCacheDataSize");
+    return result;
+}
+
 py::tuple dcf_mic_key_gen(torch::Tensor&       keyOut,
                           torch::Tensor&       zOut,
                           const torch::Tensor& alpha,
@@ -224,6 +236,12 @@ torch::Tensor& dcf_mic_eval(torch::Tensor&       sharedOut,
         bitWidthIn, bitWidthOut, elementSize, elementNum);
     ARG_ASSERT((std::size_t)key.numel() == keyDataSize);
 
+    std::size_t cacheSize = dcf_mic_get_cache_data_size(
+        bitWidthIn, bitWidthOut, elementSize, elementNum);
+    torch::TensorOptions options;
+    options             = options.dtype(torch::kUInt8).device(device.type());
+    torch::Tensor cache = torch::empty({(std::int64_t)(cacheSize)}, options);
+
     // =====================================================
     // ===================== FastFss =======================
     // =====================================================
@@ -251,7 +269,9 @@ torch::Tensor& dcf_mic_eval(torch::Tensor&       sharedOut,
             bitWidthIn,                                       //
             bitWidthOut,                                      //
             elementSize,                                      //
-            elementNum, nullptr, 0);
+            elementNum,                                       //
+            cache.mutable_data_ptr(),                         //
+            cache.numel());
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfMICEval");
     }
     else if (device.type() == torch::kCUDA)
@@ -277,7 +297,10 @@ torch::Tensor& dcf_mic_eval(torch::Tensor&       sharedOut,
             bitWidthIn,                                       //
             bitWidthOut,                                      //
             elementSize,                                      //
-            elementNum, nullptr, 0, &stream);
+            elementNum,                                       //
+            cache.mutable_data_ptr(),                         //
+            cache.numel(),                                    //
+            &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dcfMICEval");
     }
     else

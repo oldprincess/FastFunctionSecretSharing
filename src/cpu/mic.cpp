@@ -96,7 +96,7 @@ int FastFss_cpu_dcfMICKeyGen(void*       key,
     std::size_t needKeyDataSize;
     ret = FastFss_cpu_dcfMICGetKeyDataSize(
         &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum);
-    FSS_ASSERT(ret != 0, ERROR_CODE::RUNTIME_ERROR);
+    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
 
     FSS_ASSERT(keyDataSize == needKeyDataSize,
                ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
@@ -161,8 +161,16 @@ static void dcfMICEvalKernel(void*       sharedOut,
 #pragma omp parallel for
     for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
-        impl::DcfKey<GroupElement> keyObj;
+        impl::DcfKey<GroupElement>    keyObj;
+        impl::DcfCache<GroupElement>  cacheObj;
+        impl::DcfCache<GroupElement>* cachePtr = nullptr;
         impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
+        if (cache != nullptr)
+        {
+            impl::dcfCacheSetPtr(cacheObj, cache, bitWidthIn, bitWidthOut, i,
+                                 elementNum);
+            cachePtr = &cacheObj;
+        }
         impl::dcfMICEval(sharedOutPtr + intervalNum * i, //
                          maskedXPtr[i],                  //
                          keyObj,                         //
@@ -173,7 +181,8 @@ static void dcfMICEvalKernel(void*       sharedOut,
                          rightBoundaryPtr,               //
                          intervalNum,                    //
                          bitWidthIn,                     //
-                         bitWidthOut                     //
+                         bitWidthOut,                    //
+                         cachePtr                        //
         );
     }
 }
@@ -204,7 +213,7 @@ int FastFss_cpu_dcfMICEval(void*       sharedOut,
     std::size_t needKeyDataSize;
     ret = FastFss_cpu_dcfMICGetKeyDataSize(
         &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum);
-    FSS_ASSERT(ret != 0, ERROR_CODE::RUNTIME_ERROR);
+    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
 
     FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
                ERROR_CODE::INVALID_MASKED_X_DATA_SIZE_ERROR);
@@ -272,7 +281,12 @@ int FastFss_cpu_dcfMICGetCacheDataSize(size_t* cacheDataSize,
                                        size_t  elementSize,
                                        size_t  elementNum)
 {
-    return ERROR_CODE::RUNTIME_ERROR;
+    *cacheDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return (std::size_t)0; },
+        [&] {
+            return impl::dcfGetCacheDataSize<scalar_t>(bitWidthIn, elementNum);
+        });
+    return ERROR_CODE::SUCCESS;
 }
 
 int FastFss_cpu_dcfMICGetKeyDataSize(size_t* keyDataSize,

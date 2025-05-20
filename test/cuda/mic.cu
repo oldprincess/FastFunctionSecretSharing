@@ -89,6 +89,8 @@ public:
         int         ret;
         void*       deviceDcfMICKey   = nullptr;
         std::size_t dcfMICKeyDataSize = 0;
+        void*       deviceCache       = nullptr;
+        std::size_t cacheDataSize     = 0;
 
         {
             ret = FastFss_cuda_dcfMICGetKeyDataSize(&dcfMICKeyDataSize,
@@ -96,6 +98,11 @@ public:
                                                     elementSize, elementNum);
             CHECK(ret);
             deviceDcfMICKey = cuda::malloc_gpu(dcfMICKeyDataSize);
+            ret = FastFss_cuda_dcfMICGetCacheDataSize(&cacheDataSize,
+                                                      bitWidthIn, bitWidthOut,
+                                                      elementSize, elementNum);
+            CHECK(ret);
+            deviceCache = cuda::malloc_gpu(cacheDataSize);
         }
 
         for (std::size_t i = 0; i < elementNum; ++i)
@@ -177,7 +184,8 @@ public:
                 deviceSharedZ0, sharedZDataSize, deviceSeed0, seedDataSize, 0,
                 deviceLeftBoundary, leftBoundaryDataSize, deviceRightBoundary,
                 rightBoundaryDataSize, bitWidthIn, bitWidthOut,
-                sizeof(GroupElement), elementNum, nullptr, 0, nullptr);
+                sizeof(GroupElement), elementNum, deviceCache, cacheDataSize,
+                nullptr);
 
             cuda::memcpy_gpu2cpu(sharedOut0.data(), deviceSharedOut0,
                                  sharedOutDataSize);
@@ -257,7 +265,7 @@ public:
                 }
             }
         }
-
+        cuda::free_gpu(deviceCache);
         cuda::free_gpu(deviceDcfMICKey);
         std::puts("  pass");
     }

@@ -51,7 +51,8 @@ FAST_FSS_DEVICE inline void dcfMICEval(
     const GroupElement*         rightBoundary,
     std::size_t                 intervalNum,
     std::size_t                 bitWidthIn,
-    std::size_t                 bitWidthOut)
+    std::size_t                 bitWidthOut,
+    DcfCache<GroupElement>*     cache = nullptr)
 {
     maskedX = modBits<GroupElement>(maskedX, bitWidthIn);
 
@@ -66,9 +67,9 @@ FAST_FSS_DEVICE inline void dcfMICEval(
         xQPrime = modBits<GroupElement>(xQPrime, bitWidthIn);
 
         sp = dcfEval<GroupElement>(key, xP, seed, partyId, bitWidthIn,
-                                   bitWidthOut);
+                                   bitWidthOut, cache);
         sq = dcfEval<GroupElement>(key, xQPrime, seed, partyId, bitWidthIn,
-                                   bitWidthOut);
+                                   bitWidthOut, cache);
 
         sharedOut[0] = sq - sp + sharedZ[0];
         if (partyId == 1)
@@ -95,10 +96,10 @@ FAST_FSS_DEVICE inline void dcfMICEval(
         else
         {
             sp = dcfEval<GroupElement>(key, xP, seed, partyId, bitWidthIn,
-                                       bitWidthOut);
+                                       bitWidthOut, cache);
         }
         sq = dcfEval<GroupElement>(key, xQPrime, seed, partyId, bitWidthIn,
-                                   bitWidthOut);
+                                   bitWidthOut, cache);
         sharedOut[i] = sq - sp + sharedZ[i];
         if (partyId == 1)
         {
