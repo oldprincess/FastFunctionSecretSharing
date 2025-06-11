@@ -36,35 +36,60 @@ FAST_FSS_DEVICE static inline int parityU64(std::uint64_t x)
 template <typename GroupElement>
 FAST_FSS_DEVICE static inline int clz(GroupElement x, std::size_t bitWidth)
 {
-    static_assert(sizeof(GroupElement) <= 8,
-                  "clz is not supported for GroupElement larger than 64bit");
+    static_assert(sizeof(GroupElement) <= 16,
+                  "clz is not supported for GroupElement larger than 128bit");
+    if (x == 0)
+    {
+        return bitWidth;
+    }
 
 #if defined(__CUDACC__)
     if constexpr (sizeof(GroupElement) <= sizeof(std::uint32_t))
     {
         return __clz(static_cast<std::uint32_t>(x)) - (32 - bitWidth);
     }
-    else
+    else if constexpr (sizeof(GroupElement) <= sizeof(std::uint64_t))
     {
         return __clzll(static_cast<std::uint64_t>(x)) - (64 - bitWidth);
+    }
+    else
+    {
+        int zh  = (x.UPPER) ? __clzll(static_cast<std::uint64_t>(x.UPPER)) : 64;
+        int zl  = (x.LOWER) ? __clzll(static_cast<std::uint64_t>(x.LOWER)) : 64;
+        int ret = (zh != 64) ? zh : (64 + zl);
+        return ret - (128 - bitWidth);
     }
 #elif defined(_MSC_VER)
     if constexpr (sizeof(GroupElement) <= sizeof(std::uint32_t))
     {
         return __lzcnt(static_cast<std::uint32_t>(x)) - (32 - bitWidth);
     }
-    else
+    else if constexpr (sizeof(GroupElement) <= sizeof(std::uint64_t))
     {
         return __lzcnt64(static_cast<std::uint64_t>(x)) - (64 - bitWidth);
+    }
+    else
+    {
+        int zh  = (x.UPPER) ? __lzcnt64((std::uint64_t)(x.UPPER)) : 64;
+        int zl  = (x.LOWER) ? __lzcnt64((std::uint64_t)(x.LOWER)) : 64;
+        int ret = (zh != 64) ? zh : (64 + zl);
+        return ret - (128 - bitWidth);
     }
 #else
     if constexpr (sizeof(GroupElement) <= sizeof(std::uint32_t))
     {
         return __builtin_clz(static_cast<std::uint32_t>(x)) - (32 - bitWidth);
     }
-    else
+    else if constexpr (sizeof(GroupElement) <= sizeof(std::uint64_t))
     {
         return __builtin_clzll(static_cast<std::uint64_t>(x)) - (64 - bitWidth);
+    }
+    else
+    {
+        int zh  = (x.UPPER) ? __builtin_clzll((std::uint64_t)(x.UPPER)) : 64;
+        int zl  = (x.LOWER) ? __builtin_clzll((std::uint64_t)(x.LOWER)) : 64;
+        int ret = (zh != 64) ? zh : (64 + zl);
+        return ret - (128 - bitWidth);
     }
 #endif
 }

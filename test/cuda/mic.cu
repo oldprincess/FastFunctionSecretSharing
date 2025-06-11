@@ -1,6 +1,6 @@
 // clang-format off
-// nvcc -I include src/cuda/mic.cu test/cuda/mic.cu -o cuda_mic.exe -std=c++17
-// nvcc -I include src/cuda/mic.cu test/cuda/mic.cu -o cuda_mic.exe -std=c++17 -lineinfo -O3
+// nvcc -I include src/cuda/mic.cu test/cuda/mic.cu -o cuda_mic.exe -std=c++17 --expt-relaxed-constexpr
+// nvcc -I include src/cuda/mic.cu test/cuda/mic.cu -o cuda_mic.exe -std=c++17 -lineinfo -O3 --expt-relaxed-constexpr
 // clang-format on
 #include <FastFss/cuda/mic.h>
 #include <cuda_runtime.h>
@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "mt19937.hpp"
+#include "uint128_t.h"
 #include "utils.cuh"
 
 using namespace FastFss;
@@ -304,6 +305,16 @@ int main()
         48, 8, elementNum,                                 //
         {10000, 20000, 30000, 40000, 50000, 60000, 70000}, //
         {19999, 29999, 39999, 49999, 59999, 69999, 79999}  //
+    );
+    
+    Test<uint128_t>::run(128, 127, 1024 - 1,                                //
+                         {10000, 20000, 30000, 40000, 50000, 60000, 70000}, //
+                         {20000, 30000, 40000, 50000, 60000, 70000, 80000}  //
+    );
+
+    Test<uint128_t>::run(48, 128, 1024 - 1,                                 //
+                         {10000, 20000, 30000, 40000, 50000, 60000, 70000}, //
+                         {20000, 30000, 40000, 50000, 60000, 70000, 80000}  //
     );
 
     return 0;

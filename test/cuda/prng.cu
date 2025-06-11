@@ -1,5 +1,5 @@
 // clang-format off
-// nvcc -I include test/cuda/prng.cu src/cuda/prng.cu -o cuda_prng.exe -std=c++17
+// nvcc -I include test/cuda/prng.cu src/cuda/prng.cu -o cuda_prng.exe -std=c++17 --expt-relaxed-constexpr
 // clang-format on
 #include <FastFss/cuda/prng.h>
 
@@ -43,7 +43,7 @@ int main()
     int   bufferSize    = 163;
     void* deviceBuffer1 = FastFss::cuda::malloc_gpu(bufferSize);
     void* deviceBuffer2 = FastFss::cuda::malloc_gpu(bufferSize);
-    ret = FastFss_cuda_prngGen(prng, deviceBuffer1, 8, 1, bufferSize);
+    ret = FastFss_cuda_prngGen(prng, deviceBuffer1, 8, 1, bufferSize, nullptr);
     if (ret != 0)
     {
         std::printf(
@@ -62,7 +62,7 @@ int main()
         std::exit(-1);
     }
 
-    ret = FastFss_cuda_prngGen(prng, deviceBuffer2, 8, 1, 163);
+    ret = FastFss_cuda_prngGen(prng, deviceBuffer2, 8, 1, 163, nullptr);
     if (ret != 0)
     {
         std::printf(
@@ -107,7 +107,7 @@ int main()
                                        buffer,               //
                                        speedElementSize * 8, //
                                        speedElementSize,     //
-                                       speedElementNum);
+                                       speedElementNum, nullptr);
     auto stop   = std::chrono::high_resolution_clock::now();
     FastFss::cuda::free_gpu(buffer);
     if (ret != 0)

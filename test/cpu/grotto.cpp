@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "mt19937.hpp"
+#include "uint128_t.h"
 
 MT19937Rng rng;
 
@@ -463,6 +464,9 @@ int main()
         TestGrottoEq<std::uint32_t>::run(18, 1024 - 1);
         // uint64
         TestGrottoEq<std::uint64_t>::run(63, 1024 - 1);
+        // uint128
+        TestGrottoEq<uint128_t>::run(127, 1024 - 1);
+        TestGrottoEq<uint128_t>::run(128, 1024 - 1);
     }
     {
         // uint8
@@ -476,6 +480,9 @@ int main()
         TestGrotto<std::uint32_t>::run(18, 1024 - 1);
         // uint64
         TestGrotto<std::uint64_t>::run(63, 1024 - 1);
+        // uint128
+        TestGrotto<uint128_t>::run(127, 1024 - 1);
+        TestGrotto<uint128_t>::run(128, 1024 - 1);
     }
     {
         constexpr int elementNum = 1024 - 1;

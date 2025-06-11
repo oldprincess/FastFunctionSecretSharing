@@ -207,7 +207,7 @@ FAST_FSS_DEVICE inline void grottoKeyGen(GrottoKey<GroupElement>& key,
                              : ((keep == 0) ? tL1 ^ tLCW : tR1 ^ tRCW);
     }
     // leaf = s0 ^ s1 ^ (1 << alpha_lsb6)
-    key.lastCW[0] = curS0[1] ^ curS1[1] ^ (1ULL << (alpha & 0b111111));
+    key.lastCW[0] = curS0[1] ^ curS1[1] ^ (1ULL << (int)(alpha & 0b111111));
 }
 
 template <typename GroupElement>
@@ -264,7 +264,7 @@ FAST_FSS_DEVICE inline GroupElement grottoEvalEq( //
         // t    =   ti                  if  t == 0
         //      =   ti ^ cw_t[bit_i]    if  t == 1
         GroupElement cwT = (bitI == 0) ? key.tLCW[0] : key.tRCW[0];
-        curT             = (curT == 0) ? ti : ti ^ ((cwT >> i) & 1);
+        curT             = (curT == 0) ? ti : ti ^ ((int)(cwT >> i) & 1);
 
         if (cache != nullptr)
         {
@@ -351,7 +351,7 @@ FAST_FSS_DEVICE inline GroupElement grottoEval( //
         // path[i+1].t  =   ti                          if path[i].t == 0
         //              =   ti ^ cw[i].t[nxt_dir]       if path[i].t == 1
         GroupElement cwT  = (maskedXI == 0) ? key.tLCW[0] : key.tRCW[0];
-        GroupElement nxtT = (curT == 0) ? ti : ti ^ ((cwT >> i) & 1);
+        int          nxtT = (curT == 0) ? ti : ti ^ ((int)(cwT >> i) & 1);
 
         // nxt_parity = parity[i]       if nxt_dir == 0
         //              parity[i] ^ (path[i].t ^ path[i + 1].t)

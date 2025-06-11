@@ -1,6 +1,6 @@
 // clang-format off
-// nvcc -I include src/cuda/dcf.cu test/cuda/dcf.cu -o cuda_dcf.exe -std=c++17
-// nvcc -I include src/cuda/dcf.cu test/cuda/dcf.cu -o cuda_dcf.exe -std=c++17 -lineinfo -O3
+// nvcc -I include src/cuda/dcf.cu test/cuda/dcf.cu -o cuda_dcf.exe -std=c++17 --expt-relaxed-constexpr
+// nvcc -I include src/cuda/dcf.cu test/cuda/dcf.cu -o cuda_dcf.exe -std=c++17 -lineinfo -O3 --expt-relaxed-constexpr
 // clang-format on
 #include <FastFss/cuda/dcf.h>
 
@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "mt19937.hpp"
+#include "uint128_t.h"
 #include "utils.cuh"
 
 MT19937Rng rng;
@@ -222,5 +223,8 @@ int main()
     TestDcf<std::uint32_t>::run(18, 8, elementNum);
     // uint64
     TestDcf<std::uint64_t>::run(18, 16, elementNum);
+    // uint128
+    TestDcf<uint128_t>::run(127, 128, 1024 - 1);
+    TestDcf<uint128_t>::run(128, 127, 1024 - 1);
     return 0;
 }

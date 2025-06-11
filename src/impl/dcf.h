@@ -68,8 +68,8 @@ template <typename GroupElement>
 FAST_FSS_DEVICE static inline GroupElement convert(const std::uint64_t s[2],
                                                    int bitWidthOut) noexcept
 {
-    static_assert(sizeof(GroupElement) <= 8,
-                  "GroupElement must be 64 bits or less");
+    static_assert(sizeof(GroupElement) <= 16,
+                  "GroupElement must be 128 bits or less");
     return *((GroupElement*)s);
 }
 
@@ -147,7 +147,8 @@ FAST_FSS_DEVICE inline void dcfKeyGen(DcfKey<GroupElement>& key,
         ((const std::uint64_t*)seed1)[0] & MASK_MSB63,
         ((const std::uint64_t*)seed1)[1],
     };
-    GroupElement vAlpha = 0, curT0 = 0, curT1 = 1;
+    GroupElement vAlpha = 0;
+    int          curT0 = 0, curT1 = 1;
 
     std::uint64_t sL0vL0sR0vR0[8];
     std::uint64_t sL1vL1sR1vR1[8];

@@ -1,5 +1,5 @@
 // clang-format off
-// nvcc -I include src/cuda/dpf.cu test/cuda/dpf.cu -o cuda_dpf.exe -std=c++17
+// nvcc -I include src/cuda/dpf.cu test/cuda/dpf.cu -o cuda_dpf.exe -std=c++17 --expt-relaxed-constexpr
 // clang-format on
 #include <FastFss/cuda/dpf.h>
 
@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "mt19937.hpp"
+#include "uint128_t.h"
 #include "utils.cuh"
 
 MT19937Rng rng;
@@ -405,10 +406,16 @@ int main()
     TestDpf<std::uint32_t>::run(18, 8, 1024 - 1);
     // uint64
     TestDpf<std::uint64_t>::run(63, 16, 1024 - 1);
+    // uint128
+    TestDpf<uint128_t>::run(127, 128, 1024 - 1);
+    TestDpf<uint128_t>::run(128, 127, 1024 - 1);
 
     // uint64
     TestDpfMulti<std::uint16_t>::run(8, 8, 1024 - 1, {0, 2, 4, 8});
 
     TestDpfMulti<std::uint64_t>::run(18, 18, 1024 - 1, {0, 2, 4, 8});
+
+    // uint128
+    TestDpfMulti<uint128_t>::run(18, 18, 1024 - 1, {0, 2, 4, 8});
     return 0;
 }

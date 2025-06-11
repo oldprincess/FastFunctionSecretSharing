@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "mt19937.hpp"
+#include "uint128_t.h"
 
 MT19937Rng rng;
 
@@ -252,7 +253,8 @@ public:
                 sharedOut0.get(), sharedOutDataSize, maskedX.get(),
                 maskedXDataSize, dpfKey, dpfKeyDataSize, seed0.get(),
                 seedDataSize0, 0, point.data(), pointDataSize, bitWidthIn,
-                bitWidthOut, sizeof(GroupElement), elementNum, dpfCache, cacheDataSize);
+                bitWidthOut, sizeof(GroupElement), elementNum, dpfCache,
+                cacheDataSize);
             CHECK(ret);
         }
 
@@ -312,10 +314,16 @@ int main()
     TestDpf<std::uint32_t>::run(18, 8, 1024 - 1);
     // uint64
     TestDpf<std::uint64_t>::run(63, 16, 1024 - 1);
+    // uint128
+    TestDpf<uint128_t>::run(127, 128, 1024 - 1);
+    TestDpf<uint128_t>::run(128, 127, 1024 - 1);
 
     // uint64
     TestDpfMulti<std::uint16_t>::run(8, 8, 1024 - 1, {0, 2, 4, 8});
 
     TestDpfMulti<std::uint64_t>::run(18, 18, 1024 - 1, {0, 2, 4, 8});
+
+    // uint128
+    TestDpfMulti<uint128_t>::run(18, 18, 1024 - 1, {0, 2, 4, 8});
     return 0;
 }

@@ -1,5 +1,5 @@
 // clang-format off
-// nvcc -I include src/cuda/grotto.cu test/cuda/grotto.cu -o cuda_grotto.exe -std=c++17
+// nvcc -I include src/cuda/grotto.cu test/cuda/grotto.cu -o cuda_grotto.exe -std=c++17 --expt-relaxed-constexpr
 // clang-format on
 #include <FastFss/cuda/grotto.h>
 
@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "mt19937.hpp"
+#include "uint128_t.h"
 #include "utils.cuh"
 
 MT19937Rng rng;
@@ -621,6 +622,9 @@ int main()
         TestGrottoEq<std::uint32_t>::run(18, 1024 - 1);
         // uint64
         TestGrottoEq<std::uint64_t>::run(63, 1024 - 1);
+        // uint128
+        TestGrottoEq<uint128_t>::run(127, 1024 - 1);
+        TestGrottoEq<uint128_t>::run(128, 1024 - 1);
     }
     {
         // uint8
@@ -634,6 +638,9 @@ int main()
         TestGrotto<std::uint32_t>::run(18, 1024 - 1);
         // uint64
         TestGrotto<std::uint64_t>::run(63, 1024 - 1);
+        // uint128
+        TestGrotto<uint128_t>::run(127, 1024 - 1);
+        TestGrotto<uint128_t>::run(128, 1024 - 1);
     }
     {
         constexpr int elementNum = 1024 - 1;

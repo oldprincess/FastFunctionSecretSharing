@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "mt19937.hpp"
+#include "uint128_t.h"
 
 using namespace std::chrono;
 
@@ -230,5 +231,8 @@ int main()
     TestOnehotLutEval<std::uint64_t>::run(8, 64, 12 * 128 * 128, true);
     TestOnehotLutEval<std::uint64_t>::run(9, 64, 12 * 128 * 128, true);
     TestOnehotLutEval<std::uint64_t>::run(9, 64, 12 * 128, true);
+
+    TestOnehotLutEval<uint128_t>::run(9, 127, 12 * 128, true);
+    TestOnehotLutEval<uint128_t>::run(9, 128, 12 * 128, true);
     return 0;
 }

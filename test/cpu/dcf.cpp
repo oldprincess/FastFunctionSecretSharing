@@ -1,5 +1,5 @@
 // clang-format off
-// g++ -I include src/cpu/dcf.cpp test/cpu/dcf.cpp -o cpu_dcf.exe -std=c++17 -maes
+// g++ -I include src/cpu/config.cpp src/cpu/dcf.cpp test/cpu/dcf.cpp -o cpu_dcf.exe -std=c++17 -maes -fopenmp
 // clang-format on
 #include <FastFss/cpu/dcf.h>
 
@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "mt19937.hpp"
+#include "uint128_t.h"
 
 MT19937Rng rng;
 
@@ -168,5 +169,8 @@ int main()
     TestDcf<std::uint32_t>::run(18, 8, 1024 - 1);
     // uint64
     TestDcf<std::uint64_t>::run(63, 16, 1024 - 1);
+    // uint128
+    TestDcf<uint128_t>::run(127, 128, 1024 - 1);
+    TestDcf<uint128_t>::run(128, 127, 1024 - 1);
     return 0;
 }

@@ -17,6 +17,8 @@
 
 #endif
 
+#include "uint128_t.h"
+
 #define _FAST_FSS_DISPATCH_CASE(ELEMENT_TYPE, ...) \
     case sizeof(ELEMENT_TYPE): {                   \
         using scalar_t = ELEMENT_TYPE;             \
@@ -39,6 +41,7 @@
         _FAST_FSS_DISPATCH_CASE(std::uint8_t, __VA_ARGS__);               \
         _FAST_FSS_DISPATCH_CASE(std::uint16_t, __VA_ARGS__);              \
         _FAST_FSS_DISPATCH_CASE(std::uint32_t, __VA_ARGS__);              \
-        _FAST_FSS_DISPATCH_CASE(std::uint64_t, __VA_ARGS__);)()
+        _FAST_FSS_DISPATCH_CASE(std::uint64_t, __VA_ARGS__);              \
+        _FAST_FSS_DISPATCH_CASE(FastFss::impl::uint128_t, __VA_ARGS__);)()
 
 #endif

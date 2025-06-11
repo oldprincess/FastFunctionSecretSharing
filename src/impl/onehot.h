@@ -61,10 +61,10 @@ FAST_FSS_DEVICE static void onehotLutEval(GroupElement*       sharedOutE,
             std::size_t lutIdx1 = (maskedX - i - j - 64) & mask;
             std::size_t lutIdx2 = (maskedX - i - j - 128) & mask;
             std::size_t lutIdx3 = (maskedX - i - j - 192) & mask;
-            sharedOutT[0] += (e0i) ? lut[lutIdx0] : 0;
-            sharedOutT[0] += (e1i) ? lut[lutIdx1] : 0;
-            sharedOutT[0] += (e2i) ? lut[lutIdx2] : 0;
-            sharedOutT[0] += (e3i) ? lut[lutIdx3] : 0;
+            sharedOutT[0] += (e0i) ? lut[lutIdx0] : (GroupElement)0;
+            sharedOutT[0] += (e1i) ? lut[lutIdx1] : (GroupElement)0;
+            sharedOutT[0] += (e2i) ? lut[lutIdx2] : (GroupElement)0;
+            sharedOutT[0] += (e3i) ? lut[lutIdx3] : (GroupElement)0;
         }
         key = (const void*)((const std::uint64_t*)key + 4);
         i += 256, num -= 256;
@@ -82,8 +82,8 @@ FAST_FSS_DEVICE static void onehotLutEval(GroupElement*       sharedOutE,
 
             std::size_t lutIdx0 = (maskedX - i - j) & mask;
             std::size_t lutIdx1 = (maskedX - i - j - 64) & mask;
-            sharedOutT[0] += (e0i) ? lut[lutIdx0] : 0;
-            sharedOutT[0] += (e1i) ? lut[lutIdx1] : 0;
+            sharedOutT[0] += (e0i) ? lut[lutIdx0] : (GroupElement)0;
+            sharedOutT[0] += (e1i) ? lut[lutIdx1] : (GroupElement)0;
         }
         key = (const void*)((const std::uint64_t*)key + 2);
         i += 128, num -= 128;
@@ -96,7 +96,7 @@ FAST_FSS_DEVICE static void onehotLutEval(GroupElement*       sharedOutE,
         {
             bool ei = (e >> j) & 1;
             sharedOutE[0] += ei;
-            sharedOutT[0] += (ei) ? lut[(maskedX - i) & mask] : 0;
+            sharedOutT[0] += (ei) ? lut[(maskedX - i) & mask] : (GroupElement)0;
         }
         key = (const void*)((const std::uint64_t*)key + 1);
         num -= 64;
@@ -109,7 +109,7 @@ FAST_FSS_DEVICE static void onehotLutEval(GroupElement*       sharedOutE,
         {
             bool ei = (e >> j) & 1;
             sharedOutE[0] += ei;
-            sharedOutT[0] += (ei) ? lut[(maskedX - i) & mask] : 0;
+            sharedOutT[0] += (ei) ? lut[(maskedX - i) & mask] : (GroupElement)0;
         }
         key = (const void*)((const std::uint32_t*)key + 1);
         num -= 32;
@@ -122,7 +122,7 @@ FAST_FSS_DEVICE static void onehotLutEval(GroupElement*       sharedOutE,
         {
             bool ei = (e >> j) & 1;
             sharedOutE[0] += ei;
-            sharedOutT[0] += (ei) ? lut[(maskedX - i) & mask] : 0;
+            sharedOutT[0] += (ei) ? lut[(maskedX - i) & mask] : (GroupElement)0;
         }
         key = (const void*)((const std::uint16_t*)key + 1);
         num -= 16;
@@ -135,7 +135,7 @@ FAST_FSS_DEVICE static void onehotLutEval(GroupElement*       sharedOutE,
         {
             bool ei = (e >> j) & 1;
             sharedOutE[0] += ei;
-            sharedOutT[0] += (ei) ? lut[(maskedX - i) & mask] : 0;
+            sharedOutT[0] += (ei) ? lut[(maskedX - i) & mask] : (GroupElement)0;
         }
         key = (const void*)((const std::uint8_t*)key + 1);
         num -= 8;
@@ -146,7 +146,7 @@ FAST_FSS_DEVICE static void onehotLutEval(GroupElement*       sharedOutE,
         sharedOutE[0] = (GroupElement)(0 - sharedOutE[0]);
         sharedOutT[0] = (GroupElement)(0 - sharedOutT[0]);
     }
-    // E = 1 or -1. 
+    // E = 1 or -1.
     // E = ((E - 1) >> 1) & 1: 1(V need times -1) 0(V need not times -1)
     if (partyId == 0)
     {
