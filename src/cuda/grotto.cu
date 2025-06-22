@@ -1,11 +1,16 @@
+#include <FastFss/cuda/config.h>
 #include <FastFss/cuda/grotto.h>
 
-#include "../impl/grotto.h"
+#include "grotto/def.cuh"
+#include "grotto/eval.cuh"
+#include "grotto/evalEq.cuh"
+#include "grotto/evalEqMulti.cuh"
+#include "grotto/itervalLut.cuh"
+#include "grotto/keyGen.cuh"
+#include "grotto/mic.cuh"
 
 #define FSS_ASSERT(cond, errCode) \
     if (!(cond)) return errCode
-
-using namespace FastFss;
 
 enum ERR_CODE
 {
@@ -23,7 +28,10 @@ enum ERR_CODE
     INVALID_LUT_DATA_SIZE        = -11,
     INVALID_MIC_OUT_DATA_SIZE    = -12,
     INVALID_SHARED_OUT_DATA_SIZE = -13,
+    INVALID_POINT_DATA_SIZE      = -14,
 };
+
+using namespace FastFss;
 
 static std::size_t grottoGetKeyDataSize(size_t bitWidthIn,
                                         size_t elementSize,
@@ -48,36 +56,6 @@ static std::size_t grottoGetCacheDataSize(size_t bitWidthIn,
         });
 }
 
-template <typename GroupElement>
-__global__ static void grottoKeyGenKernel(void*       key,
-                                          const void* alpha,
-                                          const void* seed0,
-                                          const void* seed1,
-                                          size_t      bitWidthIn,
-                                          size_t      elementNum)
-{
-    std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
-    std::size_t stride = blockDim.x * gridDim.x;
-
-    const GroupElement* alphaPtr = (const GroupElement*)alpha;
-    const std::uint8_t* seed0Ptr = (const std::uint8_t*)seed0;
-    const std::uint8_t* seed1Ptr = (const std::uint8_t*)seed1;
-
-    impl::GrottoKey<GroupElement> keyObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
-    {
-        std::size_t alphaOffset = i;
-        std::size_t seed0Offset = 16 * i;
-        std::size_t seed1Offset = 16 * i;
-        impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
-        impl::grottoKeyGen(keyObj,                 //
-                           alphaPtr[alphaOffset],  //
-                           seed0Ptr + seed0Offset, //
-                           seed1Ptr + seed1Offset, //
-                           bitWidthIn);            //
-    }
-}
-
 int FastFss_cuda_grottoKeyGen(void*       key,
                               size_t      keyDataSize,
                               const void* alpha,
@@ -91,6 +69,9 @@ int FastFss_cuda_grottoKeyGen(void*       key,
                               size_t      elementNum,
                               void*       cudaStreamPtr)
 {
+    FSS_ASSERT(keyDataSize ==
+                   grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
+               ERR_CODE::INVALID_KEY_DATA_SIZE);
     FSS_ASSERT(alphaDataSize == elementSize * elementNum,
                ERR_CODE::INVALID_ALPHA_DATA_SIZE);
     FSS_ASSERT(seedDataSize0 == elementNum * 16,
@@ -99,9 +80,6 @@ int FastFss_cuda_grottoKeyGen(void*       key,
                ERR_CODE::INVALID_SEED_DATA_SIZE);
     FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
                ERR_CODE::INVALID_BITWIDTH);
-    FSS_ASSERT(keyDataSize ==
-                   grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
-               ERR_CODE::INVALID_KEY_DATA_SIZE);
 
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
@@ -126,48 +104,6 @@ int FastFss_cuda_grottoKeyGen(void*       key,
         });
 }
 
-template <typename GroupElement>
-__global__ static void grottoEvalKernel(void*       out,
-                                        const void* maskedX,
-                                        const void* key,
-                                        const void* seed,
-                                        bool        equalBound,
-                                        int         partyId,
-                                        size_t      bitWidthIn,
-                                        size_t      elementNum,
-                                        void*       cache)
-{
-    std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
-    std::size_t stride = blockDim.x * gridDim.x;
-
-    const GroupElement* maskedXPtr = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr    = (const std::uint8_t*)seed;
-    GroupElement*       outPtr     = (GroupElement*)out;
-
-    impl::GrottoKey<GroupElement>   keyObj;
-    impl::GrottoCache<GroupElement> cacheObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
-    {
-        impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
-        std::size_t                      maskedXOffset = i;
-        std::size_t                      seedOffset    = 16 * i;
-        impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
-        if (cache != nullptr)
-        {
-            impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
-            cacheObjPtr = &cacheObj;
-        }
-        outPtr[i] = impl::grottoEval(keyObj,                    //
-                                     maskedXPtr[maskedXOffset], //
-                                     seedPtr + seedOffset,      //
-                                     partyId,                   //
-                                     bitWidthIn,                //
-                                     equalBound,                //
-                                     cacheObjPtr                //
-        );
-    }
-}
-
 int FastFss_cuda_grottoEval(void*       sharedBooleanOut,
                             const void* maskedX,
                             size_t      maskedXDataSize,
@@ -186,13 +122,14 @@ int FastFss_cuda_grottoEval(void*       sharedBooleanOut,
 {
     FSS_ASSERT(maskedXDataSize == elementSize * elementNum,
                ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
-    FSS_ASSERT(seedDataSize == elementNum * 16,
-               ERR_CODE::INVALID_SEED_DATA_SIZE);
-    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
-               ERR_CODE::INVALID_BITWIDTH);
     FSS_ASSERT(keyDataSize ==
                    grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
                ERR_CODE::INVALID_KEY_DATA_SIZE);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
     if (cache != nullptr)
     {
         std::size_t needCacheDataSize =
@@ -200,7 +137,6 @@ int FastFss_cuda_grottoEval(void*       sharedBooleanOut,
         FSS_ASSERT(cacheDataSize == needCacheDataSize,
                    ERR_CODE::INVALID_CACHE_DATA_SIZE);
     }
-    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
 
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
@@ -232,46 +168,6 @@ int FastFss_cuda_grottoEval(void*       sharedBooleanOut,
         });
 }
 
-template <typename GroupElement>
-__global__ static void grottoEvalEqKernel(void*       out,
-                                          const void* maskedX,
-                                          const void* key,
-                                          const void* seed,
-                                          int         partyId,
-                                          size_t      bitWidthIn,
-                                          size_t      elementNum,
-                                          void*       cache)
-{
-    std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
-    std::size_t stride = blockDim.x * gridDim.x;
-
-    const GroupElement* maskedXPtr = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr    = (const std::uint8_t*)seed;
-    GroupElement*       outPtr     = (GroupElement*)out;
-
-    impl::GrottoKey<GroupElement>   keyObj;
-    impl::GrottoCache<GroupElement> cacheObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
-    {
-        impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
-        std::size_t                      maskedXOffset = i;
-        std::size_t                      seedOffset    = 16 * i;
-        impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
-        if (cache != nullptr)
-        {
-            impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
-            cacheObjPtr = &cacheObj;
-        }
-        outPtr[i] = impl::grottoEvalEq(keyObj,                    //
-                                       maskedXPtr[maskedXOffset], //
-                                       seedPtr + seedOffset,      //
-                                       partyId,                   //
-                                       bitWidthIn,                //
-                                       cacheObjPtr                //
-        );
-    }
-}
-
 int FastFss_cuda_grottoEvalEq(void*       sharedBooleanOut,
                               const void* maskedX,
                               size_t      maskedXDataSize,
@@ -289,13 +185,14 @@ int FastFss_cuda_grottoEvalEq(void*       sharedBooleanOut,
 {
     FSS_ASSERT(maskedXDataSize == elementSize * elementNum,
                ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
-    FSS_ASSERT(seedDataSize == elementNum * 16,
-               ERR_CODE::INVALID_SEED_DATA_SIZE);
-    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
-               ERR_CODE::INVALID_BITWIDTH);
     FSS_ASSERT(keyDataSize ==
                    grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
                ERR_CODE::INVALID_KEY_DATA_SIZE);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
     if (cache != nullptr)
     {
         std::size_t needCacheDataSize =
@@ -303,7 +200,6 @@ int FastFss_cuda_grottoEvalEq(void*       sharedBooleanOut,
         FSS_ASSERT(cacheDataSize == needCacheDataSize,
                    ERR_CODE::INVALID_CACHE_DATA_SIZE);
     }
-    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
 
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
@@ -334,55 +230,105 @@ int FastFss_cuda_grottoEvalEq(void*       sharedBooleanOut,
         });
 }
 
-template <typename GroupElement>
-__global__ static void grottoMICEvalKernel(void*       out,
-                                           const void* maskedX,
-                                           const void* key,
-                                           const void* seed,
-                                           int         partyId,
-                                           const void* leftBoundary,
-                                           const void* rightBoundary,
-                                           size_t      intervalNum,
-                                           size_t      bitWidthIn,
-                                           size_t      elementNum,
-                                           void*       cache)
+int FastFss_cuda_grottoEvalEqMulti(void*       sharedBooleanOut,
+                                   size_t      sharedOutDataSize,
+                                   const void* maskedX,
+                                   size_t      maskedXDataSize,
+                                   const void* key,
+                                   size_t      keyDataSize,
+                                   const void* seed,
+                                   size_t      seedDataSize,
+                                   int         partyId,
+                                   const void* point,
+                                   size_t      pointDataSize,
+                                   size_t      bitWidthIn,
+                                   size_t      elementSize,
+                                   size_t      elementNum,
+                                   void*       cache,
+                                   size_t      cacheDataSize,
+                                   void*       cudaStreamPtr)
 {
-    std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
-    std::size_t stride = blockDim.x * gridDim.x;
-
-    const GroupElement* maskedXPtr       = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr          = (const std::uint8_t*)seed;
-    GroupElement*       outPtr           = (GroupElement*)out;
-    const GroupElement* leftBoundaryPtr  = (GroupElement*)leftBoundary;
-    const GroupElement* rightBoundaryPtr = (GroupElement*)rightBoundary;
-
-    impl::GrottoKey<GroupElement>   keyObj;
-    impl::GrottoCache<GroupElement> cacheObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
+    std::size_t pointsNum = pointDataSize / elementSize;
+    FSS_ASSERT(sharedOutDataSize == pointsNum * elementSize * elementNum,
+               ERR_CODE::INVALID_SHARED_OUT_DATA_SIZE);
+    FSS_ASSERT(maskedXDataSize == elementSize * elementNum,
+               ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
+    FSS_ASSERT(keyDataSize ==
+                   grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
+               ERR_CODE::INVALID_KEY_DATA_SIZE);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
+    FSS_ASSERT(pointDataSize % elementSize == 0,
+               ERR_CODE::INVALID_POINT_DATA_SIZE);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
+    if (cache != nullptr)
     {
-        impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
-        std::size_t                      maskedXOffset = i;
-        std::size_t                      seedOffset    = 16 * i;
-        std::size_t                      outOffset     = intervalNum * i;
-        impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
-        if (cache != nullptr)
-        {
-            impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
-            cacheObjPtr = &cacheObj;
-        }
-        impl::grottoMICEval(           //
-            outPtr + outOffset,        //
-            keyObj,                    //
-            maskedXPtr[maskedXOffset], //
-            seedPtr + seedOffset,      //
-            partyId,                   //
-            leftBoundaryPtr,           //
-            rightBoundaryPtr,          //
-            intervalNum,               //
-            bitWidthIn,                //
-            cacheObjPtr                //
-        );
+        std::size_t needCacheDataSize =
+            grottoGetCacheDataSize(bitWidthIn, elementSize, elementNum);
+        FSS_ASSERT(cacheDataSize == needCacheDataSize,
+                   ERR_CODE::INVALID_CACHE_DATA_SIZE);
     }
+
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)cudaStreamPtr : 0;
+    std::size_t  BLOCK_DIM     = 512;
+    std::size_t  GRID_DIM      = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
+    bool         isParallelAll = false;
+    if (GRID_DIM > CUDA_MAX_GRID_DIM)
+    {
+        GRID_DIM = CUDA_MAX_GRID_DIM;
+    }
+    else if (GRID_DIM < FastFss_cuda_getGridDim())
+    {
+        isParallelAll = true;
+        GRID_DIM      = (elementNum * pointsNum + BLOCK_DIM - 1) / BLOCK_DIM;
+        if (GRID_DIM > CUDA_MAX_GRID_DIM)
+        {
+            GRID_DIM = CUDA_MAX_GRID_DIM;
+        }
+    }
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
+        [&] {
+            if (isParallelAll)
+            {
+                grottoEvalEqMultiParallelAllKernel<scalar_t> //
+                    <<<GRID_DIM, BLOCK_DIM, 0, stream>>>(    //
+                        sharedBooleanOut,                    //
+                        maskedX,                             //
+                        key,                                 //
+                        seed,                                //
+                        partyId,                             //
+                        point,                               //
+                        pointsNum,                           //
+                        bitWidthIn,                          //
+                        elementNum                           //
+                    );                                       //
+            }
+            else
+            {
+                grottoEvalEqMultiKernel<scalar_t>         //
+                    <<<GRID_DIM, BLOCK_DIM, 0, stream>>>( //
+                        sharedBooleanOut,                 //
+                        maskedX,                          //
+                        key,                              //
+                        seed,                             //
+                        partyId,                          //
+                        point,                            //
+                        pointsNum,                        //
+                        bitWidthIn,                       //
+                        elementNum,                       //
+                        cache                             //
+                    );                                    //
+            }
+            if (cudaPeekAtLastError() != cudaSuccess)
+            {
+                return ERR_CODE::RUNTIME_ERROR;
+            }
+            return ERR_CODE::SUCCESS;
+        });
 }
 
 int FastFss_cuda_grottoMICEval(void*       sharedBooleanOut,
@@ -405,15 +351,23 @@ int FastFss_cuda_grottoMICEval(void*       sharedBooleanOut,
                                size_t      cacheDataSize,
                                void*       cudaStreamPtr)
 {
+    std::size_t intervalNum = leftBoundaryDataSize / elementSize;
+    FSS_ASSERT(
+        sharedBooleanOutDataSize == intervalNum * elementNum * elementSize,
+        ERR_CODE::INVALID_MIC_OUT_DATA_SIZE);
     FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
                ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
-    FSS_ASSERT(seedDataSize == elementNum * 16,
-               ERR_CODE::INVALID_SEED_DATA_SIZE);
-    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
-               ERR_CODE::INVALID_BITWIDTH);
     FSS_ASSERT(keyDataSize ==
                    grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
                ERR_CODE::INVALID_KEY_DATA_SIZE);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
+    FSS_ASSERT(leftBoundaryDataSize == rightBoundaryDataSize &&
+                   leftBoundaryDataSize % elementSize == 0,
+               ERR_CODE::INVALID_BOUNDARY_DATA_SIZE);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
     if (cache != nullptr)
     {
         std::size_t needCacheDataSize =
@@ -421,105 +375,67 @@ int FastFss_cuda_grottoMICEval(void*       sharedBooleanOut,
         FSS_ASSERT(cacheDataSize == needCacheDataSize,
                    ERR_CODE::INVALID_CACHE_DATA_SIZE);
     }
-    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
-    FSS_ASSERT(leftBoundaryDataSize == rightBoundaryDataSize &&
-                   leftBoundaryDataSize % elementSize == 0,
-               ERR_CODE::INVALID_BOUNDARY_DATA_SIZE);
-    std::size_t intervalNum = leftBoundaryDataSize / elementSize;
 
-    FSS_ASSERT(
-        sharedBooleanOutDataSize == intervalNum * elementNum * elementSize,
-        ERR_CODE::INVALID_MIC_OUT_DATA_SIZE);
-
-    std::size_t BLOCK_DIM = 512;
-    std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
+    std::size_t BLOCK_DIM     = 512;
+    std::size_t GRID_DIM      = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
+    bool        isParallelAll = false;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)
     {
         GRID_DIM = CUDA_MAX_GRID_DIM;
+    }
+    else if (GRID_DIM < FastFss_cuda_getGridDim())
+    {
+        isParallelAll = true;
+        GRID_DIM      = (elementNum * intervalNum + BLOCK_DIM - 1) / BLOCK_DIM;
+        if (GRID_DIM > CUDA_MAX_GRID_DIM)
+        {
+            GRID_DIM = CUDA_MAX_GRID_DIM;
+        }
     }
     cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)cudaStreamPtr : 0;
 
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
         [&] {
-            grottoMICEvalKernel<scalar_t>             //
-                <<<GRID_DIM, BLOCK_DIM, 0, stream>>>( //
-                    sharedBooleanOut,                 //
-                    maskedX,                          //
-                    key,                              //
-                    seed,                             //
-                    partyId,                          //
-                    leftBoundary,                     //
-                    rightBoundary,                    //
-                    intervalNum,                      //
-                    bitWidthIn,                       //
-                    elementNum,                       //
-                    cache                             //
-                );                                    //
+            if (isParallelAll)
+            {
+                grottoMICEvalParallelAllKernel<scalar_t>  //
+                    <<<GRID_DIM, BLOCK_DIM, 0, stream>>>( //
+                        sharedBooleanOut,                 //
+                        maskedX,                          //
+                        key,                              //
+                        seed,                             //
+                        partyId,                          //
+                        leftBoundary,                     //
+                        rightBoundary,                    //
+                        intervalNum,                      //
+                        bitWidthIn,                       //
+                        elementNum                        //
+                    );                                    //
+            }
+            else
+            {
+                grottoMICEvalKernel<scalar_t>             //
+                    <<<GRID_DIM, BLOCK_DIM, 0, stream>>>( //
+                        sharedBooleanOut,                 //
+                        maskedX,                          //
+                        key,                              //
+                        seed,                             //
+                        partyId,                          //
+                        leftBoundary,                     //
+                        rightBoundary,                    //
+                        intervalNum,                      //
+                        bitWidthIn,                       //
+                        elementNum,                       //
+                        cache                             //
+                    );                                    //
+            }
             if (cudaPeekAtLastError() != cudaSuccess)
             {
                 return ERR_CODE::RUNTIME_ERROR;
             }
             return ERR_CODE::SUCCESS;
         });
-}
-
-template <typename GroupElement>
-__global__ static void grottoIntervalLutEvalKernel(void*       outE,
-                                                   void*       outT,
-                                                   const void* maskedX,
-                                                   const void* key,
-                                                   const void* seed,
-                                                   int         partyId,
-                                                   const void* leftBoundary,
-                                                   const void* rightBoundary,
-                                                   const void* lookUpTable,
-                                                   size_t      lutNum,
-                                                   size_t      intervalNum,
-                                                   size_t      bitWidthIn,
-                                                   size_t      elementNum,
-                                                   void*       cache)
-{
-    std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
-    std::size_t stride = blockDim.x * gridDim.x;
-
-    const GroupElement* maskedXPtr       = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr          = (const std::uint8_t*)seed;
-    GroupElement*       outEPtr          = (GroupElement*)outE;
-    GroupElement*       outTPtr          = (GroupElement*)outT;
-    const GroupElement* leftBoundaryPtr  = (GroupElement*)leftBoundary;
-    const GroupElement* rightBoundaryPtr = (GroupElement*)rightBoundary;
-    const GroupElement* lookUpTablePtr   = (GroupElement*)lookUpTable;
-
-    impl::GrottoKey<GroupElement>   keyObj;
-    impl::GrottoCache<GroupElement> cacheObj;
-    for (std::size_t i = idx; i < elementNum; i += stride)
-    {
-        impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
-        std::size_t                      maskedXOffset = i;
-        std::size_t                      seedOffset    = 16 * i;
-        impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
-        if (cache != nullptr)
-        {
-            impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
-            cacheObjPtr = &cacheObj;
-        }
-        impl::grottoIntervalLutEval(   //
-            outEPtr + i,               //
-            outTPtr + i * lutNum,      //
-            keyObj,                    //
-            maskedXPtr[maskedXOffset], //
-            seedPtr + seedOffset,      //
-            partyId,                   //
-            leftBoundaryPtr,           //
-            rightBoundaryPtr,          //
-            lookUpTablePtr,            //
-            lutNum,                    //
-            intervalNum,               //
-            bitWidthIn,                //
-            cacheObjPtr                //
-        );
-    }
 }
 
 int FastFss_cuda_grottoIntervalLutEval(void*       sharedOutE,
@@ -545,15 +461,23 @@ int FastFss_cuda_grottoIntervalLutEval(void*       sharedOutE,
                                        size_t      cacheDataSize,
                                        void*       cudaStreamPtr)
 {
+    std::size_t intervalNum = leftBoundaryDataSize / elementSize;
+    std::size_t lutNum      = lookUpTableDataSize / leftBoundaryDataSize;
     FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
                ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
-    FSS_ASSERT(seedDataSize == elementNum * 16,
-               ERR_CODE::INVALID_SEED_DATA_SIZE);
-    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
-               ERR_CODE::INVALID_BITWIDTH);
     FSS_ASSERT(keyDataSize ==
                    grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
                ERR_CODE::INVALID_KEY_DATA_SIZE);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
+    FSS_ASSERT(leftBoundaryDataSize == rightBoundaryDataSize &&
+                   leftBoundaryDataSize % elementSize == 0,
+               ERR_CODE::INVALID_BOUNDARY_DATA_SIZE);
+    FSS_ASSERT(lookUpTableDataSize % (elementSize * intervalNum) == 0,
+               INVALID_LUT_DATA_SIZE);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
     if (cache != nullptr)
     {
         std::size_t needCacheDataSize =
@@ -561,15 +485,6 @@ int FastFss_cuda_grottoIntervalLutEval(void*       sharedOutE,
         FSS_ASSERT(cacheDataSize == needCacheDataSize,
                    ERR_CODE::INVALID_CACHE_DATA_SIZE);
     }
-    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
-    FSS_ASSERT(leftBoundaryDataSize == rightBoundaryDataSize &&
-                   leftBoundaryDataSize % elementSize == 0,
-               ERR_CODE::INVALID_BOUNDARY_DATA_SIZE);
-    std::size_t intervalNum = leftBoundaryDataSize / elementSize;
-
-    FSS_ASSERT(lookUpTableDataSize % (elementSize * intervalNum) == 0,
-               INVALID_LUT_DATA_SIZE);
-    std::size_t lutNum = lookUpTableDataSize / leftBoundaryDataSize;
 
     std::size_t BLOCK_DIM = 512;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;

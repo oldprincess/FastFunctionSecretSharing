@@ -1,5 +1,5 @@
 // clang-format off
-// nvcc -I include src/cuda/dpf.cu test/cuda/dpf.cu -o cuda_dpf.exe -std=c++17 --expt-relaxed-constexpr
+// nvcc -I include src/cuda/config.cpp src/cuda/dpf.cu test/cuda/dpf.cu -o cuda_dpf.exe -std=c++17 --expt-relaxed-constexpr
 // clang-format on
 #include <FastFss/cuda/dpf.h>
 

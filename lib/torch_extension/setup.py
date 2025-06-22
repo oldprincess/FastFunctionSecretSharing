@@ -10,7 +10,7 @@ else:
 
 setup(
     name="pyFastFss",
-    version="0.0.202505151420",
+    version="0.0.202506222147",
     description="Fast Function Secret Sharing (Dpf and Dcf)",
     long_description="",
     author="oldprincess",
@@ -37,6 +37,7 @@ setup(
                 "../../src/cpu/onehot.cpp",
                 "../../src/cpu/prng.cpp",
                 # cuda
+                "../../src/cuda/config.cpp",
                 "../../src/cuda/dcf.cu",
                 "../../src/cuda/dpf.cu",
                 "../../src/cuda/grotto.cu",

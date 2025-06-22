@@ -30,6 +30,7 @@ enum ERR_CODE
     INVALID_LUT_DATA_SIZE        = -11,
     INVALID_MIC_OUT_DATA_SIZE    = -12,
     INVALID_SHARED_OUT_DATA_SIZE = -13,
+    INVALID_POINT_DATA_SIZE      = -14,
 };
 
 static std::size_t grottoGetKeyDataSize(size_t bitWidthIn,
@@ -309,6 +310,113 @@ int FastFss_cpu_grottoEvalEq(void*       sharedBooleanOut,
                     cache                //
                 );                       //
 
+            return ERR_CODE::SUCCESS;
+        });
+}
+
+template <typename GroupElement>
+static void grottoEvalEqMultiKernel(void*       out,
+                                    const void* maskedX,
+                                    const void* key,
+                                    const void* seed,
+                                    int         partyId,
+                                    const void* point,
+                                    size_t      pointNum,
+                                    size_t      bitWidthIn,
+                                    size_t      elementNum,
+                                    void*       cache)
+{
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
+
+    const GroupElement* maskedXPtr = (const GroupElement*)maskedX;
+    const std::uint8_t* seedPtr    = (const std::uint8_t*)seed;
+    GroupElement*       outPtr     = (GroupElement*)out;
+    const GroupElement* pointPtr   = (const GroupElement*)point;
+
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
+    {
+        impl::GrottoKey<GroupElement>    keyObj;
+        impl::GrottoCache<GroupElement>  cacheObj;
+        impl::GrottoCache<GroupElement>* cacheObjPtr = nullptr;
+        impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
+        if (cache != nullptr)
+        {
+            impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
+            cacheObjPtr = &cacheObj;
+        }
+        for (std::size_t j = 0; j < pointNum; j++)
+        {
+            GroupElement tmp         = maskedXPtr[i] - pointPtr[j];
+            outPtr[pointNum * i + j] = impl::grottoEvalEq( //
+                keyObj,                                    //
+                tmp,                                       //
+                seedPtr + 16 * i,                          //
+                partyId,                                   //
+                bitWidthIn,                                //
+                cacheObjPtr);
+        }
+    }
+}
+
+int FastFss_cpu_grottoEvalEqMulti(void*       sharedBooleanOut,
+                                  size_t      sharedOutDataSize,
+                                  const void* maskedX,
+                                  size_t      maskedXDataSize,
+                                  const void* key,
+                                  size_t      keyDataSize,
+                                  const void* seed,
+                                  size_t      seedDataSize,
+                                  int         partyId,
+                                  const void* point,
+                                  size_t      pointDataSize,
+                                  size_t      bitWidthIn,
+                                  size_t      elementSize,
+                                  size_t      elementNum,
+                                  void*       cache,
+                                  size_t      cacheDataSize)
+{
+    FSS_ASSERT(maskedXDataSize == elementSize * elementNum,
+               ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
+    FSS_ASSERT(keyDataSize ==
+                   grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
+               ERR_CODE::INVALID_KEY_DATA_SIZE);
+    FSS_ASSERT(pointDataSize % elementSize == 0,
+               ERR_CODE::INVALID_POINT_DATA_SIZE);
+    FSS_ASSERT(sharedOutDataSize == elementNum * pointDataSize,
+               ERR_CODE::INVALID_SHARED_OUT_DATA_SIZE);
+    if (cache != nullptr)
+    {
+        std::size_t needCacheDataSize =
+            grottoGetCacheDataSize(bitWidthIn, elementSize, elementNum);
+        FSS_ASSERT(cacheDataSize == needCacheDataSize,
+                   ERR_CODE::INVALID_CACHE_DATA_SIZE);
+    }
+    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
+        [&] {
+            size_t pointNum = pointDataSize / elementSize;
+            grottoEvalEqMultiKernel<scalar_t> //
+                (                             //
+                    sharedBooleanOut,         //
+                    maskedX,                  //
+                    key,                      //
+                    seed,                     //
+                    partyId,                  //
+                    point,                    //
+                    pointNum,                 //
+                    bitWidthIn,               //
+                    elementNum,               //
+                    cache                     //
+                );                            //
             return ERR_CODE::SUCCESS;
         });
 }

@@ -1,8 +1,5 @@
 #include <FastFss/cuda/dcf.h>
 
-#include <cassert>
-#include <memory>
-
 #include "../impl/dcf.h"
 
 #define FSS_ASSERT(cond, errCode) \

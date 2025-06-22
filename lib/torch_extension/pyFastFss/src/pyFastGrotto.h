@@ -29,6 +29,15 @@ torch::Tensor& grotto_eval_eq(torch::Tensor&       sharedOut,
                               std::size_t          bitWidthIn,
                               std::size_t          elementNum);
 
+torch::Tensor& grotto_eval_eq_multi(torch::Tensor&       sharedOut,
+                                    const torch::Tensor& maskedX,
+                                    const torch::Tensor& key,
+                                    const torch::Tensor& seed,
+                                    int                  partyId,
+                                    const torch::Tensor& point,
+                                    std::size_t          bitWidthIn,
+                                    std::size_t          elementNum);
+
 torch::Tensor& grotto_eval(torch::Tensor&       sharedOut,
                            const torch::Tensor& maskedX,
                            const torch::Tensor& key,

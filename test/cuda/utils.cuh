@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 
 #define CUDA_CHECK(expression, do_something)                          \
     if (expression != cudaSuccess)                                    \
@@ -109,6 +110,12 @@ inline int memcmp_gpu(const void* devicePtr1,
 inline void memset_gpu(void* deviceDst, int value, std::size_t size)
 {
     CUDA_CHECK(cudaMemset(deviceDst, value, size), { std::exit(-1); });
+}
+
+inline std::unique_ptr<void, void (*)(void*)> make_unique_gpu_ptr(size_t size)
+{
+    std::unique_ptr<void, void (*)(void*)> ptr(malloc_gpu(size), free_gpu);
+    return ptr;
 }
 
 } // namespace FastFss::cuda

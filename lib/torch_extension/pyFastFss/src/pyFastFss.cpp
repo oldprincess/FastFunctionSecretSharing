@@ -350,6 +350,37 @@ Raises:
     RuntimeError: If the FastFss_cpu_grottoEvalEq or FastFss_cuda_grottoEvalEq fail.
 )");
 
+    m.def("grotto_eval_eq_multi",           //
+          &pyFastFss::grotto_eval_eq_multi, //
+          py::arg("sharedOut"),             //
+          py::arg("maskedX"),               //
+          py::arg("key"),                   //
+          py::arg("seed"),                  //
+          py::arg("partyId"),               //
+          py::arg("point"),                 //
+          py::arg("bitWidthIn"),            //
+          py::arg("elementNum"),            //
+          R"(
+Evaluate Grotto.
+
+Args:
+    sharedOut (torch.Tensor):       shared tensor
+    maskedX (torch.Tensor):         masked tensor
+    key (torch.Tensor):             key tensor
+    seed (torch.Tensor):            seed tensor
+    partyId (int):                  party id
+    point (torch.Tensor):           party id
+    bitWidthIn (int):               bit width of input data
+    elementNum (int):               element number of input data
+
+Returns:
+    torch.Tensor: sharedOut
+
+Raises:
+    ValueError:   If the input argument is invalid.
+    RuntimeError: If the FastFss_cpu_grottoEvalEqMulti or FastFss_cuda_grottoEvalEqMulti fail.
+)");
+
     m.def("grotto_mic_eval",           //
           &pyFastFss::grotto_mic_eval, //
           py::arg("sharedOut"),        //

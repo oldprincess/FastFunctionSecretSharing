@@ -228,6 +228,8 @@ FAST_FSS_DEVICE inline GroupElement grottoEvalEq( //
     };
     int curT = partyId;
 
+    maskedX = modBits<GroupElement>(maskedX, bitWidthIn);
+
     std::size_t idx_from = 0;
     if (cache != nullptr)
     {

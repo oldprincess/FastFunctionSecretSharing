@@ -50,6 +50,23 @@ int FastFss_cpu_grottoEvalEq(void*       sharedBooleanOut,
                              void*       cache,
                              size_t      cacheDataSize);
 
+int FastFss_cpu_grottoEvalEqMulti(void*       sharedBooleanOut,
+                                  size_t      sharedOutDataSize,
+                                  const void* maskedX,
+                                  size_t      maskedXDataSize,
+                                  const void* key,
+                                  size_t      keyDataSize,
+                                  const void* seed,
+                                  size_t      seedDataSize,
+                                  int         partyId,
+                                  const void* point,
+                                  size_t      pointDataSize,
+                                  size_t      bitWidthIn,
+                                  size_t      elementSize,
+                                  size_t      elementNum,
+                                  void*       cache,
+                                  size_t      cacheDataSize);
+
 int FastFss_cpu_grottoMICEval(void*       sharedBooleanOut,
                               size_t      sharedBooleanOutDataSize,
                               const void* maskedX,

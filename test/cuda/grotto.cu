@@ -1,5 +1,5 @@
 // clang-format off
-// nvcc -I include src/cuda/grotto.cu test/cuda/grotto.cu -o cuda_grotto.exe -std=c++17 --expt-relaxed-constexpr
+// nvcc -I include src/cuda/config.cpp src/cuda/grotto.cu test/cuda/grotto.cu -o cuda_grotto.exe -std=c++17 --expt-relaxed-constexpr
 // clang-format on
 #include <FastFss/cuda/grotto.h>
 
@@ -9,6 +9,7 @@
 #include <memory>
 #include <vector>
 
+#include "grotto/TestGrottoEqMulti.cuh"
 #include "mt19937.hpp"
 #include "uint128_t.h"
 #include "utils.cuh"
@@ -677,5 +678,32 @@ int main()
             {20000, 30000, 40000, 50000, 60000, 70000, 80000}  //
         );
     }
+
+    {
+        constexpr int elementNum = 1024 - 1;
+        TestGrottoEqMulti<std::uint8_t>::run(                               //
+            8, elementNum, {1, 2, 3, 4}, rng                                //
+        );                                                                  //
+        TestGrottoEqMulti<std::uint16_t>::run(                              //
+            12, elementNum, {10, 20, 30, 40, 50, 60, 70}, rng               //
+        );                                                                  //
+        TestGrottoEqMulti<std::uint16_t>::run(                              //
+            16, elementNum, {10, 20, 30, 40, 50, 60, 70}, rng               //
+        );                                                                  //
+        TestGrottoEqMulti<std::uint32_t>::run(                              //
+            24, elementNum, {100, 200, 300, 400, 500, 600, 700}, rng        //
+        );                                                                  //
+        TestGrottoEqMulti<std::uint32_t>::run(                              //
+            32, elementNum, {100, 200, 300, 400, 500, 600, 700}, rng        //
+        );                                                                  //
+        TestGrottoEqMulti<std::uint64_t>::run(                              //
+            32, elementNum, {1000, 2000, 3000, 4000, 5000, 6000, 7000}, rng //
+        );                                                                  //
+        TestGrottoEqMulti<std::uint64_t>::run(                              //
+            48, elementNum,                                                 //
+            {10000, 20000, 30000, 40000, 50000, 60000, 70000}, rng          //
+        );                                                                  //
+    }
+
     return 0;
 }
