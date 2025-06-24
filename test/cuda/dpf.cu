@@ -317,7 +317,7 @@ public:
             cuda::memcpy_cpu2gpu(dSeed0, seed0.get(), seedDataSize0);
             cuda::memcpy_cpu2gpu(dPoint, point.data(), pointDataSize);
 
-            ret = FastFss_cuda_dpfEvalMulti(
+            ret = FastFss_cuda_dpfMultiEval(
                 dSharedOut, sharedOutDataSize, dMaskedX, maskedXDataSize,
                 dpfKey, dpfKeyDataSize, dSeed0, seedDataSize0, 0, dPoint,
                 pointDataSize, bitWidthIn, bitWidthOut, sizeof(GroupElement),
@@ -343,7 +343,7 @@ public:
             cuda::memcpy_cpu2gpu(dSeed1, seed1.get(), seedDataSize1);
             cuda::memcpy_cpu2gpu(dPoint, point.data(), pointDataSize);
 
-            ret = FastFss_cuda_dpfEvalMulti(
+            ret = FastFss_cuda_dpfMultiEval(
                 dSharedOut, sharedOutDataSize, dMaskedX, maskedXDataSize,
                 dpfKey, dpfKeyDataSize, dSeed1, seedDataSize1, 1, dPoint,
                 pointDataSize, bitWidthIn, bitWidthOut, sizeof(GroupElement),

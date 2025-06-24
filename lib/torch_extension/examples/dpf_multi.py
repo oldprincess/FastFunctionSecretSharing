@@ -14,7 +14,9 @@ def test(bit_width: int, device: torch.device):
     seed0 = torch.randint(0, 256, (element_num * 16,), device=device, dtype=torch.uint8)
     seed1 = torch.randint(0, 256, (element_num * 16,), device=device, dtype=torch.uint8)
     key = torch.empty(0, dtype=torch.uint8, device=device)
-    key = pyFastFss.grotto_key_gen(key, alpha, seed0, seed1, bit_width, element_num)
+    key = pyFastFss.dpf_key_gen(
+        key, alpha, torch.empty(0, device=device, dtype=dtype), seed0, seed1, bit_width, bit_width, element_num
+    )
     # eval
     x = pyFastFss.mod(torch.randint(info.min, info.max, shape, device=device, dtype=dtype), bit_width)
     masked_x = pyFastFss.mod(x + alpha, bit_width)
@@ -22,13 +24,17 @@ def test(bit_width: int, device: torch.device):
     shared_out1 = torch.empty(0, dtype=dtype, device=device)
     points = torch.tensor([0, 1, 2, 3, 4, 5, 6], dtype=dtype, device=device)
 
-    shared_out0 = pyFastFss.grotto_eval_eq_multi(shared_out0, masked_x, key, seed0, 0, points, bit_width, element_num)
-    shared_out1 = pyFastFss.grotto_eval_eq_multi(shared_out1, masked_x, key, seed1, 1, points, bit_width, element_num)
+    shared_out0 = pyFastFss.dpf_multi_eval(
+        shared_out0, masked_x, key, seed0, 0, points, bit_width, bit_width, element_num
+    )
+    shared_out1 = pyFastFss.dpf_multi_eval(
+        shared_out1, masked_x, key, seed1, 1, points, bit_width, bit_width, element_num
+    )
 
-    out = pyFastFss.mod(shared_out0 + shared_out1, 1).reshape(*x.shape, points.numel()).bool()
+    out = pyFastFss.mod(shared_out0 + shared_out1, bit_width).reshape(*x.shape, points.numel()).bool()
     need = torch.eq(x.reshape(*x.shape, 1), points.reshape(1, points.numel()))
 
-    print("[TEST] grotto_eval_eq_multi:",
+    print("[TEST] grotto_eq_multi_eval:",
           "bitWidth={:>3d} device={:4}".format(bit_width, str(device)),
           "Pass" if torch.all(out == need) else "Fail")
 

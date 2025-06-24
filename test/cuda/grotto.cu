@@ -130,7 +130,7 @@ public:
             memcpy_cpu2gpu(deviceMaskedX, maskedX.get(), maskedXDataSize);
             memcpy_cpu2gpu(deviceSeed0, seed0.get(), seedDataSize0);
 
-            int ret2 = FastFss_cuda_grottoEvalEq(
+            int ret2 = FastFss_cuda_grottoEqEval(
                 deviceSharedOut0, deviceMaskedX, maskedXDataSize, grottoKey,
                 grottoKeyDataSize, deviceSeed0, seedDataSize0, 0, bitWidthIn,
                 sizeof(GroupElement), elementNum, nullptr, 0, nullptr);
@@ -150,7 +150,7 @@ public:
             memcpy_cpu2gpu(deviceMaskedX, maskedX.get(), maskedXDataSize);
             memcpy_cpu2gpu(deviceSeed1, seed1.get(), seedDataSize1);
 
-            int ret3 = FastFss_cuda_grottoEvalEq(
+            int ret3 = FastFss_cuda_grottoEqEval(
                 deviceSharedOut1, deviceMaskedX, maskedXDataSize, grottoKey,
                 grottoKeyDataSize, deviceSeed1, seedDataSize1, 1, bitWidthIn,
                 sizeof(GroupElement), elementNum, nullptr, 0, nullptr);

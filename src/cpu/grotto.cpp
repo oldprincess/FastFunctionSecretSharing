@@ -222,7 +222,7 @@ int FastFss_cpu_grottoEval(void*       sharedBooleanOut,
 }
 
 template <typename GroupElement>
-static void grottoEvalEqKernel(void*       out,
+static void grottoEqEvalKernel(void*       out,
                                const void* maskedX,
                                const void* key,
                                const void* seed,
@@ -253,7 +253,7 @@ static void grottoEvalEqKernel(void*       out,
             impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
             cacheObjPtr = &cacheObj;
         }
-        outPtr[i] = impl::grottoEvalEq(keyObj,                    //
+        outPtr[i] = impl::grottoEqEval(keyObj,                    //
                                        maskedXPtr[maskedXOffset], //
                                        seedPtr + seedOffset,      //
                                        partyId,                   //
@@ -263,7 +263,7 @@ static void grottoEvalEqKernel(void*       out,
     }
 }
 
-int FastFss_cpu_grottoEvalEq(void*       sharedBooleanOut,
+int FastFss_cpu_grottoEqEval(void*       sharedBooleanOut,
                              const void* maskedX,
                              size_t      maskedXDataSize,
                              const void* key,
@@ -298,7 +298,7 @@ int FastFss_cpu_grottoEvalEq(void*       sharedBooleanOut,
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
         [&] {
-            grottoEvalEqKernel<scalar_t> //
+            grottoEqEvalKernel<scalar_t> //
                 (                        //
                     sharedBooleanOut,    //
                     maskedX,             //
@@ -315,7 +315,7 @@ int FastFss_cpu_grottoEvalEq(void*       sharedBooleanOut,
 }
 
 template <typename GroupElement>
-static void grottoEvalEqMultiKernel(void*       out,
+static void grottoEqMultiEvalKernel(void*       out,
                                     const void* maskedX,
                                     const void* key,
                                     const void* seed,
@@ -350,7 +350,7 @@ static void grottoEvalEqMultiKernel(void*       out,
         for (std::size_t j = 0; j < pointNum; j++)
         {
             GroupElement tmp         = maskedXPtr[i] - pointPtr[j];
-            outPtr[pointNum * i + j] = impl::grottoEvalEq( //
+            outPtr[pointNum * i + j] = impl::grottoEqEval( //
                 keyObj,                                    //
                 tmp,                                       //
                 seedPtr + 16 * i,                          //
@@ -361,7 +361,7 @@ static void grottoEvalEqMultiKernel(void*       out,
     }
 }
 
-int FastFss_cpu_grottoEvalEqMulti(void*       sharedBooleanOut,
+int FastFss_cpu_grottoEqMultiEval(void*       sharedBooleanOut,
                                   size_t      sharedOutDataSize,
                                   const void* maskedX,
                                   size_t      maskedXDataSize,
@@ -404,7 +404,7 @@ int FastFss_cpu_grottoEvalEqMulti(void*       sharedBooleanOut,
         elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
         [&] {
             size_t pointNum = pointDataSize / elementSize;
-            grottoEvalEqMultiKernel<scalar_t> //
+            grottoEqMultiEvalKernel<scalar_t> //
                 (                             //
                     sharedBooleanOut,         //
                     maskedX,                  //

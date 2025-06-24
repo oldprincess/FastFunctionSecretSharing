@@ -158,7 +158,7 @@ __global__ static void dpfEvalKernel(void*       sharedOut,
 }
 
 template <typename GroupElement>
-__global__ static void dpfEvalMultiKernel(void*       sharedOut,
+__global__ static void dpfMultiEvalKernel(void*       sharedOut,
                                           const void* maskedX,
                                           const void* key,
                                           const void* seed,
@@ -205,7 +205,7 @@ __global__ static void dpfEvalMultiKernel(void*       sharedOut,
 }
 
 template <typename GroupElement>
-__global__ static void dpfEvalMultiKernelParallelAll(void*       sharedOut,
+__global__ static void dpfMultiEvalKernelParallelAll(void*       sharedOut,
                                                      const void* maskedX,
                                                      const void* key,
                                                      const void* seed,
@@ -310,7 +310,7 @@ int FastFss_cuda_dpfEval(void*       sharedOut,
         });
 }
 
-int FastFss_cuda_dpfEvalMulti(void*       sharedOut,
+int FastFss_cuda_dpfMultiEval(void*       sharedOut,
                               size_t      sharedOutDataSize,
                               const void* maskedX,
                               size_t      maskedXDataSize,
@@ -386,14 +386,14 @@ int FastFss_cuda_dpfEvalMulti(void*       sharedOut,
         [&] {
             if (parallelAll)
             {
-                dpfEvalMultiKernelParallelAll<scalar_t>
+                dpfMultiEvalKernelParallelAll<scalar_t>
                     <<<GRID_DIM, BLOCK_DIM, 0, stream>>>(
                         sharedOut, maskedX, key, seed, partyId, point, pointNum,
                         bitWidthIn, bitWidthOut, elementNum);
             }
             else
             {
-                dpfEvalMultiKernel<scalar_t>
+                dpfMultiEvalKernel<scalar_t>
                     <<<GRID_DIM, BLOCK_DIM, 0, stream>>>(
                         sharedOut, maskedX, key, seed, partyId, point, pointNum,
                         bitWidthIn, bitWidthOut, elementNum, cache);

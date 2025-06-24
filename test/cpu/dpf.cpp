@@ -249,7 +249,7 @@ public:
         }
 
         {
-            ret = FastFss_cpu_dpfEvalMulti(
+            ret = FastFss_cpu_dpfMultiEval(
                 sharedOut0.get(), sharedOutDataSize, maskedX.get(),
                 maskedXDataSize, dpfKey, dpfKeyDataSize, seed0.get(),
                 seedDataSize0, 0, point.data(), pointDataSize, bitWidthIn,
@@ -259,7 +259,7 @@ public:
         }
 
         {
-            ret = FastFss_cpu_dpfEvalMulti(
+            ret = FastFss_cpu_dpfMultiEval(
                 sharedOut1.get(), sharedOutDataSize, maskedX.get(),
                 maskedXDataSize, dpfKey, dpfKeyDataSize, seed1.get(),
                 seedDataSize1, 1, point.data(), pointDataSize, bitWidthIn,

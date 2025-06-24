@@ -2,9 +2,9 @@
 #include <FastFss/cuda/grotto.h>
 
 #include "grotto/def.cuh"
+#include "grotto/eq.cuh"
+#include "grotto/eqMulti.cuh"
 #include "grotto/eval.cuh"
-#include "grotto/evalEq.cuh"
-#include "grotto/evalEqMulti.cuh"
 #include "grotto/itervalLut.cuh"
 #include "grotto/keyGen.cuh"
 #include "grotto/lut.cuh"
@@ -169,7 +169,7 @@ int FastFss_cuda_grottoEval(void*       sharedBooleanOut,
         });
 }
 
-int FastFss_cuda_grottoEvalEq(void*       sharedBooleanOut,
+int FastFss_cuda_grottoEqEval(void*       sharedBooleanOut,
                               const void* maskedX,
                               size_t      maskedXDataSize,
                               const void* key,
@@ -212,7 +212,7 @@ int FastFss_cuda_grottoEvalEq(void*       sharedBooleanOut,
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
         [&] {
-            grottoEvalEqKernel<scalar_t>              //
+            grottoEqEvalKernel<scalar_t>              //
                 <<<GRID_DIM, BLOCK_DIM, 0, stream>>>( //
                     sharedBooleanOut,                 //
                     maskedX,                          //
@@ -231,7 +231,7 @@ int FastFss_cuda_grottoEvalEq(void*       sharedBooleanOut,
         });
 }
 
-int FastFss_cuda_grottoEvalEqMulti(void*       sharedBooleanOut,
+int FastFss_cuda_grottoEqMultiEval(void*       sharedBooleanOut,
                                    size_t      sharedOutDataSize,
                                    const void* maskedX,
                                    size_t      maskedXDataSize,
@@ -295,7 +295,7 @@ int FastFss_cuda_grottoEvalEqMulti(void*       sharedBooleanOut,
         [&] {
             if (isParallelAll)
             {
-                grottoEvalEqMultiParallelAllKernel<scalar_t> //
+                grottoEqMultiEvalParallelAllKernel<scalar_t> //
                     <<<GRID_DIM, BLOCK_DIM, 0, stream>>>(    //
                         sharedBooleanOut,                    //
                         maskedX,                             //
@@ -310,7 +310,7 @@ int FastFss_cuda_grottoEvalEqMulti(void*       sharedBooleanOut,
             }
             else
             {
-                grottoEvalEqMultiKernel<scalar_t>         //
+                grottoEqMultiEvalKernel<scalar_t>         //
                     <<<GRID_DIM, BLOCK_DIM, 0, stream>>>( //
                         sharedBooleanOut,                 //
                         maskedX,                          //

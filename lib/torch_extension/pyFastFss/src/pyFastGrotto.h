@@ -21,7 +21,7 @@ torch::Tensor& grotto_key_gen(torch::Tensor&       keyOut,
                               std::size_t          bitWidthIn,
                               std::size_t          elementNum);
 
-torch::Tensor& grotto_eval_eq(torch::Tensor&       sharedOut,
+torch::Tensor& grotto_eq_eval(torch::Tensor&       sharedOut,
                               const torch::Tensor& maskedX,
                               const torch::Tensor& key,
                               const torch::Tensor& seed,
@@ -29,7 +29,7 @@ torch::Tensor& grotto_eval_eq(torch::Tensor&       sharedOut,
                               std::size_t          bitWidthIn,
                               std::size_t          elementNum);
 
-torch::Tensor& grotto_eval_eq_multi(torch::Tensor&       sharedOut,
+torch::Tensor& grotto_eq_multi_eval(torch::Tensor&       sharedOut,
                                     const torch::Tensor& maskedX,
                                     const torch::Tensor& key,
                                     const torch::Tensor& seed,

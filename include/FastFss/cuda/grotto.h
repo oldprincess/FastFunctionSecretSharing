@@ -38,7 +38,7 @@ int FastFss_cuda_grottoEval(void*       sharedBooleanOut,
                             size_t      cacheDataSize,
                             void*       cudaStreamPtr);
 
-int FastFss_cuda_grottoEvalEq(void*       sharedBooleanOut,
+int FastFss_cuda_grottoEqEval(void*       sharedBooleanOut,
                               const void* maskedX,
                               size_t      maskedXDataSize,
                               const void* key,
@@ -53,7 +53,7 @@ int FastFss_cuda_grottoEvalEq(void*       sharedBooleanOut,
                               size_t      cacheDataSize,
                               void*       cudaStreamPtr);
 
-int FastFss_cuda_grottoEvalEqMulti(void*       sharedBooleanOut,
+int FastFss_cuda_grottoEqMultiEval(void*       sharedBooleanOut,
                                    size_t      sharedOutDataSize,
                                    const void* maskedX,
                                    size_t      maskedXDataSize,

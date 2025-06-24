@@ -1,10 +1,10 @@
-#ifndef SRC_CUDA_GROTTO_EVAL_EQ_MULTI_CUH
-#define SRC_CUDA_GROTTO_EVAL_EQ_MULTI_CUH
+#ifndef SRC_CUDA_GROTTO_EQ_MULTI_CUH
+#define SRC_CUDA_GROTTO_EQ_MULTI_CUH
 
 #include "def.cuh"
 
 template <typename GroupElement>
-__global__ static void grottoEvalEqMultiKernel(void*       out,
+__global__ static void grottoEqMultiEvalKernel(void*       out,
                                                const void* maskedX,
                                                const void* key,
                                                const void* seed,
@@ -42,7 +42,7 @@ __global__ static void grottoEvalEqMultiKernel(void*       out,
         {
             GroupElement tmp = maskedXPtr[maskedXOffset] - pointsPtr[j];
             outPtr[i * pointsNum + j] =
-                impl::grottoEvalEq(keyObj,               //
+                impl::grottoEqEval(keyObj,               //
                                    tmp,                  //
                                    seedPtr + seedOffset, //
                                    partyId,              //
@@ -54,7 +54,7 @@ __global__ static void grottoEvalEqMultiKernel(void*       out,
 }
 
 template <typename GroupElement>
-__global__ static void grottoEvalEqMultiParallelAllKernel(void*       out,
+__global__ static void grottoEqMultiEvalParallelAllKernel(void*       out,
                                                           const void* maskedX,
                                                           const void* key,
                                                           const void* seed,
@@ -84,7 +84,7 @@ __global__ static void grottoEvalEqMultiParallelAllKernel(void*       out,
 
         GroupElement tmp = maskedXPtr[xIdx] - pointsPtr[pIdx];
 
-        outPtr[i] = impl::grottoEvalEq<GroupElement>(keyObj,              //
+        outPtr[i] = impl::grottoEqEval<GroupElement>(keyObj,              //
                                                      tmp,                 //
                                                      seedPtr + 16 * xIdx, //
                                                      partyId,             //

@@ -33,7 +33,7 @@ torch::Tensor& dpf_eval(torch::Tensor&       sharedOut,
                         std::size_t          bitWidthOut,
                         std::size_t          elementNum);
 
-torch::Tensor& dpf_eval_multi(torch::Tensor&       sharedOut,
+torch::Tensor& dpf_multi_eval(torch::Tensor&       sharedOut,
                               const torch::Tensor& maskedX,
                               const torch::Tensor& key,
                               const torch::Tensor& seed,

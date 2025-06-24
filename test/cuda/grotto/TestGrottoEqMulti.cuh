@@ -145,7 +145,7 @@ public:
             memcpy_cpu2gpu(dSeed0.get(), seed0.get(), seed0DataSize);
             memcpy_cpu2gpu(dPoints.get(), points.data(), pointDataSize);
 
-            int ret2 = FastFss_cuda_grottoEvalEqMulti( //
+            int ret2 = FastFss_cuda_grottoEqMultiEval( //
                 dSharedOut0.get(),                     //
                 outDataSize,                           //
                 dMaskedX.get(),                        //
@@ -165,7 +165,7 @@ public:
             if (ret2 != 0)
             {
                 std::printf(
-                    "\n[%d] err. FastFss_cuda_grottoEvalEqMulti ret = %d\n",
+                    "\n[%d] err. FastFss_cuda_grottoEqMultiEval ret = %d\n",
                     __LINE__, ret2);
                 std::exit(-1);
             }
@@ -186,7 +186,7 @@ public:
             memcpy_cpu2gpu(dSeed1.get(), seed1.get(), seed1DataSize);
             memcpy_cpu2gpu(dPoints.get(), points.data(), pointDataSize);
 
-            int ret3 = FastFss_cuda_grottoEvalEqMulti( //
+            int ret3 = FastFss_cuda_grottoEqMultiEval( //
                 dSharedOut1.get(),                     //
                 outDataSize,                           //
                 dMaskedX.get(),                        //
@@ -206,7 +206,7 @@ public:
             if (ret3 != 0)
             {
                 std::printf(
-                    "\n[%d] err. FastFss_cuda_grottoEvalEqMulti ret = %d\n",
+                    "\n[%d] err. FastFss_cuda_grottoEqMultiEval ret = %d\n",
                     __LINE__, ret3);
                 std::exit(-1);
             }

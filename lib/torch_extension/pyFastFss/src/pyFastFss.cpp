@@ -206,8 +206,8 @@ Raises:
   RuntimeError: If the FastFss_cpu_dpfEval or FastFss_cuda_dpfEval fail.
       )");
 
-    m.def("dpf_eval_multi",           //
-          &pyFastFss::dpf_eval_multi, //
+    m.def("dpf_multi_eval",           //
+          &pyFastFss::dpf_multi_eval, //
           py::arg("sharedOut"),       //
           py::arg("maskedX"),         //
           py::arg("key"),             //
@@ -236,7 +236,7 @@ Returns:
 
 Raises:
   ValueError:   If the input argument is invalid.
-  RuntimeError: If the FastFss_cpu_dpfEvalMulti or FastFss_cuda_dpfEvalMulti fail.
+  RuntimeError: If the FastFss_cpu_dpfMultiEval or FastFss_cuda_dpfMultiEval fail.
       )");
 
     // ===========================================
@@ -321,8 +321,8 @@ Raises:
     RuntimeError: If the FastFss_cpu_grottoEval or FastFss_cuda_grottoEval fail.
 )");
 
-    m.def("grotto_eval_eq",           //
-          &pyFastFss::grotto_eval_eq, //
+    m.def("grotto_eq_eval",           //
+          &pyFastFss::grotto_eq_eval, //
           py::arg("sharedOut"),       //
           py::arg("maskedX"),         //
           py::arg("key"),             //
@@ -347,11 +347,11 @@ Returns:
 
 Raises:
     ValueError:   If the input argument is invalid.
-    RuntimeError: If the FastFss_cpu_grottoEvalEq or FastFss_cuda_grottoEvalEq fail.
+    RuntimeError: If the FastFss_cpu_grottoEqEval or FastFss_cuda_grottoEqEval fail.
 )");
 
-    m.def("grotto_eval_eq_multi",           //
-          &pyFastFss::grotto_eval_eq_multi, //
+    m.def("grotto_eq_multi_eval",           //
+          &pyFastFss::grotto_eq_multi_eval, //
           py::arg("sharedOut"),             //
           py::arg("maskedX"),               //
           py::arg("key"),                   //
@@ -378,7 +378,7 @@ Returns:
 
 Raises:
     ValueError:   If the input argument is invalid.
-    RuntimeError: If the FastFss_cpu_grottoEvalEqMulti or FastFss_cuda_grottoEvalEqMulti fail.
+    RuntimeError: If the FastFss_cpu_grottoEqMultiEval or FastFss_cuda_grottoEqMultiEval fail.
 )");
 
     m.def("grotto_mic_eval",           //

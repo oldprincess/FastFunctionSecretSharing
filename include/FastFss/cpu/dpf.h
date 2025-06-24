@@ -39,7 +39,7 @@ int FastFss_cpu_dpfEval(void*       sharedOut,
                         void*       cache,
                         size_t      cacheDataSize);
 
-int FastFss_cpu_dpfEvalMulti(void*       sharedOut,
+int FastFss_cpu_dpfMultiEval(void*       sharedOut,
                              size_t      sharedOutDataSize,
                              const void* maskedX,
                              size_t      maskedXDataSize,

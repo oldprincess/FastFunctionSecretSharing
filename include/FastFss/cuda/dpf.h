@@ -41,7 +41,7 @@ int FastFss_cuda_dpfEval(void*       sharedOut,
                          size_t      cacheDataSize,
                          void*       cudaStreamPtr);
 
-int FastFss_cuda_dpfEvalMulti(void*       sharedOut,
+int FastFss_cuda_dpfMultiEval(void*       sharedOut,
                               size_t      sharedOutDataSize,
                               const void* maskedX,
                               size_t      maskedXDataSize,

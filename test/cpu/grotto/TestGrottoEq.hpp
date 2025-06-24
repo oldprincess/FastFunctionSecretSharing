@@ -111,7 +111,7 @@ public:
         }
 
         {
-            int ret2 = FastFss_cpu_grottoEvalEq( //
+            int ret2 = FastFss_cpu_grottoEqEval( //
                 sharedOut0.get(),                //
                 maskedX.get(),                   //
                 maskedXDataSize,                 //
@@ -127,14 +127,14 @@ public:
                 0);
             if (ret2 != 0)
             {
-                std::printf("\n[%d] err. FastFss_cpu_grottoEvalEq ret = %d\n",
+                std::printf("\n[%d] err. FastFss_cpu_grottoEqEval ret = %d\n",
                             __LINE__, ret2);
                 std::exit(-1);
             }
         }
 
         {
-            int ret3 = FastFss_cpu_grottoEvalEq( //
+            int ret3 = FastFss_cpu_grottoEqEval( //
                 sharedOut1.get(),                //
                 maskedX.get(),                   //
                 maskedXDataSize,                 //
@@ -150,7 +150,7 @@ public:
                 0);
             if (ret3 != 0)
             {
-                std::printf("\n[%d] err. FastFss_cpu_grottoEvalEq ret = %d\n",
+                std::printf("\n[%d] err. FastFss_cpu_grottoEqEval ret = %d\n",
                             __LINE__, ret3);
                 std::exit(-1);
             }

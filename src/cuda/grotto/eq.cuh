@@ -1,10 +1,10 @@
-#ifndef SRC_CUDA_GROTTO_EVAL_EQ_CUH
-#define SRC_CUDA_GROTTO_EVAL_EQ_CUH
+#ifndef SRC_CUDA_GROTTO_EQ_CUH
+#define SRC_CUDA_GROTTO_EQ_CUH
 
 #include "def.cuh"
 
 template <typename GroupElement>
-__global__ static void grottoEvalEqKernel(void*       out,
+__global__ static void grottoEqEvalKernel(void*       out,
                                           const void* maskedX,
                                           const void* key,
                                           const void* seed,
@@ -35,7 +35,7 @@ __global__ static void grottoEvalEqKernel(void*       out,
             impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
             cacheObjPtr = &cacheObj;
         }
-        outPtr[i] = impl::grottoEvalEq(keyObj,                    //
+        outPtr[i] = impl::grottoEqEval(keyObj,                    //
                                        maskedXPtr[maskedXOffset], //
                                        seedPtr + seedOffset,      //
                                        partyId,                   //

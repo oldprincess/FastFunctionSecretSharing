@@ -159,7 +159,7 @@ static void dpfEvalKernel(void*       sharedOut,
 }
 
 template <typename GroupElement>
-static void dpfEvalMultiKernel(void*       sharedOut,
+static void dpfMultiEvalKernel(void*       sharedOut,
                                const void* maskedX,
                                const void* key,
                                const void* seed,
@@ -261,7 +261,7 @@ int FastFss_cpu_dpfEval(void*       sharedOut,
         });
 }
 
-int FastFss_cpu_dpfEvalMulti(void*       sharedOut,
+int FastFss_cpu_dpfMultiEval(void*       sharedOut,
                              size_t      sharedOutDataSize,
                              const void* maskedX,
                              size_t      maskedXDataSize,
@@ -316,7 +316,7 @@ int FastFss_cpu_dpfEvalMulti(void*       sharedOut,
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
-            dpfEvalMultiKernel<scalar_t>(sharedOut, maskedX, key, seed, partyId,
+            dpfMultiEvalKernel<scalar_t>(sharedOut, maskedX, key, seed, partyId,
                                          point, pointNum, bitWidthIn,
                                          bitWidthOut, elementNum, cache);
             return ERROR_CODE::SUCCESS;

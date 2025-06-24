@@ -211,7 +211,7 @@ FAST_FSS_DEVICE inline void grottoKeyGen(GrottoKey<GroupElement>& key,
 }
 
 template <typename GroupElement>
-FAST_FSS_DEVICE inline GroupElement grottoEvalEq( //
+FAST_FSS_DEVICE inline GroupElement grottoEqEval( //
     const GrottoKey<GroupElement>& key,
     GroupElement                   maskedX,
     const void*                    seed,
@@ -473,7 +473,7 @@ FAST_FSS_DEVICE inline void grottoLutEval( //
     std::size_t num      = (std::size_t)1 << bitWidth;
     for (std::size_t i = 0; i < num; i++)
     {
-        int tmp = (int)grottoEvalEq<GroupElement>( //
+        int tmp = (int)grottoEqEval<GroupElement>( //
             key, i, seed, partyId, bitWidth, cache //
         );                                         //
         tmp     = tmp & 1;
