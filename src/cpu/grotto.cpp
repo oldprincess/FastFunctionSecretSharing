@@ -542,6 +542,122 @@ int FastFss_cpu_grottoMICEval(void*       sharedBooleanOut,
 }
 
 template <typename GroupElement>
+static void grottoLutEvalKernel(void*       outE,
+                                   void*       outT,
+                                   const void* maskedX,
+                                   const void* key,
+                                   const void* seed,
+                                   int         partyId,
+                                   const void* lookUpTable,
+                                   size_t      lutNum,
+                                   size_t      bitWidthIn,
+                                   size_t      elementNum,
+                                   void*       cache)
+{
+    std::int64_t idx    = 0;
+    std::int64_t stride = 1;
+
+    const GroupElement* maskedXPtr     = (const GroupElement*)maskedX;
+    const std::uint8_t* seedPtr        = (const std::uint8_t*)seed;
+    GroupElement*       outEPtr        = (GroupElement*)outE;
+    GroupElement*       outTPtr        = (GroupElement*)outT;
+    const GroupElement* lookUpTablePtr = (GroupElement*)lookUpTable;
+
+    omp_set_num_threads(FastFss_cpu_getNumThreads());
+#pragma omp parallel for
+    for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
+    {
+        impl::GrottoKey<GroupElement>   keyObj;
+        impl::GrottoCache<GroupElement> cacheObj;
+
+        impl::GrottoCache<GroupElement>* cacheObjPtr   = nullptr;
+        std::size_t                      maskedXOffset = i;
+        std::size_t                      seedOffset    = 16 * i;
+        impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
+        if (cache != nullptr)
+        {
+            impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
+            cacheObjPtr = &cacheObj;
+        }
+        impl::grottoLutEval(        //
+            outEPtr + i,               //
+            outTPtr + i * lutNum,      //
+            keyObj,                    //
+            maskedXPtr[maskedXOffset], //
+            seedPtr + seedOffset,      //
+            partyId,                   //
+            lookUpTablePtr,            //
+            lutNum,                    //
+            bitWidthIn,                //
+            cacheObjPtr                //
+        );
+    }
+}
+
+int FastFss_cpu_grottoLutEval(void*       sharedOutE,
+                                 void*       sharedOutT,
+                                 const void* maskedX,
+                                 size_t      maskedXDataSize,
+                                 const void* key,
+                                 size_t      keyDataSize,
+                                 const void* seed,
+                                 size_t      seedDataSize,
+                                 int         partyId,
+                                 const void* lookUpTable,
+                                 size_t      lookUpTableDataSize,
+                                 size_t      bitWidthIn,
+                                 size_t      bitWidthOut,
+                                 size_t      elementSize,
+                                 size_t      elementNum,
+                                 void*       cache,
+                                 size_t      cacheDataSize)
+{
+    FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
+               ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
+    FSS_ASSERT(keyDataSize ==
+                   grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
+               ERR_CODE::INVALID_KEY_DATA_SIZE);
+    if (cache != nullptr)
+    {
+        std::size_t needCacheDataSize =
+            grottoGetCacheDataSize(bitWidthIn, elementSize, elementNum);
+        FSS_ASSERT(cacheDataSize == needCacheDataSize,
+                   ERR_CODE::INVALID_CACHE_DATA_SIZE);
+    }
+    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
+
+    FSS_ASSERT(lookUpTableDataSize % (elementSize * (1ULL << bitWidthIn)) == 0,
+               INVALID_LUT_DATA_SIZE);
+    std::size_t lutNum =
+        lookUpTableDataSize / (elementSize * (1ULL << bitWidthIn));
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
+        [&] {
+            grottoLutEvalKernel<scalar_t> //
+                (                            //
+                    sharedOutE,              //
+                    sharedOutT,              //
+                    maskedX,                 //
+                    key,                     //
+                    seed,                    //
+                    partyId,                 //
+                    lookUpTable,             //
+                    lutNum,                  //
+                    bitWidthIn,              //
+                    elementNum,              //
+                    cache                    //
+                );                           //
+
+            return ERR_CODE::SUCCESS;
+        });
+}
+
+template <typename GroupElement>
 static void grottoIntervalLutEvalKernel(void*       outE,
                                         void*       outT,
                                         const void* maskedX,

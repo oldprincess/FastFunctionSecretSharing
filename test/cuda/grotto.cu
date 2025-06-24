@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "grotto/TestGrottoEqMulti.cuh"
+#include "grotto/TestGrottoLut.cuh"
 #include "mt19937.hpp"
 #include "uint128_t.h"
 #include "utils.cuh"
@@ -703,6 +704,15 @@ int main()
             48, elementNum,                                                 //
             {10000, 20000, 30000, 40000, 50000, 60000, 70000}, rng          //
         );                                                                  //
+    }
+
+    {
+        TestGrottoLut<std::uint8_t>::run(7, 1024 - 1, rng);
+        TestGrottoLut<std::uint8_t>::run(8, 1024 - 1, rng);
+        TestGrottoLut<std::uint16_t>::run(11, 1024 - 1, rng);
+        TestGrottoLut<std::uint32_t>::run(11, 1024 - 1, rng);
+        TestGrottoLut<std::uint64_t>::run(11, 1024 - 1, rng);
+        TestGrottoLut<uint128_t>::run(11, 1024 - 1, rng);
     }
 
     return 0;

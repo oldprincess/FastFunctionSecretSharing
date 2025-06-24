@@ -113,7 +113,7 @@ int FastFss_cuda_dcfMICKeyGen(void*       key,
     FSS_ASSERT(bitWidthOut <= elementSize * 8,
                ERROR_CODE::INVALID_BITWIDTH_ERROR);
 
-    std::size_t BLOCK_DIM = 512;
+    std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)
     {
@@ -239,7 +239,7 @@ int FastFss_cuda_dcfMICEval(void*       sharedOut,
     FSS_ASSERT(bitWidthOut <= elementSize * 8,
                ERROR_CODE::INVALID_BITWIDTH_ERROR);
 
-    std::size_t BLOCK_DIM = 512;
+    std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)
     {

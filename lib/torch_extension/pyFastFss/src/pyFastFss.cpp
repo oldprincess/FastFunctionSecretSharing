@@ -414,6 +414,41 @@ Raises:
     RuntimeError: If the FastFss_cpu_grottoMICEval or FastFss_cuda_grottoMICEval fail.
 )");
 
+    m.def("grotto_lut_eval",
+          &pyFastFss::grotto_lut_eval, //
+          py::arg("sharedOutE"),       //
+          py::arg("sharedOutT"),       //
+          py::arg("maskedX"),          //
+          py::arg("key"),              //
+          py::arg("seed"),             //
+          py::arg("partyId"),          //
+          py::arg("lookUpTable"),      //
+          py::arg("bitWidthIn"),       //
+          py::arg("bitWidthOut"),      //
+          py::arg("elementNum"),       //
+          R"(
+Evaluate Grotto MIC.
+
+Args:
+    sharedOutE (torch.Tensor):      shared tensor
+    sharedOutT (torch.Tensor):      shared tensor
+    maskedX (torch.Tensor):         masked tensor
+    key(torch.Tensor):              key tensor
+    seed(torch.Tensor):             seed tensor
+    partyId(int):                   party id
+    lookUpTable(torch.Tensor):      lookUpTable tensor
+    bitWidthIn(int):                bit width of input data
+    bitWidthOut(int):               bit width of output data
+    elementNum(int):                element number of input data
+
+Returns:
+    tuple[torch.Tensor, torch.Tensor]: sharedOutE, sharedOutT
+
+Raises:
+    ValueError:   If the input argument is invalid.
+    RuntimeError: If the FastFss_cpu_grottoLutEval or FastFss_cuda_grottoLutEval fail.
+)");
+
     m.def("grotto_interval_lut_eval",
           &pyFastFss::grotto_interval_lut_eval, //
           py::arg("sharedOutE"),                //

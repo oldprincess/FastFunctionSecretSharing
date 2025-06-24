@@ -93,7 +93,7 @@ int FastFss_cuda_onehotKeyGen(void*       key,
     FSS_ASSERT(alphaDataSize == elementSize * elementNum,
                ERR_CODE::INVALID_ALPHA_DATA_SIZE);
 
-    std::size_t BLOCK_DIM = 512;
+    std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)
     {
@@ -148,7 +148,7 @@ int FastFss_cuda_onehotLutEval(void*       sharedOutE,
     FSS_ASSERT(lookUpTableDataSize == elementSize * (1ULL << bitWidthIn),
                ERR_CODE::INVALID_LOOKUP_TABLE_DATA_SIZE);
 
-    std::size_t BLOCK_DIM = 512;
+    std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)
     {

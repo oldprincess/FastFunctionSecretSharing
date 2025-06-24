@@ -12,6 +12,7 @@
 #include "grotto/TestGrotto.hpp"
 #include "grotto/TestGrottoEq.hpp"
 #include "grotto/TestGrottoEqMulti.hpp"
+#include "grotto/TestGrottoLutEval.hpp"
 #include "grotto/TestGrottoMIC.hpp"
 #include "mt19937.hpp"
 #include "uint128_t.h"
@@ -113,6 +114,15 @@ int main()
             48, elementNum,                                                 //
             {10000, 20000, 30000, 40000, 50000, 60000, 70000}, rng          //
         );                                                                  //
+    }
+
+    {
+        TestGrottoLutEval<std::uint8_t>::run(7, 1024 - 1, rng);
+        TestGrottoLutEval<std::uint8_t>::run(8, 1024 - 1, rng);
+        TestGrottoLutEval<std::uint16_t>::run(11, 1024 - 1, rng);
+        TestGrottoLutEval<std::uint32_t>::run(11, 1024 - 1, rng);
+        TestGrottoLutEval<std::uint64_t>::run(11, 1024 - 1, rng);
+        TestGrottoLutEval<uint128_t>::run(11, 1024 - 1, rng);
     }
 
     return 0;

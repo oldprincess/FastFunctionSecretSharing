@@ -451,6 +451,61 @@ FAST_FSS_DEVICE inline void grottoMICEval(    //
 }
 
 template <typename GroupElement>
+FAST_FSS_DEVICE inline void grottoLutEval( //
+    GroupElement*                  sharedOutE,
+    GroupElement*                  sharedOutT,
+    const GrottoKey<GroupElement>& key,
+    GroupElement                   maskedX,
+    const void*                    seed,
+    int                            partyId,
+    const GroupElement*            lookUpTable,
+    std::size_t                    lutNum,
+    std::size_t                    bitWidthIn,
+    GrottoCache<GroupElement>*     cache = nullptr) noexcept
+{
+    sharedOutE[0] = 0;
+    for (std::size_t j = 0; j < lutNum; j++)
+    {
+        sharedOutT[j] = 0;
+    }
+
+    std::size_t bitWidth = bitWidthIn;
+    std::size_t num      = (std::size_t)1 << bitWidth;
+    for (std::size_t i = 0; i < num; i++)
+    {
+        int tmp = (int)grottoEvalEq<GroupElement>( //
+            key, i, seed, partyId, bitWidth, cache //
+        );                                         //
+        tmp     = tmp & 1;
+        sharedOutE[0] += (GroupElement)tmp;
+        for (std::size_t j = 0; j < lutNum; j++)
+        {
+            std::size_t idx = ((std::size_t)maskedX - i) % num + j * num;
+            sharedOutT[j] += tmp * lookUpTable[idx];
+        }
+    }
+    if (partyId)
+    {
+        sharedOutE[0] = (GroupElement)(-1) * sharedOutE[0];
+        for (std::size_t j = 0; j < lutNum; j++)
+        {
+            sharedOutT[j] = (GroupElement)(-1) * sharedOutT[j];
+        }
+    }
+    // E = 1 or -1.
+    // E = ((E - 1) >> 1) & 1: 1(V need times -1) 0(V need not times -1)
+    if (partyId == 0)
+    {
+        sharedOutE[0] -= 1;
+        sharedOutE[0] = ((sharedOutE[0] >> 1) + (sharedOutE[0] & 1)) & 1;
+    }
+    else
+    {
+        sharedOutE[0] = (sharedOutE[0] >> 1) & 1;
+    }
+}
+
+template <typename GroupElement>
 FAST_FSS_DEVICE inline void grottoIntervalLutEval( //
     GroupElement*                  sharedOutE,
     GroupElement*                  sharedOutT,

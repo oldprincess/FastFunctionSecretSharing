@@ -98,7 +98,7 @@ int FastFss_cuda_dcfKeyGen(void*       key,
     FSS_ASSERT(bitWidthOut <= elementSize * 8,
                ERROR_CODE::INVALID_BITWIDTH_ERROR);
 
-    std::size_t BLOCK_DIM = 512;
+    std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)
     {
@@ -199,7 +199,7 @@ int FastFss_cuda_dcfEval(void*       sharedOut,
                    ERROR_CODE::INVALID_CACHE_DATA_SIZE_ERROR);
     }
 
-    std::size_t BLOCK_DIM = 512;
+    std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)
     {
