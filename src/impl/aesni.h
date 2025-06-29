@@ -170,30 +170,40 @@ inline void aes128_aesni_enc_blocks(const std::uint8_t round_key[11][16],
 
 }; // namespace internal
 
+class AES128GlobalContext
+{
+};
+
 class AES128
 {
 public:
-    static inline void aes128_enc1_block(void*       ciphertext,
-                                         const void* plaintext,
-                                         const void* user_key) noexcept
+    static inline void aes128_enc1_block(
+        void*                      ciphertext,
+        const void*                plaintext,
+        const void*                user_key,
+        const AES128GlobalContext* ctx = nullptr) noexcept
     {
         std::uint8_t rk[11][16];
         internal::aes128_aesni_enc_key_init(rk, (const std::uint8_t*)user_key);
         internal::aes128_aesni_compute_n_block<1>(rk, ciphertext, plaintext);
     }
 
-    static inline void aes128_enc2_block(void*       ciphertext,
-                                         const void* plaintext,
-                                         const void* user_key) noexcept
+    static inline void aes128_enc2_block(
+        void*                      ciphertext,
+        const void*                plaintext,
+        const void*                user_key,
+        const AES128GlobalContext* ctx = nullptr) noexcept
     {
         std::uint8_t rk[11][16];
         internal::aes128_aesni_enc_key_init(rk, (const std::uint8_t*)user_key);
         internal::aes128_aesni_compute_n_block<2>(rk, ciphertext, plaintext);
     }
 
-    static inline void aes128_enc4_block(void*       ciphertext,
-                                         const void* plaintext,
-                                         const void* user_key) noexcept
+    static inline void aes128_enc4_block(
+        void*                      ciphertext,
+        const void*                plaintext,
+        const void*                user_key,
+        const AES128GlobalContext* ctx = nullptr) noexcept
     {
         std::uint8_t rk[11][16];
         internal::aes128_aesni_enc_key_init(rk, (const std::uint8_t*)user_key);
@@ -201,20 +211,24 @@ public:
     }
 
 public:
-    inline void set_enc_key(const void* user_key) noexcept
+    inline void set_enc_key(const void*                user_key,
+                            const AES128GlobalContext* ctx = nullptr) noexcept
     {
         internal::aes128_aesni_enc_key_init(rk_, (const std::uint8_t*)user_key);
     }
 
     template <int N>
-    inline void enc_n_block(void* out, const void* in) noexcept
+    inline void enc_n_block(void*                      out,
+                            const void*                in,
+                            const AES128GlobalContext* ctx = nullptr) noexcept
     {
         internal::aes128_aesni_compute_n_block<N>(rk_, out, in);
     }
 
-    inline void enc_blocks(void*       out,
-                           const void* in,
-                           std::size_t block_num) noexcept
+    inline void enc_blocks(void*                      out,
+                           const void*                in,
+                           std::size_t                block_num,
+                           const AES128GlobalContext* ctx = nullptr) noexcept
     {
         internal::aes128_aesni_enc_blocks(rk_, (std::uint8_t*)out,
                                           (const std::uint8_t*)in, block_num);

@@ -1,6 +1,11 @@
 #include <FastFss/cuda/config.h>
 #include <FastFss/cuda/grotto.h>
 
+// #if !defined(AES_IMPL)
+// #include "aes.cuh"
+// #define AES_IMPL
+// #endif
+
 #include "grotto/def.cuh"
 #include "grotto/eq.cuh"
 #include "grotto/eqMulti.cuh"
@@ -99,6 +104,7 @@ int FastFss_cuda_grottoKeyGen(void*       key,
                 );                                                   //
             if (cudaPeekAtLastError() != cudaSuccess)
             {
+                printf("Error: %s\n", cudaGetErrorString(cudaPeekAtLastError()));
                 return ERR_CODE::RUNTIME_ERROR;
             }
             return ERR_CODE::SUCCESS;

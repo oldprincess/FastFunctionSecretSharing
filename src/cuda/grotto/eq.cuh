@@ -22,6 +22,7 @@ __global__ static void grottoEqEvalKernel(void*       out,
     const std::uint8_t* seedPtr    = (const std::uint8_t*)seed;
     GroupElement*       outPtr     = (GroupElement*)out;
 
+    impl::AES128GlobalContext       aesCtx;
     impl::GrottoKey<GroupElement>   keyObj;
     impl::GrottoCache<GroupElement> cacheObj;
     for (std::size_t i = idx; i < elementNum; i += stride)
@@ -40,7 +41,8 @@ __global__ static void grottoEqEvalKernel(void*       out,
                                        seedPtr + seedOffset,      //
                                        partyId,                   //
                                        bitWidthIn,                //
-                                       cacheObjPtr                //
+                                       cacheObjPtr,               //
+                                       &aesCtx                    //
         );
     }
 }

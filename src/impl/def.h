@@ -9,7 +9,7 @@
 
 #define FAST_FSS_DEVICE        __device__
 #define CUDA_MAX_GRID_DIM      (128 * 32)
-#define CUDA_DEFAULT_BLOCK_DIM 512
+#define CUDA_DEFAULT_BLOCK_DIM 256
 
 #else
 

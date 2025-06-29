@@ -20,6 +20,7 @@ __global__ static void grottoKeyGenKernel(void*       key,
     const std::uint8_t* seed0Ptr = (const std::uint8_t*)seed0;
     const std::uint8_t* seed1Ptr = (const std::uint8_t*)seed1;
 
+    impl::AES128GlobalContext     aesCtx;
     impl::GrottoKey<GroupElement> keyObj;
     for (std::size_t i = idx; i < elementNum; i += stride)
     {
@@ -31,7 +32,8 @@ __global__ static void grottoKeyGenKernel(void*       key,
                            alphaPtr[alphaOffset],  //
                            seed0Ptr + seed0Offset, //
                            seed1Ptr + seed1Offset, //
-                           bitWidthIn);            //
+                           bitWidthIn,             //
+                           &aesCtx);               //
     }
 }
 

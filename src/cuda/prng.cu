@@ -3,7 +3,10 @@
 
 #include <cstdio>
 
-#include "../impl/aes.h"
+#if !defined(AES_IMPL)
+#include "aes.cuh"
+#define AES_IMPL
+#endif
 
 #define CUDA_CHECK(expression, do_something)                          \
     if ((expression) != cudaSuccess)                                  \
@@ -42,10 +45,11 @@ static __global__ void aes128_ctr_kernel(const void* seed,
     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
     std::size_t stride = blockDim.x * gridDim.x;
 
-    __shared__ impl::AES128 aes128ctx;
+    __shared__ impl::AES128   aes128ctx;
+    impl::AES128GlobalContext aesCtx;
     if (threadIdx.x == 0)
     {
-        aes128ctx.set_enc_key(seed);
+        aes128ctx.set_enc_key(seed, &aesCtx);
     }
     __syncthreads();
 
@@ -63,7 +67,7 @@ static __global__ void aes128_ctr_kernel(const void* seed,
         curCounter[0] = counterPtr[0] + i;
         curCounter[1] = counterPtr[1] + (curCounter[0] < i);
 
-        aes128ctx.enc_block(dstPtr + dstOffest, curCounter);
+        aes128ctx.enc_block(dstPtr + dstOffest, curCounter, &aesCtx);
     }
 
     if (i == blockNum)
@@ -77,7 +81,7 @@ static __global__ void aes128_ctr_kernel(const void* seed,
 
             std::size_t dstOffest = blockNum * 16;
 
-            aes128ctx.enc_block(outputBufer, curCounter);
+            aes128ctx.enc_block(outputBufer, curCounter, &aesCtx);
             for (std::size_t i = 0; i < bytesRem; i++)
             {
                 dstPtr[dstOffest + i] = outputBufer[i];
@@ -89,7 +93,7 @@ static __global__ void aes128_ctr_kernel(const void* seed,
         counterOutPtr[0] = counterPtr[0] + blockNum;
         counterOutPtr[1] = counterPtr[1] + (counterPtr[0] < blockNum);
     }
-} // namespace FastFss::cuda
+}
 
 } // namespace FastFss::cuda
 

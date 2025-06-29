@@ -27,6 +27,7 @@ __global__ static void grottoMICEvalKernel(void*       out,
     const GroupElement* leftBoundaryPtr  = (GroupElement*)leftBoundary;
     const GroupElement* rightBoundaryPtr = (GroupElement*)rightBoundary;
 
+    impl::AES128GlobalContext       aesCtx;
     impl::GrottoKey<GroupElement>   keyObj;
     impl::GrottoCache<GroupElement> cacheObj;
     for (std::size_t i = idx; i < elementNum; i += stride)
@@ -51,7 +52,8 @@ __global__ static void grottoMICEvalKernel(void*       out,
             rightBoundaryPtr,          //
             intervalNum,               //
             bitWidthIn,                //
-            cacheObjPtr                //
+            cacheObjPtr,               //
+            &aesCtx                    //
         );
     }
 }
@@ -79,6 +81,7 @@ __global__ static void grottoMICEvalParallelAllKernel(void*       out,
     const GroupElement* leftBoundaryPtr  = (GroupElement*)leftBoundary;
     const GroupElement* rightBoundaryPtr = (GroupElement*)rightBoundary;
 
+    impl::AES128GlobalContext     aesCtx;
     impl::GrottoKey<GroupElement> keyObj;
     for (std::size_t i = idx; i < elementNum * intervalNum; i += stride)
     {
@@ -93,11 +96,11 @@ __global__ static void grottoMICEvalParallelAllKernel(void*       out,
         xQ = impl::modBits<GroupElement>(xQ, bitWidthIn);
 
         GroupElement sp = impl::grottoEval<GroupElement>( //
-            keyObj, xP, seedPtr + xIdx * 16, partyId, bitWidthIn, true,
-            nullptr);
+            keyObj, xP, seedPtr + xIdx * 16, partyId, bitWidthIn, true, nullptr,
+            &aesCtx);
         GroupElement sq = impl::grottoEval<GroupElement>( //
-            keyObj, xQ, seedPtr + xIdx * 16, partyId, bitWidthIn, true,
-            nullptr);
+            keyObj, xQ, seedPtr + xIdx * 16, partyId, bitWidthIn, true, nullptr,
+            &aesCtx);
 
         outPtr[i] = (sp ^ sq) ^ ((xQ > xP) ? partyId : 0);
     }

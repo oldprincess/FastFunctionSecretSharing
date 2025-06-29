@@ -12,7 +12,7 @@
 #include "grotto/TestGrotto.hpp"
 #include "grotto/TestGrottoEq.hpp"
 #include "grotto/TestGrottoEqMulti.hpp"
-#include "grotto/TestGrottoLutEval.hpp"
+#include "grotto/TestGrottoEvalAllLut.hpp"
 #include "grotto/TestGrottoMIC.hpp"
 #include "mt19937.hpp"
 #include "uint128_t.h"

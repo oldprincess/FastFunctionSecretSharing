@@ -32,6 +32,7 @@ __global__ static void grottoIntervalLutEvalKernel(void*       outE,
     const GroupElement* rightBoundaryPtr = (GroupElement*)rightBoundary;
     const GroupElement* lookUpTablePtr   = (GroupElement*)lookUpTable;
 
+    impl::AES128GlobalContext       aesCtx;
     impl::GrottoKey<GroupElement>   keyObj;
     impl::GrottoCache<GroupElement> cacheObj;
     for (std::size_t i = idx; i < elementNum; i += stride)
@@ -58,7 +59,8 @@ __global__ static void grottoIntervalLutEvalKernel(void*       outE,
             lutNum,                    //
             intervalNum,               //
             bitWidthIn,                //
-            cacheObjPtr                //
+            cacheObjPtr,               //
+            &aesCtx                    //
         );
     }
 }

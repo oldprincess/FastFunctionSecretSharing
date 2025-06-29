@@ -124,13 +124,15 @@ FAST_FSS_DEVICE static inline void dcfCacheSetPtr(
 }
 
 template <typename GroupElement>
-FAST_FSS_DEVICE inline void dcfKeyGen(DcfKey<GroupElement>& key,
-                                      GroupElement          alpha,
-                                      GroupElement          beta,
-                                      const void*           seed0,
-                                      const void*           seed1,
-                                      std::size_t           bitWidthIn,
-                                      std::size_t bitWidthOut) noexcept
+FAST_FSS_DEVICE inline void dcfKeyGen(
+    DcfKey<GroupElement>&      key,
+    GroupElement               alpha,
+    GroupElement               beta,
+    const void*                seed0,
+    const void*                seed1,
+    std::size_t                bitWidthIn,
+    std::size_t                bitWidthOut,
+    const AES128GlobalContext* aesCtx = nullptr) noexcept
 {
     constexpr std::uint64_t    MASK_MSB63   = 0xFFFF'FFFF'FFFF'FFFEULL;
     static const std::uint64_t PLAINTEXT[8] = {0, 1, 2, 3, 4, 5, 6, 7};
@@ -156,8 +158,8 @@ FAST_FSS_DEVICE inline void dcfKeyGen(DcfKey<GroupElement>& key,
     {
         // sL0, tL0, vL0, sR0, tR0, vR0 <- G(s0)
         // sL1, tL1, vL1, sR1, tR1, vR1 <- G(s1)
-        AES128::aes128_enc4_block(sL0vL0sR0vR0, PLAINTEXT, curS0);
-        AES128::aes128_enc4_block(sL1vL1sR1vR1, PLAINTEXT, curS1);
+        AES128::aes128_enc4_block(sL0vL0sR0vR0, PLAINTEXT, curS0, aesCtx);
+        AES128::aes128_enc4_block(sL1vL1sR1vR1, PLAINTEXT, curS1, aesCtx);
 
         std::uint64_t* sL0 = sL0vL0sR0vR0 + 0;
         std::uint64_t* vL0 = sL0vL0sR0vR0 + 2;
@@ -261,7 +263,8 @@ FAST_FSS_DEVICE inline GroupElement dcfEval(
     int                         partyId,
     std::size_t                 bitWidthIn,
     std::size_t                 bitWidthOut,
-    DcfCache<GroupElement>*     cache = nullptr) noexcept
+    DcfCache<GroupElement>*     cache  = nullptr,
+    const AES128GlobalContext*  aesCtx = nullptr) noexcept
 {
     constexpr std::uint64_t    MASK_MSB63   = 0xFFFF'FFFF'FFFF'FFFEULL;
     static const std::uint64_t PLAINTEXT[8] = {0, 1, 2, 3, 4, 5, 6, 7};
@@ -291,7 +294,7 @@ FAST_FSS_DEVICE inline GroupElement dcfEval(
     std::uint64_t sLvLsRvR[8];
     for (std::size_t i = idx_from; i < bitWidthIn; i++)
     {
-        AES128::aes128_enc4_block(sLvLsRvR, PLAINTEXT, curS);
+        AES128::aes128_enc4_block(sLvLsRvR, PLAINTEXT, curS, aesCtx);
 
         std::uint64_t* sL = sLvLsRvR + 0;
         std::uint64_t* vL = sLvLsRvR + 2;

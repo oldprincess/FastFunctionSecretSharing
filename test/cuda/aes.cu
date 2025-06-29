@@ -3,7 +3,7 @@
 
 #include <cstdio>
 
-#include "../../src/impl/aes.h"
+#include "../../src/cuda/aes.cuh"
 
 __device__ static std::uint8_t user_key[32] = {
     0x04, 0xb5, 0xf0, 0x47, 0x03, 0xe2, 0x02, 0x5f, 0x5d, 0x08, 0x46,
@@ -41,13 +41,13 @@ __device__ static std::uint8_t ct128[] = {
 
 __global__ void aesTestKernel(int* ret)
 {
-    FastFss::impl::AES128 aes128ctx;
-
-    std::uint8_t output_buffer[sizeof(pt)];
+    FastFss::impl::AES128              aes128ctx;
+    FastFss::impl::AES128GlobalContext aesCtx;
+    std::uint8_t                       output_buffer[sizeof(pt)];
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
-        aes128ctx.set_enc_key(user_key);
-        aes128ctx.enc_blocks(output_buffer, pt, sizeof(pt) / 16);
+        aes128ctx.set_enc_key(user_key, &aesCtx);
+        aes128ctx.enc_blocks(output_buffer, pt, sizeof(pt) / 16, &aesCtx);
 
         *ret = 0;
         for (int i = 0; i < sizeof(ct128); i++)
@@ -62,11 +62,13 @@ __global__ void aesTestKernel(int* ret)
 
 __global__ void aesTestKernel2(int* ret)
 {
-    std::uint8_t output_buffer[sizeof(pt)];
+    FastFss::impl::AES128GlobalContext aesCtx;
+    FastFss::impl::AES128              aes;
+    std::uint8_t                       output_buffer[sizeof(pt)];
     if (threadIdx.x == 0 && blockIdx.x == 0)
     {
-        FastFss::impl::internal::aes128_enc_n_block<sizeof(pt) / 16>(
-            output_buffer, pt, user_key);
+        aes.set_enc_key(user_key, &aesCtx);
+        aes.enc_n_block<sizeof(pt) / 16>(output_buffer, pt, &aesCtx);
 
         *ret = 0;
         for (int i = 0; i < sizeof(ct128); i++)
@@ -91,7 +93,7 @@ int main()
         std::printf("[%d] cuda err happened!\n", __LINE__);
     }
     // ==================
-    aesTestKernel<<<1, 128>>>(deviceRet);
+    aesTestKernel<<<1, 256>>>(deviceRet);
     cudaErrorNum = cudaGetLastError();
     if (cudaErrorNum != cudaSuccess)
     {
@@ -104,7 +106,7 @@ int main()
         std::printf("[%d] cuda err happened!\n", __LINE__);
     }
     // ==================
-    aesTestKernel2<<<1, 128>>>(deviceRet);
+    aesTestKernel2<<<1, 256>>>(deviceRet);
     cudaErrorNum = cudaGetLastError();
     if (cudaErrorNum != cudaSuccess)
     {
@@ -116,7 +118,7 @@ int main()
     {
         std::printf("[%d] cuda err happened!\n", __LINE__);
     }
-    
+
     cudaErrorNum = cudaFree(deviceRet);
     if (cudaErrorNum != cudaSuccess)
     {

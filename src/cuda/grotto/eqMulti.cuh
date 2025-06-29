@@ -25,6 +25,7 @@ __global__ static void grottoEqMultiEvalKernel(void*       out,
     GroupElement*       outPtr     = (GroupElement*)out;
     const GroupElement* pointsPtr  = (const GroupElement*)points;
 
+    impl::AES128GlobalContext       aesCtx;
     impl::GrottoKey<GroupElement>   keyObj;
     impl::GrottoCache<GroupElement> cacheObj;
     for (std::size_t i = idx; i < elementNum; i += stride)
@@ -47,7 +48,8 @@ __global__ static void grottoEqMultiEvalKernel(void*       out,
                                    seedPtr + seedOffset, //
                                    partyId,              //
                                    bitWidthIn,           //
-                                   cacheObjPtr           //
+                                   cacheObjPtr,          //
+                                   &aesCtx               //
                 );
         }
     }
@@ -74,7 +76,8 @@ __global__ static void grottoEqMultiEvalParallelAllKernel(void*       out,
     GroupElement*       outPtr     = (GroupElement*)out;
     const GroupElement* pointsPtr  = (const GroupElement*)points;
 
-    impl::GrottoKey<GroupElement>   keyObj;
+    impl::AES128GlobalContext     aesCtx;
+    impl::GrottoKey<GroupElement> keyObj;
     for (std::size_t i = idx; i < elementNum * pointsNum; i += stride)
     {
         std::size_t xIdx = i / pointsNum;
@@ -89,7 +92,8 @@ __global__ static void grottoEqMultiEvalParallelAllKernel(void*       out,
                                                      seedPtr + 16 * xIdx, //
                                                      partyId,             //
                                                      bitWidthIn,          //
-                                                     nullptr              //
+                                                     nullptr,             //
+                                                     &aesCtx              //
         );
     }
 }

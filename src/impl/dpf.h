@@ -113,13 +113,15 @@ FAST_FSS_DEVICE static inline void dpfCacheSetPtr(
 }
 
 template <typename GroupElement>
-FAST_FSS_DEVICE inline void dpfKeyGen(DpfKey<GroupElement>& key,
-                                      GroupElement          alpha,
-                                      GroupElement          beta,
-                                      const void*           seed0,
-                                      const void*           seed1,
-                                      std::size_t           bitWidthIn,
-                                      std::size_t bitWidthOut) noexcept
+FAST_FSS_DEVICE inline void dpfKeyGen(
+    DpfKey<GroupElement>&      key,
+    GroupElement               alpha,
+    GroupElement               beta,
+    const void*                seed0,
+    const void*                seed1,
+    std::size_t                bitWidthIn,
+    std::size_t                bitWidthOut,
+    const AES128GlobalContext* aesCtx = nullptr) noexcept
 {
     constexpr std::uint64_t    MASK_MSB63   = 0xFFFF'FFFF'FFFF'FFFEULL;
     static const std::uint64_t PLAINTEXT[4] = {0, 1, 2, 3};
@@ -144,8 +146,8 @@ FAST_FSS_DEVICE inline void dpfKeyGen(DpfKey<GroupElement>& key,
     {
         // sL0, tL0, sR0, tR0 <- G(s0)
         // sL1, tL1, sR1, tR1 <- G(s1)
-        AES128::aes128_enc2_block(sL0tL0sR0tR0, PLAINTEXT, curS0);
-        AES128::aes128_enc2_block(sL1tL1sR1tR1, PLAINTEXT, curS1);
+        AES128::aes128_enc2_block(sL0tL0sR0tR0, PLAINTEXT, curS0, aesCtx);
+        AES128::aes128_enc2_block(sL1tL1sR1tR1, PLAINTEXT, curS1, aesCtx);
 
         std::uint64_t* sL0 = sL0tL0sR0tR0 + 0;
         std::uint64_t* sR0 = sL0tL0sR0tR0 + 2;
@@ -228,7 +230,8 @@ FAST_FSS_DEVICE inline GroupElement dpfEval(
     int                         partyId,
     std::size_t                 bitWidthIn,
     std::size_t                 bitWidthOut,
-    DpfCache<GroupElement>*     cache = nullptr) noexcept
+    DpfCache<GroupElement>*     cache  = nullptr,
+    const AES128GlobalContext*  aesCtx = nullptr) noexcept
 {
     constexpr std::uint64_t    MASK_MSB63   = 0xFFFF'FFFF'FFFF'FFFEULL;
     static const std::uint64_t PLAINTEXT[8] = {0, 1, 2, 3, 4, 5, 6, 7};
@@ -257,7 +260,7 @@ FAST_FSS_DEVICE inline GroupElement dpfEval(
     std::uint64_t sLtLsRtR[4];
     for (std::size_t i = idx_from; i < bitWidthIn; i++)
     {
-        AES128::aes128_enc2_block(sLtLsRtR, PLAINTEXT, curS);
+        AES128::aes128_enc2_block(sLtLsRtR, PLAINTEXT, curS, aesCtx);
 
         std::uint64_t* sL = sLtLsRtR + 0;
         std::uint64_t* sR = sLtLsRtR + 2;

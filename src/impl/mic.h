@@ -7,19 +7,21 @@
 namespace FastFss::impl {
 
 template <typename GroupElement>
-FAST_FSS_DEVICE inline void dcfMICKeyGen(DcfKey<GroupElement>& key,
-                                         GroupElement*         z, // intervalNum
-                                         GroupElement          alpha,
-                                         const void*           seed0,
-                                         const void*           seed1,
-                                         const GroupElement*   leftBoundary,
-                                         const GroupElement*   rightBoundary,
-                                         std::size_t           intervalNum,
-                                         std::size_t           bitWidthIn,
-                                         std::size_t           bitWidthOut)
+FAST_FSS_DEVICE inline void dcfMICKeyGen(
+    DcfKey<GroupElement>&      key,
+    GroupElement*              z, // intervalNum
+    GroupElement               alpha,
+    const void*                seed0,
+    const void*                seed1,
+    const GroupElement*        leftBoundary,
+    const GroupElement*        rightBoundary,
+    std::size_t                intervalNum,
+    std::size_t                bitWidthIn,
+    std::size_t                bitWidthOut,
+    const AES128GlobalContext* aesCtx = nullptr)
 {
     dcfKeyGen<GroupElement>(key, alpha - 1, 1, seed0, seed1, bitWidthIn,
-                            bitWidthOut);
+                            bitWidthOut, aesCtx);
 
     GroupElement MAX = modBits<GroupElement>((GroupElement)(-1), bitWidthIn);
     for (std::size_t i = 0; i < intervalNum; i++)
@@ -52,7 +54,8 @@ FAST_FSS_DEVICE inline void dcfMICEval(
     std::size_t                 intervalNum,
     std::size_t                 bitWidthIn,
     std::size_t                 bitWidthOut,
-    DcfCache<GroupElement>*     cache = nullptr)
+    DcfCache<GroupElement>*     cache  = nullptr,
+    const AES128GlobalContext*  aesCtx = nullptr)
 {
     maskedX = modBits<GroupElement>(maskedX, bitWidthIn);
 
@@ -67,9 +70,9 @@ FAST_FSS_DEVICE inline void dcfMICEval(
         xQPrime = modBits<GroupElement>(xQPrime, bitWidthIn);
 
         sp = dcfEval<GroupElement>(key, xP, seed, partyId, bitWidthIn,
-                                   bitWidthOut, cache);
+                                   bitWidthOut, cache, aesCtx);
         sq = dcfEval<GroupElement>(key, xQPrime, seed, partyId, bitWidthIn,
-                                   bitWidthOut, cache);
+                                   bitWidthOut, cache, aesCtx);
 
         sharedOut[0] = sq - sp + sharedZ[0];
         if (partyId == 1)
@@ -96,10 +99,10 @@ FAST_FSS_DEVICE inline void dcfMICEval(
         else
         {
             sp = dcfEval<GroupElement>(key, xP, seed, partyId, bitWidthIn,
-                                       bitWidthOut, cache);
+                                       bitWidthOut, cache, aesCtx);
         }
         sq = dcfEval<GroupElement>(key, xQPrime, seed, partyId, bitWidthIn,
-                                   bitWidthOut, cache);
+                                   bitWidthOut, cache, aesCtx);
         sharedOut[i] = sq - sp + sharedZ[i];
         if (partyId == 1)
         {
