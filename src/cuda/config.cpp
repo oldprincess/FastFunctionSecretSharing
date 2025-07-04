@@ -8,17 +8,31 @@ static std::mutex gMutex;
 
 int FastFss_cuda_setGridDim(int dim)
 {
-    std::lock_guard<std::mutex> lock(gMutex);
-    if (dim <= 0)
+    try
+    {
+        std::lock_guard<std::mutex> lock(gMutex);
+        if (dim <= 0)
+        {
+            return -2;
+        }
+        gNumDims = dim;
+    }
+    catch (std::exception& e)
     {
         return -1;
     }
-    gNumDims = dim;
     return 0;
 }
 
 int FastFss_cuda_getGridDim()
 {
-    std::lock_guard<std::mutex> lock(gMutex);
-    return gNumDims;
+    try
+    {
+        std::lock_guard<std::mutex> lock(gMutex);
+        return gNumDims;
+    }
+    catch (std::exception& e)
+    {
+        return -1;
+    }
 }
