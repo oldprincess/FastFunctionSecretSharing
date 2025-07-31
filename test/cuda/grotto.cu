@@ -11,6 +11,7 @@
 
 #include "grotto/TestGrottoEqMulti.cuh"
 #include "grotto/TestGrottoLut.cuh"
+#include "grotto/TestGrottoLut_ex.cuh"
 #include "mt19937.hpp"
 #include "uint128_t.h"
 #include "utils.cuh"
@@ -713,6 +714,17 @@ int main()
         TestGrottoLut<std::uint32_t>::run(11, 1024 - 1, rng);
         TestGrottoLut<std::uint64_t>::run(11, 1024 - 1, rng);
         TestGrottoLut<uint128_t>::run(11, 1024 - 1, rng);
+    }
+
+    {
+        TestGrottoLut_ex<std::uint8_t>::run(7, 7, 1024 - 1, rng);
+        TestGrottoLut_ex<std::uint8_t>::run(7, 8, 1024 - 1, rng);
+        TestGrottoLut_ex<std::uint16_t>::run(9, 11, 1024 - 1, rng);
+        TestGrottoLut_ex<std::uint32_t>::run(9, 11, 1024 - 1, rng);
+        TestGrottoLut_ex<std::uint64_t>::run(9, 11, 1024 - 1, rng);
+        TestGrottoLut_ex<uint128_t>::run(9, 11, 1024 - 1, rng);
+
+        TestGrottoLut_ex<std::uint64_t>::run(9, 30, 128 * 3072, rng);
     }
 
     return 0;
