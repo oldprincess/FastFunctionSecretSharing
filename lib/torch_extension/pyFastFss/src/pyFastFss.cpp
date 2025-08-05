@@ -427,7 +427,7 @@ Raises:
           py::arg("bitWidthOut"),      //
           py::arg("elementNum"),       //
           R"(
-Evaluate Grotto MIC.
+Evaluate Grotto Lut.
 
 Args:
     sharedOutE (torch.Tensor):      shared tensor
@@ -447,6 +447,45 @@ Returns:
 Raises:
     ValueError:   If the input argument is invalid.
     RuntimeError: If the FastFss_cpu_grottoLutEval or FastFss_cuda_grottoLutEval fail.
+)");
+
+    m.def("grotto_lut_eval_ex",
+          &pyFastFss::grotto_lut_eval_ex, //
+          py::arg("sharedOutE"),       //
+          py::arg("sharedOutT"),       //
+          py::arg("maskedX"),          //
+          py::arg("key"),              //
+          py::arg("seed"),             //
+          py::arg("partyId"),          //
+          py::arg("lookUpTable"),      //
+          py::arg("lutBitWidth"),      //
+          py::arg("bitWidthIn"),       //
+          py::arg("bitWidthOut"),      //
+          py::arg("elementNum"),       //
+          py::arg("doubleCache"),       //
+          R"(
+Evaluate Grotto Lut.
+
+Args:
+    sharedOutE (torch.Tensor):      shared tensor
+    sharedOutT (torch.Tensor):      shared tensor
+    maskedX (torch.Tensor):         masked tensor
+    key(torch.Tensor):              key tensor
+    seed(torch.Tensor):             seed tensor
+    partyId(int):                   party id
+    lookUpTable(torch.Tensor):      lookUpTable tensor
+    lutBitWidth(int):               bit width of lookUpTable
+    bitWidthIn(int):                bit width of input data
+    bitWidthOut(int):               bit width of output data
+    elementNum(int):                element number of input data
+    doubleCache(bool):              double cache or not
+
+Returns:
+    tuple[torch.Tensor, torch.Tensor]: sharedOutE, sharedOutT
+
+Raises:
+    ValueError:   If the input argument is invalid.
+    RuntimeError: If the FastFss_cpu_grottoLutEval_ex or FastFss_cuda_grottoLutEval_ex fail.
 )");
 
     m.def("grotto_interval_lut_eval",

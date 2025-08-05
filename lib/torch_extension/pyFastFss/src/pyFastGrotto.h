@@ -68,6 +68,19 @@ py::tuple grotto_lut_eval(torch::Tensor&       sharedOutE,
                           std::size_t          bitWidthOut,
                           std::size_t          elementNum);
 
+py::tuple grotto_lut_eval_ex(torch::Tensor&       sharedOutE,
+                             torch::Tensor&       sharedOutT,
+                             const torch::Tensor& maskedX,
+                             const torch::Tensor& key,
+                             const torch::Tensor& seed,
+                             int                  partyId,
+                             const torch::Tensor& lookUpTable,
+                             std::size_t          lutBitWidth,
+                             std::size_t          bitWidthIn,
+                             std::size_t          bitWidthOut,
+                             std::size_t          elementNum,
+                             bool                 doubleCache);
+
 py::tuple grotto_interval_lut_eval(torch::Tensor&       sharedOutE,
                                    torch::Tensor&       sharedOutT,
                                    const torch::Tensor& maskedX,
