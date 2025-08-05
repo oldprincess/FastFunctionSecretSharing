@@ -17,7 +17,7 @@ int FastFss_cuda_setGridDim(int dim)
         }
         gNumDims = dim;
     }
-    catch (std::exception& e)
+    catch (...)
     {
         return -1;
     }
@@ -31,7 +31,7 @@ int FastFss_cuda_getGridDim()
         std::lock_guard<std::mutex> lock(gMutex);
         return gNumDims;
     }
-    catch (std::exception& e)
+    catch (...)
     {
         return -1;
     }

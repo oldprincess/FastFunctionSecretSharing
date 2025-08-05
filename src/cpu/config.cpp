@@ -17,7 +17,7 @@ int FastFss_cpu_setNumThreads(int num)
         }
         gNumThreads = num;
     }
-    catch (std::exception& e)
+    catch (...)
     {
         return -1;
     }
@@ -31,7 +31,7 @@ int FastFss_cpu_getNumThreads()
         std::lock_guard<std::mutex> lock(gMutex);
         return gNumThreads;
     }
-    catch (std::exception& e)
+    catch (...)
     {
         return -1;
     }
