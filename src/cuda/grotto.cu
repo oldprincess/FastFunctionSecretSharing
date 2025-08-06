@@ -13,7 +13,6 @@
 #include "grotto/itervalLut.cuh"
 #include "grotto/keyGen.cuh"
 #include "grotto/lut.cuh"
-#include "grotto/lut_ex.cuh"
 #include "grotto/mic.cuh"
 
 #define FSS_ASSERT(cond, errCode) \
@@ -595,6 +594,87 @@ int FastFss_cuda_grottoLutEval_ex(void*       sharedOutE,
                     elementNum,                      //
                     cache0,                          //
                     cache1                           //
+                );                                   //
+            if (cudaPeekAtLastError() != cudaSuccess)
+            {
+                return ERR_CODE::RUNTIME_ERROR;
+            }
+            return ERR_CODE::SUCCESS;
+        });
+}
+
+int FastFss_cuda_grottoLutEval_ex2(void*       sharedOutE,
+                                   void*       sharedOutT,
+                                   const void* maskedX,
+                                   size_t      maskedXDataSize,
+                                   const void* key,
+                                   size_t      keyDataSize,
+                                   const void* seed,
+                                   size_t      seedDataSize,
+                                   int         partyId,
+                                   const void* points,
+                                   size_t      pointsDataSize,
+                                   const void* lookUpTable,
+                                   size_t      lookUpTableDataSize,
+                                   size_t      bitWidthIn,
+                                   size_t      bitWidthOut,
+                                   size_t      elementSize,
+                                   size_t      elementNum,
+                                   void*       cache,
+                                   size_t      cacheDataSize,
+                                   void*       cudaStreamPtr)
+{
+    FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
+               ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
+    FSS_ASSERT(seedDataSize == elementNum * 16,
+               ERR_CODE::INVALID_SEED_DATA_SIZE);
+    FSS_ASSERT(bitWidthIn <= elementSize * 8 && bitWidthIn >= 6,
+               ERR_CODE::INVALID_BITWIDTH);
+    FSS_ASSERT(keyDataSize ==
+                   grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
+               ERR_CODE::INVALID_KEY_DATA_SIZE);
+    if (cache != nullptr)
+    {
+        std::size_t needCacheDataSize =
+            grottoGetCacheDataSize(bitWidthIn, elementSize, elementNum);
+        FSS_ASSERT(cacheDataSize == needCacheDataSize,
+                   ERR_CODE::INVALID_CACHE_DATA_SIZE);
+    }
+    FSS_ASSERT(partyId == 0 || partyId == 1, ERR_CODE::INVALID_PARTY_ID);
+
+    FSS_ASSERT(lookUpTableDataSize % pointsDataSize == 0,
+               INVALID_LUT_DATA_SIZE);
+    std::size_t lutNum = lookUpTableDataSize / pointsDataSize;
+    FSS_ASSERT(pointsDataSize % elementSize == 0, INVALID_POINT_DATA_SIZE);
+    std::size_t pointsNum = pointsDataSize / elementSize;
+
+    std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
+    std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
+    if (GRID_DIM > CUDA_MAX_GRID_DIM)
+    {
+        GRID_DIM = CUDA_MAX_GRID_DIM;
+    }
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)cudaStreamPtr : 0;
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERR_CODE::INVALID_ELEMENT_SIZE; },
+        [&] {
+            grottoLutEvalKernel_ex2<scalar_t>        //
+                <<<GRID_DIM, BLOCK_DIM, 0, stream>>> //
+                (                                    //
+                    sharedOutE,                      //
+                    sharedOutT,                      //
+                    maskedX,                         //
+                    key,                             //
+                    seed,                            //
+                    partyId,                         //
+                    points,                          //
+                    pointsNum,                       //
+                    lookUpTable,                     //
+                    lutNum,                          //
+                    bitWidthIn,                      //
+                    elementNum,                      //
+                    cache                            //
                 );                                   //
             if (cudaPeekAtLastError() != cudaSuccess)
             {

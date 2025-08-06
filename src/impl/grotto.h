@@ -591,6 +591,64 @@ FAST_FSS_DEVICE inline void grottoLutEval_ex( //
 }
 
 template <typename GroupElement>
+FAST_FSS_DEVICE inline void grottoLutEval_ex2( //
+    GroupElement*                  sharedOutE,
+    GroupElement*                  sharedOutT,
+    const GrottoKey<GroupElement>& key,
+    GroupElement                   maskedX,
+    const void*                    seed,
+    int                            partyId,
+    const GroupElement*            points,
+    size_t                         pointsNum,
+    const GroupElement*            lookUpTable,
+    std::size_t                    lutNum,
+    std::size_t                    bitWidthIn,
+    GrottoCache<GroupElement>*     cache  = nullptr,
+    const AES128GlobalContext*     aesCtx = nullptr) noexcept
+{
+    sharedOutE[0] = 0;
+    for (std::size_t j = 0; j < lutNum; j++)
+    {
+        sharedOutT[j] = 0;
+    }
+
+    for (std::size_t i = 0; i < pointsNum; i++)
+    {
+        GroupElement v = maskedX - points[i];
+
+        int tmp = (int)grottoEqEval<GroupElement>(           //
+            key, v, seed, partyId, bitWidthIn, cache, aesCtx //
+        );                                                   //
+        tmp     = tmp & 1;
+        sharedOutE[0] += (GroupElement)tmp;
+        for (std::size_t j = 0; j < lutNum; j++)
+        {
+            std::size_t idx = i + j * pointsNum;
+            sharedOutT[j] += tmp * lookUpTable[idx];
+        }
+    }
+    if (partyId)
+    {
+        sharedOutE[0] = (GroupElement)(-1) * sharedOutE[0];
+        for (std::size_t j = 0; j < lutNum; j++)
+        {
+            sharedOutT[j] = (GroupElement)(-1) * sharedOutT[j];
+        }
+    }
+    // E = 1 or -1.
+    // E = ((E - 1) >> 1) & 1: 1(V need times -1) 0(V need not times -1)
+    if (partyId == 0)
+    {
+        sharedOutE[0] -= 1;
+        sharedOutE[0] = ((sharedOutE[0] >> 1) + (sharedOutE[0] & 1)) & 1;
+    }
+    else
+    {
+        sharedOutE[0] = (sharedOutE[0] >> 1) & 1;
+    }
+}
+
+template <typename GroupElement>
 FAST_FSS_DEVICE inline void grottoIntervalLutEval( //
     GroupElement*                  sharedOutE,
     GroupElement*                  sharedOutT,
