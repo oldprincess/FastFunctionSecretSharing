@@ -538,8 +538,7 @@ int FastFss_cuda_grottoLutEval_ex(void*       sharedOutE,
                                   size_t      bitWidthOut,
                                   size_t      elementSize,
                                   size_t      elementNum,
-                                  void*       cache0,
-                                  void*       cache1,
+                                  void*       cache,
                                   size_t      cacheDataSize,
                                   void*       cudaStreamPtr)
 {
@@ -552,7 +551,7 @@ int FastFss_cuda_grottoLutEval_ex(void*       sharedOutE,
     FSS_ASSERT(keyDataSize ==
                    grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
                ERR_CODE::INVALID_KEY_DATA_SIZE);
-    if (cache0 != nullptr || cache1 != nullptr)
+    if (cache != nullptr)
     {
         std::size_t needCacheDataSize =
             grottoGetCacheDataSize(bitWidthIn, elementSize, elementNum);
@@ -592,8 +591,7 @@ int FastFss_cuda_grottoLutEval_ex(void*       sharedOutE,
                     lutBitWidth,                     //
                     bitWidthIn,                      //
                     elementNum,                      //
-                    cache0,                          //
-                    cache1                           //
+                    cache                            //
                 );                                   //
             if (cudaPeekAtLastError() != cudaSuccess)
             {

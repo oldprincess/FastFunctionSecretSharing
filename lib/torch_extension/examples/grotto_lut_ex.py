@@ -32,7 +32,7 @@ def test(bit_width: int, lut_bit_width: int, dtype: torch.dtype, device: torch.d
     st = time.time_ns()
     shared_out_e0, shared_out_t0 = pyFastFss.grotto_lut_eval_ex(
         shared_out_e0, shared_out_t0, masked_x, key, seed0, 0,
-        luts, lut_bit_width, bit_width, bit_width_out, element_num, False
+        luts, lut_bit_width, bit_width, bit_width_out, element_num
     )
     torch.cuda.synchronize()
     et = time.time_ns()
@@ -40,7 +40,7 @@ def test(bit_width: int, lut_bit_width: int, dtype: torch.dtype, device: torch.d
     st = time.time_ns()
     shared_out_e1, shared_out_t1 = pyFastFss.grotto_lut_eval_ex(
         shared_out_e1, shared_out_t1, masked_x, key, seed1, 1,
-        luts, lut_bit_width, bit_width, bit_width_out, element_num, True
+        luts, lut_bit_width, bit_width, bit_width_out, element_num
     )
     torch.cuda.synchronize()
     et = time.time_ns()

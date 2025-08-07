@@ -78,8 +78,7 @@ py::tuple grotto_lut_eval_ex(torch::Tensor&       sharedOutE,
                              std::size_t          lutBitWidth,
                              std::size_t          bitWidthIn,
                              std::size_t          bitWidthOut,
-                             std::size_t          elementNum,
-                             bool                 doubleCache);
+                             std::size_t          elementNum);
 
 py::tuple grotto_lut_eval_ex2(torch::Tensor&       sharedOutE,
                               torch::Tensor&       sharedOutT,

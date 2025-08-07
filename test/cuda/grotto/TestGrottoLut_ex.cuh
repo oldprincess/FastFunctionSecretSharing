@@ -154,7 +154,6 @@ public:
                 duration_cast<microseconds>(stop_time - start_time).count();
         }
         auto dCache0 = make_unique_gpu_ptr(cacheDataSize);
-        auto dCache1 = make_unique_gpu_ptr(cacheDataSize);
         auto dLuts   = make_unique_gpu_ptr(lutsDataSize);
         memcpy_cpu2gpu(dLuts.get(), luts.data(), lutsDataSize);
         {
@@ -189,7 +188,6 @@ public:
                 sizeof(GroupElement),                 //
                 elementNum,                           //
                 dCache0.get(),                        //
-                dCache1.get(),                        //
                 cacheDataSize,                        //
                 nullptr);
             cudaDeviceSynchronize();
@@ -241,7 +239,6 @@ public:
                 sizeof(GroupElement),                 //
                 elementNum,                           //
                 dCache0.get(),                        //
-                nullptr,                              //
                 cacheDataSize,                        //
                 nullptr);
             cudaDeviceSynchronize();

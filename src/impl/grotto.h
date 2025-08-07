@@ -523,8 +523,7 @@ FAST_FSS_DEVICE inline void grottoLutEval_ex( //
     std::size_t                    lutNum,
     std::size_t                    lutBitWidth,
     std::size_t                    bitWidthIn,
-    GrottoCache<GroupElement>*     cache0 = nullptr,
-    GrottoCache<GroupElement>*     cache1 = nullptr,
+    GrottoCache<GroupElement>*     cache  = nullptr,
     const AES128GlobalContext*     aesCtx = nullptr) noexcept
 {
     sharedOutE[0] = 0;
@@ -540,23 +539,9 @@ FAST_FSS_DEVICE inline void grottoLutEval_ex( //
     GroupElement higherPart1 = (maskedX - num) & higherMask;
     GroupElement lowerPart   = maskedX & lowerMask;
 
-    GrottoCache<GroupElement>* cache = (cache0 == nullptr) ? cache1 : cache0;
     for (std::size_t i = 0; i < num; i++)
     {
         GroupElement v = ((i > lowerPart) ? higherPart1 : higherPart0) | i;
-        if (cache0 != nullptr && cache1 != nullptr)
-        {
-            if (i == ((lowerPart + 1) % num))
-            {
-                cache0->preMaskedX = cache1->preMaskedX;
-                cache0->preTo      = cache1->preTo;
-                for (std::size_t j = 0; j < bitWidthIn - 6; j++)
-                {
-                    cache0->stCache[j][0] = cache1->stCache[j][0];
-                    cache0->stCache[j][1] = cache1->stCache[j][1];
-                }
-            }
-        }
 
         int tmp = (int)grottoEqEval<GroupElement>(           //
             key, v, seed, partyId, bitWidthIn, cache, aesCtx //

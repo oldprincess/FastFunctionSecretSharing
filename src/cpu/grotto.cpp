@@ -669,8 +669,7 @@ static void grottoLutEvalKernel_ex(void*       outE,
                                    size_t      lutBitWidth,
                                    size_t      bitWidthIn,
                                    size_t      elementNum,
-                                   void*       cache0,
-                                   void*       cache1)
+                                   void*       cache)
 {
     using namespace FastFss;
 
@@ -695,16 +694,9 @@ static void grottoLutEvalKernel_ex(void*       outE,
         std::size_t                      maskedXOffset = i;
         std::size_t                      seedOffset    = 16 * i;
         impl::grottoKeySetPtr(keyObj, key, bitWidthIn, i, elementNum);
-        if (cache0 != nullptr)
+        if (cache != nullptr)
         {
-            impl::grottoCacheSetPtr(cacheObj, cache0, bitWidthIn, i,
-                                    elementNum);
-            cacheObjPtr = &cacheObj;
-        }
-        if (cache0 == nullptr && cache1 != nullptr)
-        {
-            impl::grottoCacheSetPtr(cacheObj, cache1, bitWidthIn, i,
-                                    elementNum);
+            impl::grottoCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
             cacheObjPtr = &cacheObj;
         }
 
@@ -720,7 +712,6 @@ static void grottoLutEvalKernel_ex(void*       outE,
             lutBitWidth,                      //
             bitWidthIn,                       //
             cacheObjPtr,                      //
-            nullptr,                          //
             &aesCtx                           //
         );
     }
@@ -742,8 +733,7 @@ int FastFss_cpu_grottoLutEval_ex(void*       sharedOutE,
                                  size_t      bitWidthOut,
                                  size_t      elementSize,
                                  size_t      elementNum,
-                                 void*       cache0,
-                                 void*       cache1,
+                                 void*       cache,
                                  size_t      cacheDataSize)
 {
     FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
@@ -755,7 +745,7 @@ int FastFss_cpu_grottoLutEval_ex(void*       sharedOutE,
     FSS_ASSERT(keyDataSize ==
                    grottoGetKeyDataSize(bitWidthIn, elementSize, elementNum),
                ERR_CODE::INVALID_KEY_DATA_SIZE);
-    if (cache0 != nullptr || cache1 != nullptr)
+    if (cache != nullptr)
     {
         std::size_t needCacheDataSize =
             grottoGetCacheDataSize(bitWidthIn, elementSize, elementNum);
@@ -786,8 +776,7 @@ int FastFss_cpu_grottoLutEval_ex(void*       sharedOutE,
                     lutBitWidth,             //
                     bitWidthIn,              //
                     elementNum,              //
-                    cache0,                  //
-                    cache1                   //
+                    cache                    //
                 );                           //
 
             return ERR_CODE::SUCCESS;

@@ -161,7 +161,6 @@ public:
                 sizeof(GroupElement),                //
                 elementNum,                          //
                 cache.get(),                         //
-                nullptr,                             //
                 cacheDataSize);
             auto stop_time  = high_resolution_clock::now();
             if (ret2 != 0)
@@ -195,7 +194,6 @@ public:
                 sizeof(GroupElement),                //
                 elementNum,                          //
                 cache.get(),                         //
-                nullptr,                             //
                 cacheDataSize);
             auto stop_time  = high_resolution_clock::now();
             if (ret3 != 0)

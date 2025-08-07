@@ -462,7 +462,6 @@ Raises:
           py::arg("bitWidthIn"),          //
           py::arg("bitWidthOut"),         //
           py::arg("elementNum"),          //
-          py::arg("doubleCache"),         //
           R"(
 Evaluate Grotto Lut.
 
@@ -478,7 +477,6 @@ Args:
     bitWidthIn(int):                bit width of input data
     bitWidthOut(int):               bit width of output data
     elementNum(int):                element number of input data
-    doubleCache(bool):              double cache or not
 
 Returns:
     tuple[torch.Tensor, torch.Tensor]: sharedOutE, sharedOutT

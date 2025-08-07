@@ -651,8 +651,7 @@ py::tuple grotto_lut_eval_ex(torch::Tensor&       sharedOutE,
                              std::size_t          lutBitWidth,
                              std::size_t          bitWidthIn,
                              std::size_t          bitWidthOut,
-                             std::size_t          elementNum,
-                             bool                 doubleCache)
+                             std::size_t          elementNum)
 {
     // =====================================================
     // ===================== Check Input ===================
@@ -727,19 +726,12 @@ py::tuple grotto_lut_eval_ex(torch::Tensor&       sharedOutE,
             bitWidthOut,                                    //
             elementSize,                                    //
             elementNum,                                     //
-            cache0.mutable_data_ptr(), nullptr, cacheSize);
+            cache0.mutable_data_ptr(), cacheSize);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoLutEval_ex");
     }
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
-
-        torch::Tensor cache1;
-        if (doubleCache)
-        {
-            cache1 = torch::empty({(std::int64_t)(cacheSize)}, options);
-        }
-        void* cache1Ptr = doubleCache ? cache1.mutable_data_ptr() : nullptr;
 
         int ret = FastFss_cuda_grottoLutEval_ex(            //
             sharedOutE.mutable_data_ptr(),                  //
@@ -758,7 +750,7 @@ py::tuple grotto_lut_eval_ex(torch::Tensor&       sharedOutE,
             bitWidthOut,                                    //
             elementSize,                                    //
             elementNum,                                     //
-            cache0.mutable_data_ptr(), cache1Ptr, cacheSize, &stream);
+            cache0.mutable_data_ptr(), cacheSize, &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoLutEval_ex");
     }
     else

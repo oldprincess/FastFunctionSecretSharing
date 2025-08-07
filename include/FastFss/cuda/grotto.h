@@ -126,8 +126,7 @@ int FastFss_cuda_grottoLutEval_ex(void*       sharedOutE,
                                   size_t      bitWidthOut,
                                   size_t      elementSize,
                                   size_t      elementNum,
-                                  void*       cache0,
-                                  void*       cache1,
+                                  void*       cache,
                                   size_t      cacheDataSize,
                                   void*       cudaStreamPtr);
 
