@@ -1,0 +1,86 @@
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 570.133.07             Driver Version: 570.133.07     CUDA Version: 12.8     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 4090 D      Off |   00000000:01:00.0  On |                  Off |
+| 32%   44C    P0             33W /  425W |     201MiB /  24564MiB |      2%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
+
+N = 393216, bw = 20, lutBits = 9, lutSize = 512
+random inputs
+[1/10] Time: 0.00748029 s
+[2/10] Time: 0.00720315 s
+[3/10] Time: 0.00760698 s
+[4/10] Time: 0.00711512 s
+[5/10] Time: 0.00746529 s
+[6/10] Time: 0.00740398 s
+[7/10] Time: 0.00733532 s
+[8/10] Time: 0.00751004 s
+[9/10] Time: 0.00714225 s
+[10/10] Time: 0.00774606 s
+ideal inputs
+[1/10] Time: 0.00566153 s
+[2/10] Time: 0.00606398 s
+[3/10] Time: 0.00604271 s
+[4/10] Time: 0.00577268 s
+[5/10] Time: 0.00607181 s
+[6/10] Time: 0.00600594 s
+[7/10] Time: 0.00579991 s
+[8/10] Time: 0.00621874 s
+[9/10] Time: 0.00568828 s
+[10/10] Time: 0.00578446 s
+
+==PROF== Connected to process 41981 (/home/kentle/桌面/FastFunctionSecretSharing/cuda_benchmark_grotto_lut_ex2.exe)
+==PROF== Profiling "grottoLutEvalKernel_ex2": 0%....50%....100% - 3 passes
+==PROF== Profiling "grottoLutEvalKernel_ex2": 0%....50%....100% - 3 passes
+N = 393216, bw = 20, lutBits = 9, lutSize = 512
+random inputs
+[1/1] Time: 0.6249 s
+ideal inputs
+[1/1] Time: 0.117029 s
+==PROF== Disconnected from process 41981
+[41981] cuda_benchmark_grotto_lut_ex2.exe@127.0.0.1
+  void grottoLutEvalKernel_ex2<unsigned long>(void *, void *, const void *, const void *, const void *, int, const void *, unsigned long, const void *, unsigned long, unsigned long, unsigned long, void *) (1536, 1, 1)x(256, 1, 1), Context 1, Stream 7, Device 0, CC 8.9
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------------- ----------- ------------
+    Metric Name                                                                  Metric Unit Metric Value
+    ---------------------------------------------------------------------------- ----------- ------------
+    sm__sass_average_branch_targets_threads_uniform.max_rate                                            1
+    sm__sass_average_branch_targets_threads_uniform.pct                                    %        97.75
+    sm__sass_average_branch_targets_threads_uniform.ratio                                            0.98
+    sm__sass_branch_targets_threads_divergent.avg                                               12,743.05
+    sm__sass_branch_targets_threads_divergent.max                                                  15,295
+    sm__sass_branch_targets_threads_divergent.min                                                   7,499
+    sm__sass_branch_targets_threads_divergent.sum                                               1,452,708
+    smsp__average_warp_latency_issue_stalled_branch_resolving.max_rate             inst/warp            1
+    smsp__average_warp_latency_issue_stalled_branch_resolving.pct                          % 2,062,944.69
+    smsp__average_warp_latency_issue_stalled_branch_resolving.ratio                inst/warp    20,629.45
+    smsp__average_warps_issue_stalled_branch_resolving_per_issue_active.max_rate        inst            1
+    smsp__average_warps_issue_stalled_branch_resolving_per_issue_active.pct                %         5.54
+    smsp__average_warps_issue_stalled_branch_resolving_per_issue_active.ratio           inst         0.06
+    ---------------------------------------------------------------------------- ----------- ------------
+
+  void grottoLutEvalKernel_ex2<unsigned long>(void *, void *, const void *, const void *, const void *, int, const void *, unsigned long, const void *, unsigned long, unsigned long, unsigned long, void *) (1536, 1, 1)x(256, 1, 1), Context 1, Stream 7, Device 0, CC 8.9
+    Section: Command line profiler metrics
+    ---------------------------------------------------------------------------- ----------- ------------
+    Metric Name                                                                  Metric Unit Metric Value
+    ---------------------------------------------------------------------------- ----------- ------------
+    sm__sass_average_branch_targets_threads_uniform.max_rate                                            1
+    sm__sass_average_branch_targets_threads_uniform.pct                                    %          100
+    sm__sass_average_branch_targets_threads_uniform.ratio                                               1
+    sm__sass_branch_targets_threads_divergent.avg                                                       0
+    sm__sass_branch_targets_threads_divergent.max                                                       0
+    sm__sass_branch_targets_threads_divergent.min                                                       0
+    sm__sass_branch_targets_threads_divergent.sum                                                       0
+    smsp__average_warp_latency_issue_stalled_branch_resolving.max_rate             inst/warp            1
+    smsp__average_warp_latency_issue_stalled_branch_resolving.pct                          % 1,507,580.16
+    smsp__average_warp_latency_issue_stalled_branch_resolving.ratio                inst/warp    15,075.80
+    smsp__average_warps_issue_stalled_branch_resolving_per_issue_active.max_rate        inst            1
+    smsp__average_warps_issue_stalled_branch_resolving_per_issue_active.pct                %        12.68
+    smsp__average_warps_issue_stalled_branch_resolving_per_issue_active.ratio           inst         0.13
+    ---------------------------------------------------------------------------- ----------- ------------
