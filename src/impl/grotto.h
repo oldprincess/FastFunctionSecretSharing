@@ -263,13 +263,15 @@ FAST_FSS_DEVICE inline GroupElement grottoEqEval( //
 
         // seed     = s             if t == 0
         //          = s ^ cw[i]     if t == 1
-        curS[0] = (curT == 0) ? si[0] : si[0] ^ key.sCW[i][0];
-        curS[1] = (curT == 0) ? si[1] : si[1] ^ key.sCW[i][1];
+        auto maskCurT = -(std::uint64_t)curT;
+        curS[0]       = si[0] ^ (key.sCW[i][0] & maskCurT);
+        curS[1]       = si[1] ^ (key.sCW[i][1] & maskCurT);
 
         // t    =   ti                  if  t == 0
         //      =   ti ^ cw_t[bit_i]    if  t == 1
-        GroupElement cwT = (bitI == 0) ? key.tLCW[0] : key.tRCW[0];
-        curT             = (curT == 0) ? ti : ti ^ ((int)(cwT >> i) & 1);
+        auto maskedBitI = -(GroupElement)bitI;
+        auto cwT = (key.tLCW[0] & (~maskedBitI)) ^ (key.tRCW[0] & maskedBitI);
+        curT     = ti ^ (((int)(cwT >> i) & 1) & (int)maskCurT);
 
         if (cache != nullptr)
         {
@@ -281,7 +283,8 @@ FAST_FSS_DEVICE inline GroupElement grottoEqEval( //
             cache->preMaskedX = maskedX;
         }
     }
-    std::uint64_t u = (curT == 0) ? curS[1] : curS[1] ^ (key.lastCW[0]);
+    std::uint64_t maskCurT = -(std::uint64_t)curT;
+    std::uint64_t u        = curS[1] ^ (key.lastCW[0] & maskCurT);
     return (u >> (maskedX & 0b111111)) & 1;
 }
 
