@@ -113,17 +113,19 @@ public:
 
         {
             ret = FastFss_cpu_dcfEval(
-                sharedOut0.get(), maskedX.get(), maskedXDataSize, dcfKey,
-                dcfKeyDataSize, seed0.get(), seedDataSize0, 0, bitWidthIn,
-                bitWidthOut, sizeof(GroupElement), elementNum, nullptr, 0);
+                sharedOut0.get(), maskedXDataSize, maskedX.get(),
+                maskedXDataSize, dcfKey, dcfKeyDataSize, seed0.get(),
+                seedDataSize0, 0, bitWidthIn, bitWidthOut, sizeof(GroupElement),
+                elementNum, nullptr, 0);
             CHECK(ret);
         }
 
         {
             ret = FastFss_cpu_dcfEval(
-                sharedOut1.get(), maskedX.get(), maskedXDataSize, dcfKey,
-                dcfKeyDataSize, seed1.get(), seedDataSize1, 1, bitWidthIn,
-                bitWidthOut, sizeof(GroupElement), elementNum, nullptr, 0);
+                sharedOut1.get(), maskedXDataSize, maskedX.get(),
+                maskedXDataSize, dcfKey, dcfKeyDataSize, seed1.get(),
+                seedDataSize1, 1, bitWidthIn, bitWidthOut, sizeof(GroupElement),
+                elementNum, nullptr, 0);
             CHECK(ret);
         }
 

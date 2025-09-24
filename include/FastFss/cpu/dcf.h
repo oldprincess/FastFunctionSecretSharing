@@ -26,6 +26,7 @@ int FastFss_cpu_dcfKeyGen(void*       key,
                           size_t      elementNum);
 
 int FastFss_cpu_dcfEval(void*       sharedOut,
+                        size_t      sharedOutSize,
                         const void* maskedX,
                         size_t      maskedXDataSize,
                         const void* key,
