@@ -60,9 +60,9 @@ public:
         using namespace FastFss;
 
         int   ret;
-        void* dKey0 = nullptr;
-        void* dKey1 = nullptr;
-        void* dLut  = nullptr;
+        void *dKey0 = nullptr;
+        void *dKey1 = nullptr;
+        void *dLut  = nullptr;
 
         high_resolution_clock::time_point st;
         high_resolution_clock::time_point et;
@@ -116,7 +116,7 @@ public:
         cuda::memcpy_cpu2gpu(dLut, lut.data(), lutDataSize);
 
         {
-            void* dAlpha = cuda::malloc_gpu(alphaDataSize);
+            void *dAlpha = cuda::malloc_gpu(alphaDataSize);
             cuda::memcpy_cpu2gpu(dAlpha, alpha.data(), alphaDataSize);
 
             if (testSpeed)
@@ -142,9 +142,9 @@ public:
         }
 
         {
-            void* dSharedOutE0 = cuda::malloc_gpu(sharedOutDataSize);
-            void* dSharedOutT0 = cuda::malloc_gpu(sharedOutDataSize);
-            void* dMaskedX     = cuda::malloc_gpu(maskedXDataSize);
+            void *dSharedOutE0 = cuda::malloc_gpu(sharedOutDataSize);
+            void *dSharedOutT0 = cuda::malloc_gpu(sharedOutDataSize);
+            void *dMaskedX     = cuda::malloc_gpu(maskedXDataSize);
 
             cuda::memcpy_cpu2gpu(dMaskedX, maskedX.data(), maskedXDataSize);
 
@@ -154,9 +154,9 @@ public:
             }
 
             ret = FastFss_cuda_onehotLutEval(
-                dSharedOutE0, dSharedOutT0, dMaskedX, maskedXDataSize, dKey0,
-                keyDataSize, 0, dLut, lutDataSize, bitWidthIn,
-                sizeof(GroupElement), elementNum, nullptr);
+                dSharedOutE0, dSharedOutT0, sharedOutDataSize, dMaskedX,
+                maskedXDataSize, dKey0, keyDataSize, 0, dLut, lutDataSize,
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr);
             CHECK(ret);
 
             if (testSpeed)
@@ -178,16 +178,16 @@ public:
             cuda::free_gpu(dMaskedX);
         }
         {
-            void* dSharedOutE1 = cuda::malloc_gpu(sharedOutDataSize);
-            void* dSharedOutT1 = cuda::malloc_gpu(sharedOutDataSize);
-            void* dMaskedX     = cuda::malloc_gpu(maskedXDataSize);
+            void *dSharedOutE1 = cuda::malloc_gpu(sharedOutDataSize);
+            void *dSharedOutT1 = cuda::malloc_gpu(sharedOutDataSize);
+            void *dMaskedX     = cuda::malloc_gpu(maskedXDataSize);
 
             cuda::memcpy_cpu2gpu(dMaskedX, maskedX.data(), maskedXDataSize);
 
             ret = FastFss_cuda_onehotLutEval(
-                dSharedOutE1, dSharedOutT1, dMaskedX, maskedXDataSize, dKey1,
-                keyDataSize, 1, dLut, lutDataSize, bitWidthIn,
-                sizeof(GroupElement), elementNum, nullptr);
+                dSharedOutE1, dSharedOutT1, sharedOutDataSize, dMaskedX,
+                maskedXDataSize, dKey1, keyDataSize, 1, dLut, lutDataSize,
+                bitWidthIn, sizeof(GroupElement), elementNum, nullptr);
             CHECK(ret);
 
             cuda::memcpy_gpu2cpu(sharedOutE1.data(), dSharedOutE1,

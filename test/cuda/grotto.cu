@@ -98,7 +98,7 @@ public:
         }
 
         int         ret;
-        void*       grottoKey = nullptr;
+        void       *grottoKey = nullptr;
         std::size_t grottoKeyDataSize;
         ret = FastFss_cuda_grottoGetKeyDataSize(
             &grottoKeyDataSize, bitWidthIn, sizeof(GroupElement), elementNum);
@@ -106,9 +106,9 @@ public:
         grottoKey = malloc_gpu(grottoKeyDataSize);
 
         {
-            void* deviceAlpha = malloc_gpu(alphaDataSize);
-            void* deviceSeed0 = malloc_gpu(seedDataSize0);
-            void* deviceSeed1 = malloc_gpu(seedDataSize1);
+            void *deviceAlpha = malloc_gpu(alphaDataSize);
+            void *deviceSeed0 = malloc_gpu(seedDataSize0);
+            void *deviceSeed1 = malloc_gpu(seedDataSize1);
             memcpy_cpu2gpu(deviceAlpha, alpha.get(), alphaDataSize);
             memcpy_cpu2gpu(deviceSeed0, seed0.get(), seedDataSize0);
             memcpy_cpu2gpu(deviceSeed1, seed1.get(), seedDataSize0);
@@ -126,16 +126,17 @@ public:
         }
 
         {
-            void* deviceSeed0      = malloc_gpu(seedDataSize0);
-            void* deviceMaskedX    = malloc_gpu(maskedXDataSize);
-            void* deviceSharedOut0 = malloc_gpu(maskedXDataSize);
+            void *deviceSeed0      = malloc_gpu(seedDataSize0);
+            void *deviceMaskedX    = malloc_gpu(maskedXDataSize);
+            void *deviceSharedOut0 = malloc_gpu(maskedXDataSize);
             memcpy_cpu2gpu(deviceMaskedX, maskedX.get(), maskedXDataSize);
             memcpy_cpu2gpu(deviceSeed0, seed0.get(), seedDataSize0);
 
             int ret2 = FastFss_cuda_grottoEqEval(
-                deviceSharedOut0, deviceMaskedX, maskedXDataSize, grottoKey,
-                grottoKeyDataSize, deviceSeed0, seedDataSize0, 0, bitWidthIn,
-                sizeof(GroupElement), elementNum, nullptr, 0, nullptr);
+                deviceSharedOut0, maskedXDataSize, deviceMaskedX,
+                maskedXDataSize, grottoKey, grottoKeyDataSize, deviceSeed0,
+                seedDataSize0, 0, bitWidthIn, sizeof(GroupElement), elementNum,
+                nullptr, 0, nullptr);
 
             memcpy_gpu2cpu(sharedOut0.get(), deviceSharedOut0, maskedXDataSize);
             free_gpu(deviceMaskedX);
@@ -146,16 +147,17 @@ public:
         }
 
         {
-            void* deviceSeed1      = malloc_gpu(seedDataSize1);
-            void* deviceMaskedX    = malloc_gpu(maskedXDataSize);
-            void* deviceSharedOut1 = malloc_gpu(maskedXDataSize);
+            void *deviceSeed1      = malloc_gpu(seedDataSize1);
+            void *deviceMaskedX    = malloc_gpu(maskedXDataSize);
+            void *deviceSharedOut1 = malloc_gpu(maskedXDataSize);
             memcpy_cpu2gpu(deviceMaskedX, maskedX.get(), maskedXDataSize);
             memcpy_cpu2gpu(deviceSeed1, seed1.get(), seedDataSize1);
 
             int ret3 = FastFss_cuda_grottoEqEval(
-                deviceSharedOut1, deviceMaskedX, maskedXDataSize, grottoKey,
-                grottoKeyDataSize, deviceSeed1, seedDataSize1, 1, bitWidthIn,
-                sizeof(GroupElement), elementNum, nullptr, 0, nullptr);
+                deviceSharedOut1, maskedXDataSize, deviceMaskedX,
+                maskedXDataSize, grottoKey, grottoKeyDataSize, deviceSeed1,
+                seedDataSize1, 1, bitWidthIn, sizeof(GroupElement), elementNum,
+                nullptr, 0, nullptr);
 
             memcpy_gpu2cpu(sharedOut1.get(), deviceSharedOut1, maskedXDataSize);
             free_gpu(deviceMaskedX);
@@ -231,7 +233,7 @@ public:
         }
 
         int         ret;
-        void*       grottoKey = nullptr;
+        void       *grottoKey = nullptr;
         std::size_t grottoKeyDataSize;
         ret = FastFss_cuda_grottoGetKeyDataSize(
             &grottoKeyDataSize, bitWidthIn, sizeof(GroupElement), elementNum);
@@ -239,9 +241,9 @@ public:
         grottoKey = malloc_gpu(grottoKeyDataSize);
 
         {
-            void* deviceAlpha = malloc_gpu(alphaDataSize);
-            void* deviceSeed0 = malloc_gpu(seedDataSize0);
-            void* deviceSeed1 = malloc_gpu(seedDataSize1);
+            void *deviceAlpha = malloc_gpu(alphaDataSize);
+            void *deviceSeed0 = malloc_gpu(seedDataSize0);
+            void *deviceSeed1 = malloc_gpu(seedDataSize1);
             memcpy_cpu2gpu(deviceAlpha, alpha.get(), alphaDataSize);
             memcpy_cpu2gpu(deviceSeed0, seed0.get(), seedDataSize0);
             memcpy_cpu2gpu(deviceSeed1, seed1.get(), seedDataSize0);
@@ -264,17 +266,17 @@ public:
         }
 
         {
-            void* deviceMaskedX    = malloc_gpu(maskedXDataSize);
-            void* deviceSharedOut0 = malloc_gpu(maskedXDataSize);
-            void* deviceSeed0      = malloc_gpu(seedDataSize0);
+            void *deviceMaskedX    = malloc_gpu(maskedXDataSize);
+            void *deviceSharedOut0 = malloc_gpu(maskedXDataSize);
+            void *deviceSeed0      = malloc_gpu(seedDataSize0);
             memcpy_cpu2gpu(deviceMaskedX, maskedX.get(), maskedXDataSize);
             memcpy_cpu2gpu(deviceSeed0, seed0.get(), seedDataSize0);
 
             int ret2 = FastFss_cuda_grottoEval(
-                deviceSharedOut0, deviceMaskedX, maskedXDataSize, grottoKey,
-                grottoKeyDataSize, deviceSeed0, seedDataSize0, false, 0,
-                bitWidthIn, sizeof(GroupElement), elementNum, nullptr, 0,
-                nullptr);
+                deviceSharedOut0, maskedXDataSize, deviceMaskedX,
+                maskedXDataSize, grottoKey, grottoKeyDataSize, deviceSeed0,
+                seedDataSize0, false, 0, bitWidthIn, sizeof(GroupElement),
+                elementNum, nullptr, 0, nullptr);
 
             memcpy_gpu2cpu(sharedOut0.get(), deviceSharedOut0, maskedXDataSize);
             free_gpu(deviceMaskedX);
@@ -291,17 +293,17 @@ public:
         }
 
         {
-            void* deviceSeed1      = malloc_gpu(seedDataSize1);
-            void* deviceMaskedX    = malloc_gpu(maskedXDataSize);
-            void* deviceSharedOut1 = malloc_gpu(maskedXDataSize);
+            void *deviceSeed1      = malloc_gpu(seedDataSize1);
+            void *deviceMaskedX    = malloc_gpu(maskedXDataSize);
+            void *deviceSharedOut1 = malloc_gpu(maskedXDataSize);
             memcpy_cpu2gpu(deviceMaskedX, maskedX.get(), maskedXDataSize);
             memcpy_cpu2gpu(deviceSeed1, seed1.get(), seedDataSize1);
 
             int ret3 = FastFss_cuda_grottoEval(
-                deviceSharedOut1, deviceMaskedX, maskedXDataSize, grottoKey,
-                grottoKeyDataSize, deviceSeed1, seedDataSize1, false, 1,
-                bitWidthIn, sizeof(GroupElement), elementNum, nullptr, 0,
-                nullptr);
+                deviceSharedOut1, maskedXDataSize, deviceMaskedX,
+                maskedXDataSize, grottoKey, grottoKeyDataSize, deviceSeed1,
+                seedDataSize1, false, 1, bitWidthIn, sizeof(GroupElement),
+                elementNum, nullptr, 0, nullptr);
 
             memcpy_gpu2cpu(sharedOut1.get(), deviceSharedOut1, maskedXDataSize);
             free_gpu(deviceMaskedX);
@@ -335,17 +337,17 @@ public:
         }
 
         {
-            void* deviceMaskedX    = malloc_gpu(maskedXDataSize);
-            void* deviceSharedOut0 = malloc_gpu(maskedXDataSize);
-            void* deviceSeed0      = malloc_gpu(seedDataSize0);
+            void *deviceMaskedX    = malloc_gpu(maskedXDataSize);
+            void *deviceSharedOut0 = malloc_gpu(maskedXDataSize);
+            void *deviceSeed0      = malloc_gpu(seedDataSize0);
             memcpy_cpu2gpu(deviceMaskedX, maskedX.get(), maskedXDataSize);
             memcpy_cpu2gpu(deviceSeed0, seed0.get(), seedDataSize0);
 
             int ret2 = FastFss_cuda_grottoEval(
-                deviceSharedOut0, deviceMaskedX, maskedXDataSize, grottoKey,
-                grottoKeyDataSize, deviceSeed0, seedDataSize0, true, 0,
-                bitWidthIn, sizeof(GroupElement), elementNum, nullptr, 0,
-                nullptr);
+                deviceSharedOut0, maskedXDataSize, deviceMaskedX,
+                maskedXDataSize, grottoKey, grottoKeyDataSize, deviceSeed0,
+                seedDataSize0, true, 0, bitWidthIn, sizeof(GroupElement),
+                elementNum, nullptr, 0, nullptr);
 
             memcpy_gpu2cpu(sharedOut0.get(), deviceSharedOut0, maskedXDataSize);
             free_gpu(deviceMaskedX);
@@ -361,17 +363,17 @@ public:
         }
 
         {
-            void* deviceSeed1      = malloc_gpu(seedDataSize1);
-            void* deviceMaskedX    = malloc_gpu(maskedXDataSize);
-            void* deviceSharedOut1 = malloc_gpu(maskedXDataSize);
+            void *deviceSeed1      = malloc_gpu(seedDataSize1);
+            void *deviceMaskedX    = malloc_gpu(maskedXDataSize);
+            void *deviceSharedOut1 = malloc_gpu(maskedXDataSize);
             memcpy_cpu2gpu(deviceMaskedX, maskedX.get(), maskedXDataSize);
             memcpy_cpu2gpu(deviceSeed1, seed1.get(), seedDataSize1);
 
             int ret3 = FastFss_cuda_grottoEval(
-                deviceSharedOut1, deviceMaskedX, maskedXDataSize, grottoKey,
-                grottoKeyDataSize, deviceSeed1, seedDataSize1, true, 1,
-                bitWidthIn, sizeof(GroupElement), elementNum, nullptr, 0,
-                nullptr);
+                deviceSharedOut1, maskedXDataSize, deviceMaskedX,
+                maskedXDataSize, grottoKey, grottoKeyDataSize, deviceSeed1,
+                seedDataSize1, true, 1, bitWidthIn, sizeof(GroupElement),
+                elementNum, nullptr, 0, nullptr);
             memcpy_gpu2cpu(sharedOut1.get(), deviceSharedOut1, maskedXDataSize);
             free_gpu(deviceMaskedX);
             free_gpu(deviceSharedOut1);
@@ -442,9 +444,9 @@ public:
         std::size_t rightBoundaryDataSize = intervalNum * sizeof(GroupElement);
 
         int         ret;
-        void*       grottoMICKey         = nullptr;
+        void       *grottoMICKey         = nullptr;
         std::size_t grottoMICKeyDataSize = 0;
-        void*       grottoCache          = nullptr;
+        void       *grottoCache          = nullptr;
         std::size_t cacheDataSize        = 0;
         ret =
             FastFss_cuda_grottoGetKeyDataSize(&grottoMICKeyDataSize, bitWidthIn,
@@ -471,9 +473,9 @@ public:
         rng.gen(seed1.data(), seed1.size());
 
         {
-            void* deviceAlpha = malloc_gpu(alphaDataSize);
-            void* deviceSeed0 = malloc_gpu(seedDataSize0);
-            void* deviceSeed1 = malloc_gpu(seedDataSize1);
+            void *deviceAlpha = malloc_gpu(alphaDataSize);
+            void *deviceSeed0 = malloc_gpu(seedDataSize0);
+            void *deviceSeed1 = malloc_gpu(seedDataSize1);
             memcpy_cpu2gpu(deviceAlpha, alpha.data(), alphaDataSize);
             memcpy_cpu2gpu(deviceSeed0, seed0.data(), seedDataSize0);
             memcpy_cpu2gpu(deviceSeed1, seed1.data(), seedDataSize1);
@@ -493,11 +495,11 @@ public:
             std::size_t sharedOutDataSize =
                 elementNum * intervalNum * sizeof(GroupElement);
 
-            void* deviceLeftBoundary  = malloc_gpu(leftBoundaryDataSize);
-            void* deviceRightBoundary = malloc_gpu(rightBoundaryDataSize);
-            void* deviceSeed0         = malloc_gpu(seedDataSize0);
-            void* deviceMaskedX       = malloc_gpu(maskedXDataSize);
-            void* deviceSharedOut0    = malloc_gpu(sharedOutDataSize);
+            void *deviceLeftBoundary  = malloc_gpu(leftBoundaryDataSize);
+            void *deviceRightBoundary = malloc_gpu(rightBoundaryDataSize);
+            void *deviceSeed0         = malloc_gpu(seedDataSize0);
+            void *deviceMaskedX       = malloc_gpu(maskedXDataSize);
+            void *deviceSharedOut0    = malloc_gpu(sharedOutDataSize);
             memcpy_cpu2gpu(deviceMaskedX, maskedX.data(), maskedXDataSize);
             memcpy_cpu2gpu(deviceSeed0, seed0.data(), seedDataSize0);
             memcpy_cpu2gpu(deviceLeftBoundary, leftBoundary.data(),
@@ -537,11 +539,11 @@ public:
             std::size_t sharedOutDataSize =
                 elementNum * intervalNum * sizeof(GroupElement);
 
-            void* deviceLeftBoundary  = malloc_gpu(leftBoundaryDataSize);
-            void* deviceRightBoundary = malloc_gpu(rightBoundaryDataSize);
-            void* deviceSeed1         = malloc_gpu(seedDataSize1);
-            void* deviceMaskedX       = malloc_gpu(maskedXDataSize);
-            void* deviceSharedOut1    = malloc_gpu(sharedOutDataSize);
+            void *deviceLeftBoundary  = malloc_gpu(leftBoundaryDataSize);
+            void *deviceRightBoundary = malloc_gpu(rightBoundaryDataSize);
+            void *deviceSeed1         = malloc_gpu(seedDataSize1);
+            void *deviceMaskedX       = malloc_gpu(maskedXDataSize);
+            void *deviceSharedOut1    = malloc_gpu(sharedOutDataSize);
             memcpy_cpu2gpu(deviceMaskedX, maskedX.data(), maskedXDataSize);
             memcpy_cpu2gpu(deviceSeed1, seed1.data(), seedDataSize1);
             memcpy_cpu2gpu(deviceLeftBoundary, leftBoundary.data(),

@@ -1,4 +1,3 @@
-// Distributed Comparison Function,
 // Function secret sharing for mixed-mode and fixed-point secure computation
 #ifndef FAST_FSS_CPU_DCF_H
 #define FAST_FSS_CPU_DCF_H
@@ -10,68 +9,68 @@
 extern "C" {
 #endif
 
-int FastFss_cpu_dcfKeyGen(void*       key,
+int FastFss_cpu_dcfKeyGen(void       *key,
                           size_t      keyDataSize,
-                          const void* alpha,
+                          const void *alpha,
                           size_t      alphaDataSize,
-                          const void* beta,
+                          const void *beta,
                           size_t      betaDataSize,
-                          const void* seed0,
+                          const void *seed0,
                           size_t      seedDataSize0,
-                          const void* seed1,
+                          const void *seed1,
                           size_t      seedDataSize1,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
                           size_t      elementSize,
                           size_t      elementNum);
 
-int FastFss_cpu_dcfEval(void*       sharedOut,
+int FastFss_cpu_dcfEval(void       *sharedOut,
                         size_t      sharedOutSize,
-                        const void* maskedX,
+                        const void *maskedX,
                         size_t      maskedXDataSize,
-                        const void* key,
+                        const void *key,
                         size_t      keyDataSize,
-                        const void* seed,
+                        const void *seed,
                         size_t      seedDataSize,
                         int         partyId,
                         size_t      bitWidthIn,
                         size_t      bitWidthOut,
                         size_t      elementSize,
                         size_t      elementNum,
-                        void*       cache,
+                        void       *cache,
                         size_t      cacheDataSize);
 
-int FastFss_cpu_dcfKeyZip(void*       zippedKey,
+int FastFss_cpu_dcfKeyZip(void       *zippedKey,
                           size_t      zippedKeyDataSize,
-                          const void* key,
+                          const void *key,
                           size_t      keyDataSize,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
                           size_t      elementSize,
                           size_t      elementNum);
 
-int FastFss_cpu_dcfKeyUnzip(void*       key,
+int FastFss_cpu_dcfKeyUnzip(void       *key,
                             size_t      keyDataSize,
-                            const void* zippedKey,
+                            const void *zippedKey,
                             size_t      zippedKeyDataSize,
                             size_t      bitWidthIn,
                             size_t      bitWidthOut,
                             size_t      elementSize,
                             size_t      elementNum);
 
-int FastFss_cpu_dcfGetKeyDataSize(size_t* keyDataSize,
+int FastFss_cpu_dcfGetKeyDataSize(size_t *keyDataSize,
                                   size_t  bitWidthIn,
                                   size_t  bitWidthOut,
                                   size_t  elementSize,
                                   size_t  elementNum);
 
-int FastFss_cpu_dcfGetZippedKeyDataSize(size_t* keyDataSize,
+int FastFss_cpu_dcfGetZippedKeyDataSize(size_t *keyDataSize,
                                         size_t  bitWidthIn,
                                         size_t  bitWidthOut,
                                         size_t  elementSize,
                                         size_t  elementNum);
 
-int FastFss_cpu_dcfGetCacheDataSize(size_t* cacheDataSize,
+int FastFss_cpu_dcfGetCacheDataSize(size_t *cacheDataSize,
                                     size_t  bitWidthIn,
                                     size_t  bitWidthOut,
                                     size_t  elementSize,

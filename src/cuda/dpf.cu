@@ -1,10 +1,8 @@
 #include <FastFss/cuda/config.h>
 #include <FastFss/cuda/dpf.h>
+#include <cuda_runtime.h>
 
 #include "../impl/dpf.h"
-
-#define FSS_ASSERT(cond, errCode) \
-    if (!(cond)) return errCode
 
 using namespace FastFss;
 
@@ -24,14 +22,15 @@ enum ERROR_CODE
     INVALID_ELEMENT_SIZE_ERROR         = -11,
     INVALID_PARTY_ID_ERROR             = -12,
     INVALID_CACHE_DATA_SIZE_ERROR      = -13,
+    INVALID_POINT_DATA_SIZE_ERROR      = -14,
 };
 
 template <typename GroupElement>
-__global__ static void dpfKeyGenKernel(void*       key,
-                                       const void* alpha,
-                                       const void* beta,
-                                       const void* seed0,
-                                       const void* seed1,
+__global__ static void dpfKeyGenKernel(void       *key,
+                                       const void *alpha,
+                                       const void *beta,
+                                       const void *seed0,
+                                       const void *seed1,
                                        std::size_t bitWidthIn,
                                        std::size_t bitWidthOut,
                                        std::size_t elementNum)
@@ -39,10 +38,10 @@ __global__ static void dpfKeyGenKernel(void*       key,
     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
     std::size_t stride = blockDim.x * gridDim.x;
 
-    const GroupElement* alphaPtr = (const GroupElement*)alpha;
-    const GroupElement* betaPtr  = (const GroupElement*)beta;
-    const std::uint8_t* seed0Ptr = (const std::uint8_t*)seed0;
-    const std::uint8_t* seed1Ptr = (const std::uint8_t*)seed1;
+    const GroupElement *alphaPtr = (const GroupElement *)alpha;
+    const GroupElement *betaPtr  = (const GroupElement *)beta;
+    const std::uint8_t *seed0Ptr = (const std::uint8_t *)seed0;
+    const std::uint8_t *seed1Ptr = (const std::uint8_t *)seed1;
 
     for (std::size_t i = idx; i < elementNum; i += stride)
     {
@@ -59,45 +58,63 @@ __global__ static void dpfKeyGenKernel(void*       key,
     }
 }
 
-int FastFss_cuda_dpfKeyGen(void*       key,
+int FastFss_cuda_dpfKeyGen(void       *key,
                            size_t      keyDataSize,
-                           const void* alpha,
+                           const void *alpha,
                            size_t      alphaDataSize,
-                           const void* beta,
+                           const void *beta,
                            size_t      betaDataSize,
-                           const void* seed0,
+                           const void *seed0,
                            size_t      seedDataSize0,
-                           const void* seed1,
+                           const void *seed1,
                            size_t      seedDataSize1,
                            size_t      bitWidthIn,
                            size_t      bitWidthOut,
                            size_t      elementSize,
                            size_t      elementNum,
-                           void*       cudaStreamPtr)
+                           void       *cudaStreamPtr)
 {
     int         ret;
-    std::size_t needKeySize = 0;
-    ret = FastFss_cuda_dpfGetKeyDataSize(&needKeySize, bitWidthIn, bitWidthOut,
-                                         elementSize, elementNum);
-    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
+    std::size_t needKeyDataSize = 0;
 
-    FSS_ASSERT(keyDataSize == needKeySize,
-               ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
-    FSS_ASSERT(alphaDataSize == elementNum * elementSize,
-               ERROR_CODE::INVALID_ALPHA_DATA_SIZE_ERROR);
+    ret = FastFss_cuda_dpfGetKeyDataSize(                                  //
+        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+    );                                                                     //
+    if (ret != 0)
+    {
+        return ret;
+    }
+    if (keyDataSize != needKeyDataSize)
+    {
+        return ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR;
+    }
+    if (alphaDataSize != elementNum * elementSize)
+    {
+        return ERROR_CODE::INVALID_ALPHA_DATA_SIZE_ERROR;
+    }
     if (betaDataSize != 0)
     {
-        FSS_ASSERT(betaDataSize == elementNum * elementSize,
-                   ERROR_CODE::INVALID_BETA_DATA_SIZE_ERROR);
+        if (betaDataSize != elementNum * elementSize)
+        {
+            return ERROR_CODE::INVALID_BETA_DATA_SIZE_ERROR;
+        }
     }
-    FSS_ASSERT(seedDataSize0 == elementNum * 16,
-               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
-    FSS_ASSERT(seedDataSize1 == elementNum * 16,
-               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
-    FSS_ASSERT(bitWidthIn <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
-    FSS_ASSERT(bitWidthOut <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    if (seedDataSize0 != elementNum * 16)
+    {
+        return ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR;
+    }
+    if (seedDataSize1 != elementNum * 16)
+    {
+        return ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR;
+    }
+    if (bitWidthIn > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
+    if (bitWidthOut > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
 
     std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
@@ -105,42 +122,49 @@ int FastFss_cuda_dpfKeyGen(void*       key,
     {
         GRID_DIM = CUDA_MAX_GRID_DIM;
     }
-    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)cudaStreamPtr : 0;
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t *)cudaStreamPtr : 0;
 
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             dpfKeyGenKernel<scalar_t><<<GRID_DIM, BLOCK_DIM, 0, stream>>>(
-                key, alpha, (betaDataSize) ? beta : nullptr, seed0, seed1,
-                bitWidthIn, bitWidthOut, elementNum);
+                key,                             //
+                alpha,                           //
+                (betaDataSize) ? beta : nullptr, //
+                seed0,                           //
+                seed1,                           //
+                bitWidthIn,                      //
+                bitWidthOut,                     //
+                elementNum                       //
+            );                                   //
 
             return ERROR_CODE::SUCCESS;
         });
 }
 
 template <typename GroupElement>
-__global__ static void dpfEvalKernel(void*       sharedOut,
-                                     const void* maskedX,
-                                     const void* key,
-                                     const void* seed,
+__global__ static void dpfEvalKernel(void       *sharedOut,
+                                     const void *maskedX,
+                                     const void *key,
+                                     const void *seed,
                                      int         partyId,
                                      size_t      bitWidthIn,
                                      size_t      bitWidthOut,
                                      size_t      elementNum,
-                                     void*       cache)
+                                     void       *cache)
 {
     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
     std::size_t stride = blockDim.x * gridDim.x;
 
-    GroupElement*       sharedOutPtr = (GroupElement*)sharedOut;
-    const GroupElement* maskedXPtr   = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr      = (const std::uint8_t*)seed;
+    GroupElement       *sharedOutPtr = (GroupElement *)sharedOut;
+    const GroupElement *maskedXPtr   = (const GroupElement *)maskedX;
+    const std::uint8_t *seedPtr      = (const std::uint8_t *)seed;
 
     for (std::size_t i = idx; i < elementNum; i += stride)
     {
         impl::DpfKey<GroupElement>    keyObj;
         impl::DpfCache<GroupElement>  cacheObj;
-        impl::DpfCache<GroupElement>* cacheObjPtr = nullptr;
+        impl::DpfCache<GroupElement> *cacheObjPtr = nullptr;
         impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
         if (cache != nullptr)
         {
@@ -157,32 +181,288 @@ __global__ static void dpfEvalKernel(void*       sharedOut,
     }
 }
 
+int FastFss_cuda_dpfEval(void       *sharedOut,
+                         size_t      sharedOutDataSize,
+                         const void *maskedX,
+                         size_t      maskedXDataSize,
+                         const void *key,
+                         size_t      keyDataSize,
+                         const void *seed,
+                         size_t      seedDataSize,
+                         int         partyId,
+                         size_t      bitWidthIn,
+                         size_t      bitWidthOut,
+                         size_t      elementSize,
+                         size_t      elementNum,
+                         void       *cache,
+                         size_t      cacheDataSize,
+                         void       *cudaStreamPtr)
+{
+    int         ret;
+    std::size_t needKeyDataSize   = 0;
+    std::size_t needCacheDataSize = 0;
+
+    ret = FastFss_cuda_dpfGetKeyDataSize(                                  //
+        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+    );                                                                     //
+    if (ret != 0)
+    {
+        return ret;
+    }
+    ret = FastFss_cuda_dpfGetCacheDataSize( //
+        &needCacheDataSize,                 //
+        bitWidthIn,                         //
+        bitWidthOut,                        //
+        elementSize,                        //
+        elementNum                          //
+    );                                      //
+    if (ret != 0)
+    {
+        return ret;
+    }
+
+    if (keyDataSize != needKeyDataSize)
+    {
+        return ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR;
+    }
+    if (sharedOutDataSize != elementNum * elementSize)
+    {
+        return ERROR_CODE::INVALID_SHARED_OUT_DATA_SIZE_ERROR;
+    }
+    if (maskedXDataSize != elementNum * elementSize)
+    {
+        return ERROR_CODE::INVLIAD_MASKED_X_DATA_SIZE_ERROR;
+    }
+    if (seedDataSize != elementNum * 16)
+    {
+        return ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR;
+    }
+    if (partyId != 0 && partyId != 1)
+    {
+        return ERROR_CODE::INVALID_PARTY_ID_ERROR;
+    }
+    if (bitWidthIn > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
+    if (bitWidthOut > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
+    if (cacheDataSize != 0)
+    {
+        if (cacheDataSize != needCacheDataSize)
+        {
+            return ERROR_CODE::INVALID_CACHE_DATA_SIZE_ERROR;
+        }
+    }
+
+    std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
+    std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
+    if (GRID_DIM > CUDA_MAX_GRID_DIM)
+    {
+        GRID_DIM = CUDA_MAX_GRID_DIM;
+    }
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t *)cudaStreamPtr : 0;
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
+        [&] {
+            dpfEvalKernel<scalar_t><<<GRID_DIM, BLOCK_DIM, 0, stream>>>(
+                sharedOut,   //
+                maskedX,     //
+                key,         //
+                seed,        //
+                partyId,     //
+                bitWidthIn,  //
+                bitWidthOut, //
+                elementNum,  //
+                cache        //
+            );               //
+            return ERROR_CODE::SUCCESS;
+        });
+}
+
 template <typename GroupElement>
-__global__ static void dpfMultiEvalKernel(void*       sharedOut,
-                                          const void* maskedX,
-                                          const void* key,
-                                          const void* seed,
-                                          int         partyId,
-                                          const void* point,
-                                          size_t      pointNum,
-                                          size_t      bitWidthIn,
-                                          size_t      bitWidthOut,
-                                          size_t      elementNum,
-                                          void*       cache)
+__global__ static void dpfEvalAllKernel(void       *sharedOut,
+                                        const void *maskedX,
+                                        const void *key,
+                                        const void *seed,
+                                        int         partyId,
+                                        size_t      bitWidthIn,
+                                        size_t      bitWidthOut,
+                                        size_t      elementNum,
+                                        void       *cache)
 {
     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
     std::size_t stride = blockDim.x * gridDim.x;
 
-    GroupElement*       sharedOutPtr = (GroupElement*)sharedOut;
-    const GroupElement* maskedXPtr   = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr      = (const std::uint8_t*)seed;
-    const GroupElement* pointPtr     = (const GroupElement*)point;
+    GroupElement       *sharedOutPtr = (GroupElement *)sharedOut;
+    const GroupElement *maskedXPtr   = (const GroupElement *)maskedX;
+    const std::uint8_t *seedPtr      = (const std::uint8_t *)seed;
 
     for (std::size_t i = idx; i < elementNum; i += stride)
     {
         impl::DpfKey<GroupElement>    keyObj;
         impl::DpfCache<GroupElement>  cacheObj;
-        impl::DpfCache<GroupElement>* cacheObjPtr = nullptr;
+        impl::DpfCache<GroupElement> *cacheObjPtr = nullptr;
+        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
+        if (cache != nullptr)
+        {
+            impl::dpfCacheSetPtr(cacheObj,    //
+                                 cache,       //
+                                 bitWidthIn,  //
+                                 bitWidthOut, //
+                                 i,           //
+                                 elementNum   //
+            );                                //
+            cacheObjPtr = &cacheObj;
+        }
+        std::size_t size = (std::size_t)(1ULL << bitWidthIn);
+        for (std::size_t j = 0; j < size; j++)
+        {
+            sharedOutPtr[size * i + (maskedXPtr[i] - j) % size] =
+                impl::dpfEval(keyObj,           //
+                              (GroupElement)j,  //
+                              seedPtr + 16 * i, //
+                              partyId,          //
+                              bitWidthIn,       //
+                              bitWidthOut,      //
+                              cacheObjPtr       //
+                );
+        }
+    }
+}
+
+int FastFss_cuda_dpfEvalAll(void       *sharedOut,
+                            size_t      sharedOutDataSize,
+                            const void *maskedX,
+                            size_t      maskedXDataSize,
+                            const void *key,
+                            size_t      keyDataSize,
+                            const void *seed,
+                            size_t      seedDataSize,
+                            int         partyId,
+                            size_t      bitWidthIn,
+                            size_t      bitWidthOut,
+                            size_t      elementSize,
+                            size_t      elementNum,
+                            void       *cache,
+                            size_t      cacheDataSize,
+                            void       *cudaStreamPtr)
+{
+    int         ret;
+    std::size_t needKeyDataSize = 0;
+
+    ret = FastFss_cuda_dpfGetKeyDataSize(                                  //
+        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+    );                                                                     //
+
+    if (ret != 0)
+    {
+        return ret;
+    }
+    if (keyDataSize != needKeyDataSize)
+    {
+        return ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR;
+    }
+    if (sharedOutDataSize != elementNum * elementSize * (1ULL << bitWidthIn))
+    {
+        return ERROR_CODE::INVALID_SHARED_OUT_DATA_SIZE_ERROR;
+    }
+    if (maskedXDataSize != elementNum * elementSize)
+    {
+        return ERROR_CODE::INVLIAD_MASKED_X_DATA_SIZE_ERROR;
+    }
+    if (seedDataSize != elementNum * 16)
+    {
+        return ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR;
+    }
+    if (partyId != 0 && partyId != 1)
+    {
+        return ERROR_CODE::INVALID_PARTY_ID_ERROR;
+    }
+    if (bitWidthIn > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
+    if (bitWidthOut > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
+    if (cacheDataSize != 0)
+    {
+        std::size_t needCacheDataSize = 0;
+
+        ret = FastFss_cuda_dpfGetCacheDataSize( //
+            &needCacheDataSize,                 //
+            bitWidthIn,                         //
+            bitWidthOut,                        //
+            elementSize,                        //
+            elementNum                          //
+        );                                      //
+        if (ret != 0)
+        {
+            return ret;
+        }
+        if (cacheDataSize != needCacheDataSize)
+        {
+            return ERROR_CODE::INVALID_CACHE_DATA_SIZE_ERROR;
+        }
+    }
+
+    std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
+    std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
+    if (GRID_DIM > CUDA_MAX_GRID_DIM)
+    {
+        GRID_DIM = CUDA_MAX_GRID_DIM;
+    }
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t *)cudaStreamPtr : 0;
+
+    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+        elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
+        [&] {
+            dpfEvalAllKernel<scalar_t><<<GRID_DIM, BLOCK_DIM, 0, stream>>>( //
+                sharedOut,                                                  //
+                maskedX,                                                    //
+                key,                                                        //
+                seed,                                                       //
+                partyId,                                                    //
+                bitWidthIn,                                                 //
+                bitWidthOut,                                                //
+                elementNum,                                                 //
+                cache                                                       //
+            );                                                              //
+            return ERROR_CODE::SUCCESS;
+        });
+}
+
+template <typename GroupElement>
+__global__ static void dpfMultiEvalKernel(void       *sharedOut,
+                                          const void *maskedX,
+                                          const void *key,
+                                          const void *seed,
+                                          int         partyId,
+                                          const void *point,
+                                          size_t      pointNum,
+                                          size_t      bitWidthIn,
+                                          size_t      bitWidthOut,
+                                          size_t      elementNum,
+                                          void       *cache)
+{
+    std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
+    std::size_t stride = blockDim.x * gridDim.x;
+
+    GroupElement       *sharedOutPtr = (GroupElement *)sharedOut;
+    const GroupElement *maskedXPtr   = (const GroupElement *)maskedX;
+    const std::uint8_t *seedPtr      = (const std::uint8_t *)seed;
+    const GroupElement *pointPtr     = (const GroupElement *)point;
+
+    for (std::size_t i = idx; i < elementNum; i += stride)
+    {
+        impl::DpfKey<GroupElement>    keyObj;
+        impl::DpfCache<GroupElement>  cacheObj;
+        impl::DpfCache<GroupElement> *cacheObjPtr = nullptr;
         impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
         if (cache != nullptr)
         {
@@ -205,191 +485,199 @@ __global__ static void dpfMultiEvalKernel(void*       sharedOut,
 }
 
 template <typename GroupElement>
-__global__ static void dpfMultiEvalKernelParallelAll(void*       sharedOut,
-                                                     const void* maskedX,
-                                                     const void* key,
-                                                     const void* seed,
-                                                     int         partyId,
-                                                     const void* point,
-                                                     size_t      pointNum,
-                                                     size_t      bitWidthIn,
-                                                     size_t      bitWidthOut,
-                                                     size_t      elementNum)
+__global__ static void dpfMultiEvalKernelParallel(void       *sharedOut,
+                                                  const void *maskedX,
+                                                  const void *key,
+                                                  const void *seed,
+                                                  int         partyId,
+                                                  const void *point,
+                                                  size_t      pointNum,
+                                                  size_t      bitWidthIn,
+                                                  size_t      bitWidthOut,
+                                                  size_t      elementNum,
+                                                  void       *cache)
 {
     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
     std::size_t stride = blockDim.x * gridDim.x;
 
-    GroupElement*       sharedOutPtr = (GroupElement*)sharedOut;
-    const GroupElement* maskedXPtr   = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr      = (const std::uint8_t*)seed;
-    const GroupElement* pointPtr     = (const GroupElement*)point;
+    GroupElement       *sharedOutPtr = (GroupElement *)sharedOut;
+    const GroupElement *maskedXPtr   = (const GroupElement *)maskedX;
+    const std::uint8_t *seedPtr      = (const std::uint8_t *)seed;
+    const GroupElement *pointPtr     = (const GroupElement *)point;
 
-    std::size_t totalNum = pointNum * elementNum;
-    for (std::size_t i = idx; i < totalNum; i += stride)
+    std::size_t chunkSize = (pointNum * elementNum + stride - 1) / stride;
+
+    impl::DpfKey<GroupElement>   keyObj;
+    impl::DpfCache<GroupElement> cacheObj;
+    std::size_t                  preElementIdx = (std::size_t)(-1);
+    for (std::size_t i = idx * chunkSize; i < (idx + 1) * chunkSize; i++)
     {
-        impl::DpfKey<GroupElement> keyObj;
-
         std::size_t elementIdx = i / pointNum;
         std::size_t pointIdx   = i % pointNum;
-
-        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, elementIdx,
-                           elementNum);
-        GroupElement tmp = maskedXPtr[elementIdx] - pointPtr[pointIdx];
+        if (elementIdx >= elementNum)
+        {
+            break;
+        }
+        if (i == (idx * chunkSize) || elementIdx != preElementIdx)
+        {
+            impl::dpfKeySetPtr(                                              //
+                keyObj, key, bitWidthIn, bitWidthOut, elementIdx, elementNum //
+            );                                                               //
+            impl::dpfCacheSetPtr(                                            //
+                cacheObj,                                                    //
+                cache,                                                       //
+                bitWidthIn,                                                  //
+                bitWidthOut,                                                 //
+                idx,                                                         //
+                stride                                                       //
+            );                                                               //
+        }
         sharedOutPtr[pointNum * elementIdx + pointIdx] =
-            impl::dpfEval<GroupElement>(keyObj,                    //
-                                        tmp,                       //
-                                        seedPtr + 16 * elementIdx, //
-                                        partyId,                   //
-                                        bitWidthIn,                //
-                                        bitWidthOut,               //
-                                        nullptr);
+            impl::dpfEval<GroupElement>(                     //
+                keyObj,                                      //
+                maskedXPtr[elementIdx] - pointPtr[pointIdx], //
+                seedPtr + 16 * elementIdx,                   //
+                partyId,                                     //
+                bitWidthIn,                                  //
+                bitWidthOut,                                 //
+                &cacheObj);
+        preElementIdx = elementIdx;
     }
 }
 
-int FastFss_cuda_dpfEval(void*       sharedOut,
-                         const void* maskedX,
-                         size_t      maskedXDataSize,
-                         const void* key,
-                         size_t      keyDataSize,
-                         const void* seed,
-                         size_t      seedDataSize,
-                         int         partyId,
-                         size_t      bitWidthIn,
-                         size_t      bitWidthOut,
-                         size_t      elementSize,
-                         size_t      elementNum,
-                         void*       cache,
-                         size_t      cacheDataSize,
-                         void*       cudaStreamPtr)
+int FastFss_cuda_dpfMultiEval(void       *sharedOut,
+                              size_t      sharedOutDataSize,
+                              const void *maskedX,
+                              size_t      maskedXDataSize,
+                              const void *key,
+                              size_t      keyDataSize,
+                              const void *seed,
+                              size_t      seedDataSize,
+                              int         partyId,
+                              const void *point,
+                              size_t      pointDataSize,
+                              size_t      bitWidthIn,
+                              size_t      bitWidthOut,
+                              size_t      elementSize,
+                              size_t      elementNum,
+                              void       *cache,
+                              size_t      cacheDataSize,
+                              void       *cudaStreamPtr)
 {
     int         ret;
-    std::size_t needKeySize = 0;
-    ret = FastFss_cuda_dpfGetKeyDataSize(&needKeySize, bitWidthIn, bitWidthOut,
-                                         elementSize, elementNum);
-    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
+    std::size_t needKeyDataSize   = 0;
+    std::size_t needCacheDataSize = 0;
 
-    FSS_ASSERT(keyDataSize == needKeySize,
-               ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
-    FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
-               ERROR_CODE::INVLIAD_MASKED_X_DATA_SIZE_ERROR);
-    FSS_ASSERT(seedDataSize == elementNum * 16,
-               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
-    FSS_ASSERT(partyId == 0 || partyId == 1,
-               ERROR_CODE::INVALID_PARTY_ID_ERROR);
-    FSS_ASSERT(bitWidthIn <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
-    FSS_ASSERT(bitWidthOut <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
-    if (cacheDataSize != 0)
+    ret = FastFss_cuda_dpfGetKeyDataSize(                                  //
+        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+    );                                                                     //
+    if (ret != 0)
     {
-        std::size_t needCacheSize = 0;
-
-        ret = FastFss_cuda_dpfGetCacheDataSize(
-            &needCacheSize, bitWidthIn, bitWidthOut, elementSize, elementNum);
-
-        FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
-        FSS_ASSERT(cacheDataSize == needCacheSize,
-                   ERROR_CODE::INVALID_CACHE_DATA_SIZE_ERROR);
+        return ret;
+    }
+    ret = FastFss_cuda_dpfGetCacheDataSize( //
+        &needCacheDataSize,                 //
+        bitWidthIn,                         //
+        bitWidthOut,                        //
+        elementSize,                        //
+        elementNum                          //
+    );                                      //
+    if (ret != 0)
+    {
+        return ret;
     }
 
+    if (keyDataSize != needKeyDataSize)
+    {
+        return ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR;
+    }
+
+    std::size_t pointNum = pointDataSize / elementSize;
+    if (pointDataSize != elementSize * pointNum)
+    {
+        return ERROR_CODE::INVALID_POINT_DATA_SIZE_ERROR;
+    }
+    if (sharedOutDataSize != elementNum * elementSize * pointNum)
+    {
+        return ERROR_CODE::INVALID_SHARED_OUT_DATA_SIZE_ERROR;
+    }
+    if (maskedXDataSize != elementNum * elementSize)
+    {
+        return ERROR_CODE::INVLIAD_MASKED_X_DATA_SIZE_ERROR;
+    }
+    if (seedDataSize != elementNum * 16)
+    {
+        return ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR;
+    }
+    if (partyId != 0 && partyId != 1)
+    {
+        return ERROR_CODE::INVALID_PARTY_ID_ERROR;
+    }
+    if (bitWidthIn > elementSize * 8 || bitWidthOut > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
+    if (cacheDataSize != 0)
+    {
+        if (cacheDataSize != needCacheDataSize)
+        {
+            return ERROR_CODE::INVALID_CACHE_DATA_SIZE_ERROR;
+        }
+    }
+
+    bool        parallel  = false;
     std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
     if (GRID_DIM > CUDA_MAX_GRID_DIM)
     {
         GRID_DIM = CUDA_MAX_GRID_DIM;
     }
-    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)cudaStreamPtr : 0;
-
-    return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
-        elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
-        [&] {
-            dpfEvalKernel<scalar_t><<<GRID_DIM, BLOCK_DIM, 0, stream>>>(
-                sharedOut, maskedX, key, seed, partyId, bitWidthIn, bitWidthOut,
-                elementNum, cache);
-            return ERROR_CODE::SUCCESS;
-        });
-}
-
-int FastFss_cuda_dpfMultiEval(void*       sharedOut,
-                              size_t      sharedOutDataSize,
-                              const void* maskedX,
-                              size_t      maskedXDataSize,
-                              const void* key,
-                              size_t      keyDataSize,
-                              const void* seed,
-                              size_t      seedDataSize,
-                              int         partyId,
-                              const void* point,
-                              size_t      pointDataSize,
-                              size_t      bitWidthIn,
-                              size_t      bitWidthOut,
-                              size_t      elementSize,
-                              size_t      elementNum,
-                              void*       cache,
-                              size_t      cacheDataSize,
-                              void*       cudaStreamPtr)
-{
-    int         ret;
-    std::size_t needKeySize = 0;
-    ret = FastFss_cuda_dpfGetKeyDataSize(&needKeySize, bitWidthIn, bitWidthOut,
-                                         elementSize, elementNum);
-    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
-
-    std::size_t pointNum = pointDataSize / elementSize;
-    FSS_ASSERT(sharedOutDataSize == pointNum * elementNum * elementSize,
-               ERROR_CODE::INVALID_SHARED_OUT_DATA_SIZE_ERROR);
-    FSS_ASSERT(keyDataSize == needKeySize,
-               ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
-    FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
-               ERROR_CODE::INVLIAD_MASKED_X_DATA_SIZE_ERROR);
-    FSS_ASSERT(seedDataSize == elementNum * 16,
-               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
-    FSS_ASSERT(partyId == 0 || partyId == 1,
-               ERROR_CODE::INVALID_PARTY_ID_ERROR);
-    FSS_ASSERT(bitWidthIn <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
-    FSS_ASSERT(bitWidthOut <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
-
-    if (cacheDataSize != 0)
-    {
-        std::size_t needCacheSize = 0;
-
-        ret = FastFss_cuda_dpfGetCacheDataSize(
-            &needCacheSize, bitWidthIn, bitWidthOut, elementSize, elementNum);
-
-        FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
-        FSS_ASSERT(cacheDataSize == needCacheSize,
-                   ERROR_CODE::INVALID_CACHE_DATA_SIZE_ERROR);
-    }
-
-    bool        parallelAll = false;
-    std::size_t BLOCK_DIM   = CUDA_DEFAULT_BLOCK_DIM;
-    std::size_t GRID_DIM    = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
-    if (GRID_DIM > CUDA_MAX_GRID_DIM)
-    {
-        GRID_DIM = CUDA_MAX_GRID_DIM;
-    }
     if (GRID_DIM < FastFss_cuda_getGridDim())
     {
-        parallelAll = true;
-        GRID_DIM    = (elementNum * pointNum + BLOCK_DIM - 1) / BLOCK_DIM;
+        parallel = true;
+        GRID_DIM = (elementNum * pointNum + BLOCK_DIM - 1) / BLOCK_DIM;
         if (GRID_DIM > CUDA_MAX_GRID_DIM)
         {
             GRID_DIM = CUDA_MAX_GRID_DIM;
         }
     }
-    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)cudaStreamPtr : 0;
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t *)cudaStreamPtr : 0;
 
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
-            if (parallelAll)
+            if (parallel)
             {
-                dpfMultiEvalKernelParallelAll<scalar_t>
-                    <<<GRID_DIM, BLOCK_DIM, 0, stream>>>(
-                        sharedOut, maskedX, key, seed, partyId, point, pointNum,
-                        bitWidthIn, bitWidthOut, elementNum);
+                cudaError_t e          = cudaSuccess;
+                void       *dCache     = nullptr;
+                std::size_t dCacheSize = (                                    //
+                    (needCacheDataSize / elementNum) * (BLOCK_DIM * GRID_DIM) //
+                );                                                            //
+
+                e = cudaMalloc(&dCache, dCacheSize);
+                if (e != cudaSuccess)
+                {
+                    return ERROR_CODE::RUNTIME_ERROR;
+                }
+                dpfMultiEvalKernelParallel<scalar_t>
+                    <<<GRID_DIM, BLOCK_DIM, 0, stream>>>( //
+                        sharedOut,                        //
+                        maskedX,                          //
+                        key,                              //
+                        seed,                             //
+                        partyId,                          //
+                        point,                            //
+                        pointNum,                         //
+                        bitWidthIn,                       //
+                        bitWidthOut,                      //
+                        elementNum,                       //
+                        dCache                            //
+                    );                                    //
+                e = cudaFree(dCache);
+                if (e != cudaSuccess)
+                {
+                    return ERROR_CODE::RUNTIME_ERROR;
+                }
             }
             else
             {
@@ -402,42 +690,42 @@ int FastFss_cuda_dpfMultiEval(void*       sharedOut,
         });
 }
 
-int FastFss_cuda_dpfKeyZip(void*       zippedKey,
+int FastFss_cuda_dpfKeyZip(void       *zippedKey,
                            size_t      zippedKeyDataSize,
-                           const void* key,
+                           const void *key,
                            size_t      keyDataSize,
                            size_t      bitWidthIn,
                            size_t      bitWidthOut,
                            size_t      elementSize,
                            size_t      elementNum,
-                           void*       cudaStreamPtr)
+                           void       *cudaStreamPtr)
 {
     return ERROR_CODE::RUNTIME_ERROR;
 }
 
-int FastFss_cuda_dpfKeyUnzip(void*       key,
+int FastFss_cuda_dpfKeyUnzip(void       *key,
                              size_t      keyDataSize,
-                             const void* zippedKey,
+                             const void *zippedKey,
                              size_t      zippedKeyDataSize,
                              size_t      bitWidthIn,
                              size_t      bitWidthOut,
                              size_t      elementSize,
                              size_t      elementNum,
-                             void*       cudaStreamPtr)
+                             void       *cudaStreamPtr)
 {
     return ERROR_CODE::RUNTIME_ERROR;
 }
 
-int FastFss_cuda_dpfGetKeyDataSize(size_t* keyDataSize,
+int FastFss_cuda_dpfGetKeyDataSize(size_t *keyDataSize,
                                    size_t  bitWidthIn,
                                    size_t  bitWidthOut,
                                    size_t  elementSize,
                                    size_t  elementNum)
 {
-    FSS_ASSERT(bitWidthIn <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
-    FSS_ASSERT(bitWidthOut <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    if (!(bitWidthIn <= elementSize * 8 && bitWidthOut <= elementSize * 8))
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
 
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (std::size_t)0; },
@@ -448,16 +736,16 @@ int FastFss_cuda_dpfGetKeyDataSize(size_t* keyDataSize,
     return ERROR_CODE::SUCCESS;
 }
 
-int FastFss_cuda_dpfGetZippedKeyDataSize(size_t* keyDataSize,
+int FastFss_cuda_dpfGetZippedKeyDataSize(size_t *keyDataSize,
                                          size_t  bitWidthIn,
                                          size_t  bitWidthOut,
                                          size_t  elementSize,
                                          size_t  elementNum)
 {
-    FSS_ASSERT(bitWidthIn <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
-    FSS_ASSERT(bitWidthOut <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    if (!(bitWidthIn <= elementSize * 8 && bitWidthOut <= elementSize * 8))
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
 
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (std::size_t)0; },
@@ -468,16 +756,16 @@ int FastFss_cuda_dpfGetZippedKeyDataSize(size_t* keyDataSize,
     return ERROR_CODE::SUCCESS;
 }
 
-int FastFss_cuda_dpfGetCacheDataSize(size_t* cacheDataSize,
+int FastFss_cuda_dpfGetCacheDataSize(size_t *cacheDataSize,
                                      size_t  bitWidthIn,
                                      size_t  bitWidthOut,
                                      size_t  elementSize,
                                      size_t  elementNum)
 {
-    FSS_ASSERT(bitWidthIn <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
-    FSS_ASSERT(bitWidthOut <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    if (!(bitWidthIn <= elementSize * 8 && bitWidthOut <= elementSize * 8))
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
 
     *cacheDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (std::size_t)0; },

@@ -6,9 +6,6 @@
 
 using namespace FastFss;
 
-#define FSS_ASSERT(cond, errCode) \
-    if (!(cond)) return errCode
-
 enum ERR_CODE
 {
     SUCCESS                        = 0,
@@ -22,16 +19,16 @@ enum ERR_CODE
 };
 
 template <typename GroupElement>
-static void onehotKeyGenKernel(void*       key,
-                               const void* alpha,
+static void onehotKeyGenKernel(void       *key,
+                               const void *alpha,
                                std::size_t bitWidthIn,
                                std::size_t elementNum)
 {
     std::int64_t idx    = 0;
     std::int64_t stride = 1;
 
-    const GroupElement* alphaPtr = (const GroupElement*)alpha;
-    std::uint8_t*       keyPtr   = (std::uint8_t*)key;
+    const GroupElement *alphaPtr = (const GroupElement *)alpha;
+    std::uint8_t       *keyPtr   = (std::uint8_t *)key;
 
     omp_set_num_threads(FastFss_cpu_getNumThreads());
 #pragma omp parallel for
@@ -43,11 +40,11 @@ static void onehotKeyGenKernel(void*       key,
 }
 
 template <typename GroupElement>
-static void onehotLutEvalKernel(void*       sharedOutE,
-                                void*       sharedOutT,
-                                const void* maskedX,
-                                const void* key,
-                                const void* lut,
+static void onehotLutEvalKernel(void       *sharedOutE,
+                                void       *sharedOutT,
+                                const void *maskedX,
+                                const void *key,
+                                const void *lut,
                                 int         partyId,
                                 std::size_t bitWidthIn,
                                 std::size_t elementNum)
@@ -55,11 +52,11 @@ static void onehotLutEvalKernel(void*       sharedOutE,
     std::int64_t idx    = 0;
     std::int64_t stride = 1;
 
-    const GroupElement* maskedXPtr    = (const GroupElement*)maskedX;
-    const std::uint8_t* keyPtr        = (const std::uint8_t*)key;
-    const GroupElement* lutPtr        = (const GroupElement*)lut;
-    GroupElement*       sharedOutEPtr = (GroupElement*)sharedOutE;
-    GroupElement*       sharedOutTPtr = (GroupElement*)sharedOutT;
+    const GroupElement *maskedXPtr    = (const GroupElement *)maskedX;
+    const std::uint8_t *keyPtr        = (const std::uint8_t *)key;
+    const GroupElement *lutPtr        = (const GroupElement *)lut;
+    GroupElement       *sharedOutEPtr = (GroupElement *)sharedOutE;
+    GroupElement       *sharedOutTPtr = (GroupElement *)sharedOutT;
 
     omp_set_num_threads(FastFss_cpu_getNumThreads());
 #pragma omp parallel for
@@ -78,63 +75,83 @@ static void onehotLutEvalKernel(void*       sharedOutE,
     }
 }
 
-int FastFss_cpu_onehotKeyGen(void*       key,
+int FastFss_cpu_onehotKeyGen(void       *key,
                              size_t      keyDataSize,
-                             const void* alpha,
+                             const void *alpha,
                              size_t      alphaDataSize,
                              size_t      bitWidthIn,
                              size_t      elementSize,
                              size_t      elementNum)
 {
-    using namespace impl;
-    FSS_ASSERT(bitWidthIn >= 3, ERR_CODE::INVALID_BIT_WIDTH_IN);
+    int         ret             = 0;
+    std::size_t needKeyDataSize = 0;
 
-    std::size_t needKeyDataSize = onehotGetKeyDataSize( //
-        bitWidthIn, elementNum                          //
-    );                                                  //
-    FSS_ASSERT(needKeyDataSize == keyDataSize, ERR_CODE::INVALID_KEY_DATA_SIZE);
+    ret = FastFss_cpu_onehotGetKeyDataSize(      //
+        &needKeyDataSize, bitWidthIn, elementNum //
+    );                                           //
+    if (!(3 <= bitWidthIn && bitWidthIn <= elementSize * 8))
+    {
+        return ERR_CODE::INVALID_BIT_WIDTH_IN;
+    }
+    if (needKeyDataSize != keyDataSize)
+    {
+        return ERR_CODE::INVALID_KEY_DATA_SIZE;
+    }
+    if (alphaDataSize != elementSize * elementNum)
+    {
+        return ERR_CODE::INVALID_ALPHA_DATA_SIZE;
+    }
 
-    FSS_ASSERT(alphaDataSize == elementSize * elementNum,
-               ERR_CODE::INVALID_ALPHA_DATA_SIZE);
-
-    auto ret = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+    ret = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize,                                //
         { return ERR_CODE::INVALID_ELEMENT_SIZE; }, //
         [&] {
-            onehotKeyGenKernel<scalar_t>(key, alpha, bitWidthIn, elementNum);
+            onehotKeyGenKernel<scalar_t>(          //
+                key, alpha, bitWidthIn, elementNum //
+            );                                     //
             return ERR_CODE::SUCCESS;
         });
     return ret;
 }
 
-int FastFss_cpu_onehotLutEval(void*       sharedOutE,
-                              void*       sharedOutT,
-                              const void* maskedX,
+int FastFss_cpu_onehotLutEval(void       *sharedOutE,
+                              void       *sharedOutT,
+                              size_t      sharedOutDataSize,
+                              const void *maskedX,
                               size_t      maskedXDataSize,
-                              const void* key,
+                              const void *key,
                               size_t      keyDataSize,
                               int         partyId,
-                              const void* lookUpTable,
+                              const void *lookUpTable,
                               size_t      lookUpTableDataSize,
                               size_t      bitWidthIn,
                               size_t      elementSize,
                               size_t      elementNum)
 {
-    using namespace impl;
+    int         ret             = 0;
+    std::size_t needKeyDataSize = 0;
 
-    FSS_ASSERT(bitWidthIn >= 3, ERR_CODE::INVALID_BIT_WIDTH_IN);
+    ret = FastFss_cpu_onehotGetKeyDataSize(      //
+        &needKeyDataSize, bitWidthIn, elementNum //
+    );                                           //
+    if (!(3 <= bitWidthIn && bitWidthIn <= elementSize * 8))
+    {
+        return ERR_CODE::INVALID_BIT_WIDTH_IN;
+    }
+    if (needKeyDataSize != keyDataSize)
+    {
+        return ERR_CODE::INVALID_KEY_DATA_SIZE;
+    }
+    if (maskedXDataSize != elementSize * elementNum)
+    {
+        return ERR_CODE::INVALID_MASKED_X_DATA_SIZE;
+    }
+    if (lookUpTableDataSize != elementSize * (1ULL << bitWidthIn))
+    {
+        return ERR_CODE::INVALID_LOOKUP_TABLE_DATA_SIZE;
+    }
 
-    std::size_t needKeyDataSize = onehotGetKeyDataSize( //
-        bitWidthIn, elementNum                          //
-    );                                                  //
-    FSS_ASSERT(needKeyDataSize == keyDataSize, ERR_CODE::INVALID_KEY_DATA_SIZE);
-
-    FSS_ASSERT(maskedXDataSize == elementSize * elementNum,
-               ERR_CODE::INVALID_MASKED_X_DATA_SIZE);
-    FSS_ASSERT(lookUpTableDataSize == elementSize * (1ULL << bitWidthIn),
-               ERR_CODE::INVALID_LOOKUP_TABLE_DATA_SIZE);
-
-    auto ret = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
+    ret = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize,                                //
         { return ERR_CODE::INVALID_ELEMENT_SIZE; }, //
         [&] {
@@ -153,11 +170,14 @@ int FastFss_cpu_onehotLutEval(void*       sharedOutE,
     return ret;
 }
 
-int FastFss_cpu_onehotGetKeyDataSize(size_t* keyDataSize,
+int FastFss_cpu_onehotGetKeyDataSize(size_t *keyDataSize,
                                      size_t  bitWidthIn,
                                      size_t  elementNum)
 {
-    FSS_ASSERT(bitWidthIn >= 3, ERR_CODE::INVALID_BIT_WIDTH_IN);
+    if (!(3 <= bitWidthIn && bitWidthIn <= elementNum * 8))
+    {
+        return ERR_CODE::INVALID_BIT_WIDTH_IN;
+    }
     *keyDataSize = impl::onehotGetKeyDataSize(bitWidthIn, elementNum);
     return (int)ERR_CODE::SUCCESS;
 }

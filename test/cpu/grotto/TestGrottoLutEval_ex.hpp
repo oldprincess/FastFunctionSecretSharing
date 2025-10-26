@@ -1,5 +1,5 @@
-#ifndef TEST_CPU_GROTTO_TEST_GROTTO_LUT_EX_HPP
-#define TEST_CPU_GROTTO_TEST_GROTTO_LUT_EX_HPP
+#ifndef TEST_CPU_GROTTO_TEST_GROTTO_LUT_EVAL_EX_HPP
+#define TEST_CPU_GROTTO_TEST_GROTTO_LUT_EVAL_EX_HPP
 
 #include <FastFss/cpu/grotto.h>
 
@@ -12,7 +12,7 @@
 #include "../mt19937.hpp"
 
 template <typename GroupElement>
-class TestGrottoLut_ex
+class TestGrottoLutEval_ex
 {
     static constexpr GroupElement mod_bits(GroupElement x,
                                            int          bitWidth) noexcept
@@ -61,6 +61,8 @@ public:
         std::size_t cacheDataSize;
         FastFss_cpu_grottoGetCacheDataSize(&cacheDataSize, bitWidthIn,
                                            sizeof(GroupElement), elementNum);
+
+        std::size_t sharedOutDataSize = sizeof(GroupElement) * elementNum;
 
         std::unique_ptr<GroupElement[]> sharedOutE0( //
             new GroupElement[elementNum]             //
@@ -146,6 +148,7 @@ public:
             int  ret2       = FastFss_cpu_grottoLutEval_ex( //
                 sharedOutE0.get(),                   //
                 sharedOutT0.get(),                   //
+                sharedOutDataSize,                   //
                 maskedX.get(),                       //
                 maskedXDataSize,                     //
                 grottoKey.get(),                     //
@@ -179,6 +182,7 @@ public:
             int  ret3       = FastFss_cpu_grottoLutEval_ex( //
                 sharedOutE1.get(),                   //
                 sharedOutT1.get(),                   //
+                sharedOutDataSize,                   //
                 maskedX.get(),                       //
                 maskedXDataSize,                     //
                 grottoKey.get(),                     //
@@ -231,9 +235,9 @@ public:
         }
 
         std::puts("  pass");
-        std::printf(
-            "\tgenKeyTime = %zu us, eval1Time = %zu us, eval2Time = %zu us\n",
-            genKeyTimeUs, eval1TimeUs, eval2TimeUs);
+        // std::printf(
+        //     "\tgenKeyTime = %zu us, eval1Time = %zu us, eval2Time = %zu
+        //     us\n", genKeyTimeUs, eval1TimeUs, eval2TimeUs);
     }
 };
 

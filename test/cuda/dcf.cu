@@ -97,8 +97,8 @@ public:
             sharedOut0[i] = 0;
             sharedOut1[i] = 0;
         }
-
-        void*       deviceDcfKey = nullptr;
+        std::size_t sharedOutDataSize = sizeof(GroupElement) * elementNum;
+        void       *deviceDcfKey      = nullptr;
         std::size_t dcfKeyDataSize;
         int         ret;
 
@@ -109,10 +109,10 @@ public:
         deviceDcfKey = cuda::malloc_gpu(dcfKeyDataSize);
 
         {
-            void* deviceAlpha = cuda::malloc_gpu(alphaDataSize);
-            void* deviceBeta  = cuda::malloc_gpu(betaDataSize);
-            void* deviceSeed0 = cuda::malloc_gpu(seedDataSize0);
-            void* deviceSeed1 = cuda::malloc_gpu(seedDataSize1);
+            void *deviceAlpha = cuda::malloc_gpu(alphaDataSize);
+            void *deviceBeta  = cuda::malloc_gpu(betaDataSize);
+            void *deviceSeed0 = cuda::malloc_gpu(seedDataSize0);
+            void *deviceSeed1 = cuda::malloc_gpu(seedDataSize1);
 
             cuda::memcpy_cpu2gpu(deviceAlpha, alpha.get(), alphaDataSize);
             cuda::memcpy_cpu2gpu(deviceBeta, beta.get(), betaDataSize);
@@ -133,18 +133,18 @@ public:
         }
 
         {
-            void* deviceSharedOut0 = cuda::malloc_gpu(maskedXDataSize);
-            void* deviceMaskedX    = cuda::malloc_gpu(maskedXDataSize);
-            void* deviceSeed0      = cuda::malloc_gpu(seedDataSize0);
+            void *deviceSharedOut0 = cuda::malloc_gpu(maskedXDataSize);
+            void *deviceMaskedX    = cuda::malloc_gpu(maskedXDataSize);
+            void *deviceSeed0      = cuda::malloc_gpu(seedDataSize0);
 
             cuda::memcpy_cpu2gpu(deviceMaskedX, maskedX.get(), maskedXDataSize);
             cuda::memcpy_cpu2gpu(deviceSeed0, seed0.get(), seedDataSize0);
 
             ret = FastFss_cuda_dcfEval(
-                deviceSharedOut0, deviceMaskedX, maskedXDataSize, deviceDcfKey,
-                dcfKeyDataSize, deviceSeed0, seedDataSize0, 0, bitWidthIn,
-                bitWidthOut, sizeof(GroupElement), elementNum, nullptr, 0,
-                nullptr);
+                deviceSharedOut0, sharedOutDataSize, deviceMaskedX,
+                maskedXDataSize, deviceDcfKey, dcfKeyDataSize, deviceSeed0,
+                seedDataSize0, 0, bitWidthIn, bitWidthOut, sizeof(GroupElement),
+                elementNum, nullptr, 0, nullptr);
 
             cuda::memcpy_gpu2cpu(sharedOut0.get(), deviceSharedOut0,
                                  maskedXDataSize);
@@ -156,18 +156,18 @@ public:
         }
 
         {
-            void* deviceSharedOut1 = cuda::malloc_gpu(maskedXDataSize);
-            void* deviceMaskedX    = cuda::malloc_gpu(maskedXDataSize);
-            void* deviceSeed1      = cuda::malloc_gpu(seedDataSize1);
+            void *deviceSharedOut1 = cuda::malloc_gpu(maskedXDataSize);
+            void *deviceMaskedX    = cuda::malloc_gpu(maskedXDataSize);
+            void *deviceSeed1      = cuda::malloc_gpu(seedDataSize1);
 
             cuda::memcpy_cpu2gpu(deviceMaskedX, maskedX.get(), maskedXDataSize);
             cuda::memcpy_cpu2gpu(deviceSeed1, seed1.get(), seedDataSize1);
 
             ret = FastFss_cuda_dcfEval(
-                deviceSharedOut1, deviceMaskedX, maskedXDataSize, deviceDcfKey,
-                dcfKeyDataSize, deviceSeed1, seedDataSize1, 1, bitWidthIn,
-                bitWidthOut, sizeof(GroupElement), elementNum, nullptr, 0,
-                nullptr);
+                deviceSharedOut1, sharedOutDataSize, deviceMaskedX,
+                maskedXDataSize, deviceDcfKey, dcfKeyDataSize, deviceSeed1,
+                seedDataSize1, 1, bitWidthIn, bitWidthOut, sizeof(GroupElement),
+                elementNum, nullptr, 0, nullptr);
 
             cuda::memcpy_gpu2cpu(sharedOut1.get(), deviceSharedOut1,
                                  maskedXDataSize);

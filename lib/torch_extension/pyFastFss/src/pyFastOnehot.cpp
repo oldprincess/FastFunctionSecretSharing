@@ -23,7 +23,7 @@
 #define CHECK_ERROR_CODE(ret, func)             \
     if (ret != 0)                               \
     {                                           \
-        ERR_LOG(func " ret = %d", ret);          \
+        ERR_LOG(func " ret = %d", ret);         \
         throw std::runtime_error(func " fail"); \
     }
 
@@ -39,8 +39,8 @@ std::size_t onehot_get_key_data_size(std::size_t bitWidthIn,
     return keyDataSize;
 }
 
-torch::Tensor& onehot_key_gen(torch::Tensor&       keyInOut,
-                              const torch::Tensor& alpha,
+torch::Tensor &onehot_key_gen(torch::Tensor       &keyInOut,
+                              const torch::Tensor &alpha,
                               std::size_t          bitWidthIn,
                               std::size_t          elementNum)
 {
@@ -106,12 +106,12 @@ torch::Tensor& onehot_key_gen(torch::Tensor&       keyInOut,
     return keyInOut;
 }
 
-py::tuple onehot_lut_eval(torch::Tensor&       sharedOutE,
-                          torch::Tensor&       sharedOutT,
-                          const torch::Tensor& maskedX,
-                          const torch::Tensor& key,
+py::tuple onehot_lut_eval(torch::Tensor       &sharedOutE,
+                          torch::Tensor       &sharedOutT,
+                          const torch::Tensor &maskedX,
+                          const torch::Tensor &key,
                           int                  partyId,
-                          const torch::Tensor& lookUpTable,
+                          const torch::Tensor &lookUpTable,
                           std::size_t          bitWidthIn,
                           std::size_t          bitWidthOut,
                           std::size_t          elementNum)
@@ -157,6 +157,7 @@ py::tuple onehot_lut_eval(torch::Tensor&       sharedOutE,
         int ret = FastFss_cpu_onehotLutEval(                //
             sharedOutE.mutable_data_ptr(),                  //
             sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutE.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -176,6 +177,7 @@ py::tuple onehot_lut_eval(torch::Tensor&       sharedOutE,
         int ret = FastFss_cuda_onehotLutEval(               //
             sharedOutE.mutable_data_ptr(),                  //
             sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutE.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //

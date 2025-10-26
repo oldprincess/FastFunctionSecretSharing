@@ -10,7 +10,7 @@ else:
 
 setup(
     name="pyFastFss",
-    version="0.0.202508061517",
+    version="0.0.202510262010",
     description="Fast Function Secret Sharing (Dpf and Dcf)",
     long_description="",
     author="oldprincess",

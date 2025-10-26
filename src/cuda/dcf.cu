@@ -2,9 +2,6 @@
 
 #include "../impl/dcf.h"
 
-#define FSS_ASSERT(cond, errCode) \
-    if (!(cond)) return errCode
-
 using namespace FastFss;
 
 enum ERROR_CODE
@@ -26,11 +23,11 @@ enum ERROR_CODE
 };
 
 template <typename GroupElement>
-__global__ static void dcfKeyGenKernel(void*       key,
-                                       const void* alpha,
-                                       const void* beta,
-                                       const void* seed0,
-                                       const void* seed1,
+__global__ static void dcfKeyGenKernel(void       *key,
+                                       const void *alpha,
+                                       const void *beta,
+                                       const void *seed0,
+                                       const void *seed1,
                                        std::size_t bitWidthIn,
                                        std::size_t bitWidthOut,
                                        std::size_t elementNum)
@@ -38,10 +35,10 @@ __global__ static void dcfKeyGenKernel(void*       key,
     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
     std::size_t stride = blockDim.x * gridDim.x;
 
-    const GroupElement* alphaPtr = (const GroupElement*)alpha;
-    const GroupElement* betaPtr  = (const GroupElement*)beta;
-    const std::uint8_t* seed0Ptr = (const std::uint8_t*)seed0;
-    const std::uint8_t* seed1Ptr = (const std::uint8_t*)seed1;
+    const GroupElement *alphaPtr = (const GroupElement *)alpha;
+    const GroupElement *betaPtr  = (const GroupElement *)beta;
+    const std::uint8_t *seed0Ptr = (const std::uint8_t *)seed0;
+    const std::uint8_t *seed1Ptr = (const std::uint8_t *)seed1;
 
     impl::DcfKey<GroupElement> keyObj;
     for (std::size_t i = idx; i < elementNum; i += stride)
@@ -58,45 +55,63 @@ __global__ static void dcfKeyGenKernel(void*       key,
     }
 }
 
-int FastFss_cuda_dcfKeyGen(void*       key,
+int FastFss_cuda_dcfKeyGen(void       *key,
                            size_t      keyDataSize,
-                           const void* alpha,
+                           const void *alpha,
                            size_t      alphaDataSize,
-                           const void* beta,
+                           const void *beta,
                            size_t      betaDataSize,
-                           const void* seed0,
+                           const void *seed0,
                            size_t      seedDataSize0,
-                           const void* seed1,
+                           const void *seed1,
                            size_t      seedDataSize1,
                            size_t      bitWidthIn,
                            size_t      bitWidthOut,
                            size_t      elementSize,
                            size_t      elementNum,
-                           void*       cudaStreamPtr)
+                           void       *cudaStreamPtr)
 {
     int         ret;
-    std::size_t needKeySize = 0;
-    ret = FastFss_cuda_dcfGetKeyDataSize(&needKeySize, bitWidthIn, bitWidthOut,
-                                         elementSize, elementNum);
-    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
+    std::size_t needKeyDataSize = 0;
 
-    FSS_ASSERT(keyDataSize == needKeySize,
-               ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
-    FSS_ASSERT(alphaDataSize == elementNum * elementSize,
-               ERROR_CODE::INVALID_ALPHA_DATA_SIZE_ERROR);
+    ret = FastFss_cuda_dcfGetKeyDataSize(                                  //
+        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+    );                                                                     //
+    if (ret != 0)
+    {
+        return ret;
+    }
+    if (keyDataSize != needKeyDataSize)
+    {
+        return ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR;
+    }
+    if (alphaDataSize != elementNum * elementSize)
+    {
+        return ERROR_CODE::INVALID_ALPHA_DATA_SIZE_ERROR;
+    }
     if (betaDataSize != 0)
     {
-        FSS_ASSERT(betaDataSize == elementNum * elementSize,
-                   ERROR_CODE::INVALID_BETA_DATA_SIZE_ERROR);
+        if (betaDataSize != elementNum * elementSize)
+        {
+            return ERROR_CODE::INVALID_BETA_DATA_SIZE_ERROR;
+        }
     }
-    FSS_ASSERT(seedDataSize0 == elementNum * 16,
-               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
-    FSS_ASSERT(seedDataSize1 == elementNum * 16,
-               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
-    FSS_ASSERT(bitWidthIn <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
-    FSS_ASSERT(bitWidthOut <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    if (seedDataSize0 != elementNum * 16)
+    {
+        return ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR;
+    }
+    if (seedDataSize1 != elementNum * 16)
+    {
+        return ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR;
+    }
+    if (bitWidthIn > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
+    if (bitWidthOut > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
 
     std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
     std::size_t GRID_DIM  = (elementNum + BLOCK_DIM - 1) / BLOCK_DIM;
@@ -104,7 +119,7 @@ int FastFss_cuda_dcfKeyGen(void*       key,
     {
         GRID_DIM = CUDA_MAX_GRID_DIM;
     }
-    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)cudaStreamPtr : 0;
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t *)cudaStreamPtr : 0;
 
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
@@ -123,22 +138,22 @@ int FastFss_cuda_dcfKeyGen(void*       key,
 }
 
 template <typename GroupElement>
-__global__ static void dcfEvalKernel(void*       sharedOut,
-                                     const void* maskedX,
-                                     const void* key,
-                                     const void* seed,
+__global__ static void dcfEvalKernel(void       *sharedOut,
+                                     const void *maskedX,
+                                     const void *key,
+                                     const void *seed,
                                      int         partyId,
                                      size_t      bitWidthIn,
                                      size_t      bitWidthOut,
                                      size_t      elementNum,
-                                     void*       cache)
+                                     void       *cache)
 {
     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
     std::size_t stride = blockDim.x * gridDim.x;
 
-    GroupElement*       sharedOutPtr = (GroupElement*)sharedOut;
-    const GroupElement* maskedXPtr   = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr      = (const std::uint8_t*)seed;
+    GroupElement       *sharedOutPtr = (GroupElement *)sharedOut;
+    const GroupElement *maskedXPtr   = (const GroupElement *)maskedX;
+    const std::uint8_t *seedPtr      = (const std::uint8_t *)seed;
 
     impl::DcfKey<GroupElement> keyObj;
     for (std::size_t i = idx; i < elementNum; i += stride)
@@ -153,50 +168,81 @@ __global__ static void dcfEvalKernel(void*       sharedOut,
     }
 }
 
-int FastFss_cuda_dcfEval(void*       sharedOut,
-                         const void* maskedX,
+int FastFss_cuda_dcfEval(void       *sharedOut,
+                         size_t      sharedOutSize,
+                         const void *maskedX,
                          size_t      maskedXDataSize,
-                         const void* key,
+                         const void *key,
                          size_t      keyDataSize,
-                         const void* seed,
+                         const void *seed,
                          size_t      seedDataSize,
                          int         partyId,
                          size_t      bitWidthIn,
                          size_t      bitWidthOut,
                          size_t      elementSize,
                          size_t      elementNum,
-                         void*       cache,
+                         void       *cache,
                          size_t      cacheDataSize,
-                         void*       cudaStreamPtr)
+                         void       *cudaStreamPtr)
 {
     int         ret;
-    std::size_t needKeySize = 0;
-    ret = FastFss_cuda_dcfGetKeyDataSize(&needKeySize, bitWidthIn, bitWidthOut,
-                                         elementSize, elementNum);
-    FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
+    std::size_t needKeyDataSize = 0;
 
-    FSS_ASSERT(keyDataSize == needKeySize,
-               ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR);
-    FSS_ASSERT(maskedXDataSize == elementNum * elementSize,
-               ERROR_CODE::INVLIAD_MASKED_X_DATA_SIZE_ERROR);
-    FSS_ASSERT(seedDataSize == elementNum * 16,
-               ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR);
-    FSS_ASSERT(partyId == 0 || partyId == 1,
-               ERROR_CODE::INVALID_PARTY_ID_ERROR);
-    FSS_ASSERT(bitWidthIn <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
-    FSS_ASSERT(bitWidthOut <= elementSize * 8,
-               ERROR_CODE::INVALID_BITWIDTH_ERROR);
+    ret = FastFss_cuda_dcfGetKeyDataSize(                                  //
+        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+    );                                                                     //
+    if (ret != 0)
+    {
+        return ret;
+    }
+    if (sharedOutSize != elementNum * elementSize)
+    {
+        return ERROR_CODE::INVALID_SHARED_OUT_DATA_SIZE_ERROR;
+    }
+    if (maskedXDataSize != elementNum * elementSize)
+    {
+        return ERROR_CODE::INVLIAD_MASKED_X_DATA_SIZE_ERROR;
+    }
+    if (keyDataSize != needKeyDataSize)
+    {
+        return ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR;
+    }
+    if (seedDataSize != elementNum * 16)
+    {
+        return ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR;
+    }
+    if (partyId != 0 && partyId != 1)
+    {
+        return ERROR_CODE::INVALID_PARTY_ID_ERROR;
+    }
+    if (bitWidthIn > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
+    if (bitWidthOut > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
     if (cacheDataSize != 0)
     {
-        std::size_t needCacheSize = 0;
+        std::size_t needCacheDataSize = 0;
 
-        ret = FastFss_cuda_dcfGetCacheDataSize(
-            &needCacheSize, bitWidthIn, bitWidthOut, elementSize, elementNum);
+        ret = FastFss_cuda_dcfGetCacheDataSize( //
+            &needCacheDataSize,                 //
+            bitWidthIn,                         //
+            bitWidthOut,                        //
+            elementSize,                        //
+            elementNum                          //
+        );                                      //
 
-        FSS_ASSERT(ret == 0, ERROR_CODE::RUNTIME_ERROR);
-        FSS_ASSERT(cacheDataSize == needCacheSize,
-                   ERROR_CODE::INVALID_CACHE_DATA_SIZE_ERROR);
+        if (ret != 0)
+        {
+            return ret;
+        }
+        if (needCacheDataSize != cacheDataSize)
+        {
+            return ERROR_CODE::INVALID_CACHE_DATA_SIZE_ERROR;
+        }
     }
 
     std::size_t BLOCK_DIM = CUDA_DEFAULT_BLOCK_DIM;
@@ -205,7 +251,7 @@ int FastFss_cuda_dcfEval(void*       sharedOut,
     {
         GRID_DIM = CUDA_MAX_GRID_DIM;
     }
-    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t*)cudaStreamPtr : 0;
+    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t *)cudaStreamPtr : 0;
 
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
@@ -221,38 +267,47 @@ int FastFss_cuda_dcfEval(void*       sharedOut,
         });
 }
 
-int FastFss_cuda_dcfKeyZip(void*       zippedKey,
+int FastFss_cuda_dcfKeyZip(void       *zippedKey,
                            size_t      zippedKeyDataSize,
-                           const void* key,
+                           const void *key,
                            size_t      keyDataSize,
                            size_t      bitWidthIn,
                            size_t      bitWidthOut,
                            size_t      elementSize,
                            size_t      elementNum,
-                           void*       cudaStreamPtr)
+                           void       *cudaStreamPtr)
 {
     return ERROR_CODE::RUNTIME_ERROR;
 }
 
-int FastFss_cuda_dcfKeyUnzip(void*       key,
+int FastFss_cuda_dcfKeyUnzip(void       *key,
                              size_t      keyDataSize,
-                             const void* zippedKey,
+                             const void *zippedKey,
                              size_t      zippedKeyDataSize,
                              size_t      bitWidthIn,
                              size_t      bitWidthOut,
                              size_t      elementSize,
                              size_t      elementNum,
-                             void*       cudaStreamPtr)
+                             void       *cudaStreamPtr)
 {
     return ERROR_CODE::RUNTIME_ERROR;
 }
 
-int FastFss_cuda_dcfGetKeyDataSize(size_t* keyDataSize,
+int FastFss_cuda_dcfGetKeyDataSize(size_t *keyDataSize,
                                    size_t  bitWidthIn,
                                    size_t  bitWidthOut,
                                    size_t  elementSize,
                                    size_t  elementNum)
 {
+    if (bitWidthIn > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
+    if (bitWidthOut > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
+
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (std::size_t)0; },
         [&] {
@@ -262,12 +317,21 @@ int FastFss_cuda_dcfGetKeyDataSize(size_t* keyDataSize,
     return ERROR_CODE::SUCCESS;
 }
 
-int FastFss_cuda_dcfGetZippedKeyDataSize(size_t* keyDataSize,
+int FastFss_cuda_dcfGetZippedKeyDataSize(size_t *keyDataSize,
                                          size_t  bitWidthIn,
                                          size_t  bitWidthOut,
                                          size_t  elementSize,
                                          size_t  elementNum)
 {
+    if (bitWidthIn > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
+    if (bitWidthOut > elementSize * 8)
+    {
+        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+    }
+
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (std::size_t)0; },
         [&] {
@@ -277,7 +341,7 @@ int FastFss_cuda_dcfGetZippedKeyDataSize(size_t* keyDataSize,
     return ERROR_CODE::SUCCESS;
 }
 
-int FastFss_cuda_dcfGetCacheDataSize(size_t* cacheDataSize,
+int FastFss_cuda_dcfGetCacheDataSize(size_t *cacheDataSize,
                                      size_t  bitWidthIn,
                                      size_t  bitWidthOut,
                                      size_t  elementSize,

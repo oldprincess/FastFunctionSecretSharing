@@ -8,30 +8,31 @@
 extern "C" {
 #endif
 
-int FastFss_cuda_onehotKeyGen(void*       key,
+int FastFss_cuda_onehotKeyGen(void       *key,
                               size_t      keyDataSize,
-                              const void* alpha,
+                              const void *alpha,
                               size_t      alphaDataSize,
                               size_t      bitWidthIn,
                               size_t      elementSize,
                               size_t      elementNum,
-                              void*       cudaStreamPtr); // cudaStream_t*
+                              void       *cudaStreamPtr); // cudaStream_t*
 
-int FastFss_cuda_onehotLutEval(void*       sharedOutE,
-                               void*       sharedOutT,
-                               const void* maskedX,
+int FastFss_cuda_onehotLutEval(void       *sharedOutE,
+                               void       *sharedOutT,
+                               size_t      sharedOutDataSize,
+                               const void *maskedX,
                                size_t      maskedXDataSize,
-                               const void* key,
+                               const void *key,
                                size_t      keyDataSize,
                                int         partyId,
-                               const void* lookUpTable,
+                               const void *lookUpTable,
                                size_t      lookUpTableDataSize,
                                size_t      bitWidthIn,
                                size_t      elementSize,
                                size_t      elementNum,
-                               void*       cudaStreamPtr); // cudaStream_t*
+                               void       *cudaStreamPtr); // cudaStream_t*
 
-int FastFss_cuda_onehotGetKeyDataSize(size_t* keyDataSize,
+int FastFss_cuda_onehotGetKeyDataSize(size_t *keyDataSize,
                                       size_t  bitWidthIn,
                                       size_t  elementNum);
 

@@ -40,10 +40,10 @@ std::size_t grotto_get_key_data_size(std::size_t bitWidthIn,
     return keyDataSize;
 }
 
-torch::Tensor& grotto_key_gen(torch::Tensor&       keyOut,
-                              const torch::Tensor& alpha,
-                              const torch::Tensor& seed0,
-                              const torch::Tensor& seed1,
+torch::Tensor &grotto_key_gen(torch::Tensor       &keyOut,
+                              const torch::Tensor &alpha,
+                              const torch::Tensor &seed0,
+                              const torch::Tensor &seed1,
                               std::size_t          bitWidthIn,
                               std::size_t          elementNum)
 {
@@ -127,10 +127,10 @@ torch::Tensor& grotto_key_gen(torch::Tensor&       keyOut,
     return keyOut;
 }
 
-torch::Tensor& grotto_eq_eval(torch::Tensor&       sharedOut,
-                              const torch::Tensor& maskedX,
-                              const torch::Tensor& key,
-                              const torch::Tensor& seed,
+torch::Tensor &grotto_eq_eval(torch::Tensor       &sharedOut,
+                              const torch::Tensor &maskedX,
+                              const torch::Tensor &key,
+                              const torch::Tensor &seed,
                               int                  partyId,
                               std::size_t          bitWidthIn,
                               std::size_t          elementNum)
@@ -173,19 +173,20 @@ torch::Tensor& grotto_eq_eval(torch::Tensor&       sharedOut,
     if (device.type() == torch::kCPU)
     {
         int ret = FastFss_cpu_grottoEqEval(
-            sharedOut.mutable_data_ptr(),               //
-            maskedX.const_data_ptr(),                   //
-            (std::size_t)maskedX.numel() * elementSize, //
-            key.const_data_ptr(),                       //
-            (std::size_t)key.numel(),                   //
-            seed.const_data_ptr(),                      //
-            (std::size_t)seed.numel(),                  //
-            partyId,                                    //
-            bitWidthIn,                                 //
-            elementSize,                                //
-            elementNum,                                 //
-            nullptr,                                    //
-            0                                           //
+            sharedOut.mutable_data_ptr(),                 //
+            (std::size_t)sharedOut.numel() * elementSize, //
+            maskedX.const_data_ptr(),                     //
+            (std::size_t)maskedX.numel() * elementSize,   //
+            key.const_data_ptr(),                         //
+            (std::size_t)key.numel(),                     //
+            seed.const_data_ptr(),                        //
+            (std::size_t)seed.numel(),                    //
+            partyId,                                      //
+            bitWidthIn,                                   //
+            elementSize,                                  //
+            elementNum,                                   //
+            nullptr,                                      //
+            0                                             //
         );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEqEval");
     }
@@ -194,20 +195,21 @@ torch::Tensor& grotto_eq_eval(torch::Tensor&       sharedOut,
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
 
         int ret = FastFss_cuda_grottoEqEval(
-            sharedOut.mutable_data_ptr(),               //
-            maskedX.const_data_ptr(),                   //
-            (std::size_t)maskedX.numel() * elementSize, //
-            key.const_data_ptr(),                       //
-            (std::size_t)key.numel(),                   //
-            seed.const_data_ptr(),                      //
-            (std::size_t)seed.numel(),                  //
-            partyId,                                    //
-            bitWidthIn,                                 //
-            elementSize,                                //
-            elementNum,                                 //
-            nullptr,                                    //
-            0,                                          //
-            &stream                                     //
+            sharedOut.mutable_data_ptr(),                 //
+            (std::size_t)sharedOut.numel() * elementSize, //
+            maskedX.const_data_ptr(),                     //
+            (std::size_t)maskedX.numel() * elementSize,   //
+            key.const_data_ptr(),                         //
+            (std::size_t)key.numel(),                     //
+            seed.const_data_ptr(),                        //
+            (std::size_t)seed.numel(),                    //
+            partyId,                                      //
+            bitWidthIn,                                   //
+            elementSize,                                  //
+            elementNum,                                   //
+            nullptr,                                      //
+            0,                                            //
+            &stream                                       //
         );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEqEval");
     }
@@ -218,12 +220,12 @@ torch::Tensor& grotto_eq_eval(torch::Tensor&       sharedOut,
     return sharedOut;
 }
 
-torch::Tensor& grotto_eq_multi_eval(torch::Tensor&       sharedOut,
-                                    const torch::Tensor& maskedX,
-                                    const torch::Tensor& key,
-                                    const torch::Tensor& seed,
+torch::Tensor &grotto_eq_multi_eval(torch::Tensor       &sharedOut,
+                                    const torch::Tensor &maskedX,
+                                    const torch::Tensor &key,
+                                    const torch::Tensor &seed,
                                     int                  partyId,
-                                    const torch::Tensor& point,
+                                    const torch::Tensor &point,
                                     std::size_t          bitWidthIn,
                                     std::size_t          elementNum)
 {
@@ -325,10 +327,10 @@ torch::Tensor& grotto_eq_multi_eval(torch::Tensor&       sharedOut,
     return sharedOut;
 }
 
-torch::Tensor& grotto_eval(torch::Tensor&       sharedOut,
-                           const torch::Tensor& maskedX,
-                           const torch::Tensor& key,
-                           const torch::Tensor& seed,
+torch::Tensor &grotto_eval(torch::Tensor       &sharedOut,
+                           const torch::Tensor &maskedX,
+                           const torch::Tensor &key,
+                           const torch::Tensor &seed,
                            bool                 equalBound,
                            int                  partyId,
                            std::size_t          bitWidthIn,
@@ -368,19 +370,20 @@ torch::Tensor& grotto_eval(torch::Tensor&       sharedOut,
     if (device.type() == torch::kCPU)
     {
         int ret = FastFss_cpu_grottoEval(
-            sharedOut.mutable_data_ptr(),               //
-            maskedX.const_data_ptr(),                   //
-            (std::size_t)maskedX.numel() * elementSize, //
-            key.const_data_ptr(),                       //
-            (std::size_t)key.numel(),                   //
-            seed.const_data_ptr(),                      //
-            (std::size_t)seed.numel(),                  //
-            equalBound,                                 //
-            partyId,                                    //
-            bitWidthIn,                                 //
-            elementSize,                                //
-            elementNum,                                 //
-            nullptr,                                    //
+            sharedOut.mutable_data_ptr(),                 //
+            (std::size_t)sharedOut.numel() * elementSize, //
+            maskedX.const_data_ptr(),                     //
+            (std::size_t)maskedX.numel() * elementSize,   //
+            key.const_data_ptr(),                         //
+            (std::size_t)key.numel(),                     //
+            seed.const_data_ptr(),                        //
+            (std::size_t)seed.numel(),                    //
+            equalBound,                                   //
+            partyId,                                      //
+            bitWidthIn,                                   //
+            elementSize,                                  //
+            elementNum,                                   //
+            nullptr,                                      //
             0);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEqEval");
     }
@@ -389,21 +392,22 @@ torch::Tensor& grotto_eval(torch::Tensor&       sharedOut,
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
 
         int ret = FastFss_cuda_grottoEval(
-            sharedOut.mutable_data_ptr(),               //
-            maskedX.const_data_ptr(),                   //
-            (std::size_t)maskedX.numel() * elementSize, //
-            key.const_data_ptr(),                       //
-            (std::size_t)key.numel(),                   //
-            seed.const_data_ptr(),                      //
-            (std::size_t)seed.numel(),                  //
-            equalBound,                                 //
-            partyId,                                    //
-            bitWidthIn,                                 //
-            elementSize,                                //
-            elementNum,                                 //
-            nullptr,                                    //
-            0,                                          //
-            &stream                                     //
+            sharedOut.mutable_data_ptr(),                 //
+            (std::size_t)sharedOut.numel() * elementSize, //
+            maskedX.const_data_ptr(),                     //
+            (std::size_t)maskedX.numel() * elementSize,   //
+            key.const_data_ptr(),                         //
+            (std::size_t)key.numel(),                     //
+            seed.const_data_ptr(),                        //
+            (std::size_t)seed.numel(),                    //
+            equalBound,                                   //
+            partyId,                                      //
+            bitWidthIn,                                   //
+            elementSize,                                  //
+            elementNum,                                   //
+            nullptr,                                      //
+            0,                                            //
+            &stream                                       //
         );
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoEval");
     }
@@ -414,13 +418,13 @@ torch::Tensor& grotto_eval(torch::Tensor&       sharedOut,
     return sharedOut;
 }
 
-torch::Tensor& grotto_mic_eval(torch::Tensor&       sharedBooleanOut,
-                               const torch::Tensor& maskedX,
-                               const torch::Tensor& key,
-                               const torch::Tensor& seed,
+torch::Tensor &grotto_mic_eval(torch::Tensor       &sharedBooleanOut,
+                               const torch::Tensor &maskedX,
+                               const torch::Tensor &key,
+                               const torch::Tensor &seed,
                                int                  partyId,
-                               const torch::Tensor& leftBoundary,
-                               const torch::Tensor& rightBoundary,
+                               const torch::Tensor &leftBoundary,
+                               const torch::Tensor &rightBoundary,
                                std::size_t          bitWidthIn,
                                std::size_t          elementNum)
 {
@@ -528,13 +532,13 @@ torch::Tensor& grotto_mic_eval(torch::Tensor&       sharedBooleanOut,
     return sharedBooleanOut;
 }
 
-py::tuple grotto_lut_eval(torch::Tensor&       sharedOutE,
-                          torch::Tensor&       sharedOutT,
-                          const torch::Tensor& maskedX,
-                          const torch::Tensor& key,
-                          const torch::Tensor& seed,
+py::tuple grotto_lut_eval(torch::Tensor       &sharedOutE,
+                          torch::Tensor       &sharedOutT,
+                          const torch::Tensor &maskedX,
+                          const torch::Tensor &key,
+                          const torch::Tensor &seed,
                           int                  partyId,
-                          const torch::Tensor& lookUpTable,
+                          const torch::Tensor &lookUpTable,
                           std::size_t          bitWidthIn,
                           std::size_t          bitWidthOut,
                           std::size_t          elementNum)
@@ -597,6 +601,7 @@ py::tuple grotto_lut_eval(torch::Tensor&       sharedOutE,
         int ret = FastFss_cpu_grottoLutEval(                //
             sharedOutE.mutable_data_ptr(),                  //
             sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutE.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -619,6 +624,7 @@ py::tuple grotto_lut_eval(torch::Tensor&       sharedOutE,
         int ret = FastFss_cuda_grottoLutEval(               //
             sharedOutE.mutable_data_ptr(),                  //
             sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutE.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -641,13 +647,13 @@ py::tuple grotto_lut_eval(torch::Tensor&       sharedOutE,
     return py::make_tuple(sharedOutE, sharedOutT);
 }
 
-py::tuple grotto_lut_eval_ex(torch::Tensor&       sharedOutE,
-                             torch::Tensor&       sharedOutT,
-                             const torch::Tensor& maskedX,
-                             const torch::Tensor& key,
-                             const torch::Tensor& seed,
+py::tuple grotto_lut_eval_ex(torch::Tensor       &sharedOutE,
+                             torch::Tensor       &sharedOutT,
+                             const torch::Tensor &maskedX,
+                             const torch::Tensor &key,
+                             const torch::Tensor &seed,
                              int                  partyId,
-                             const torch::Tensor& lookUpTable,
+                             const torch::Tensor &lookUpTable,
                              std::size_t          lutBitWidth,
                              std::size_t          bitWidthIn,
                              std::size_t          bitWidthOut,
@@ -712,6 +718,7 @@ py::tuple grotto_lut_eval_ex(torch::Tensor&       sharedOutE,
         int ret = FastFss_cpu_grottoLutEval_ex(             //
             sharedOutE.mutable_data_ptr(),                  //
             sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutE.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -736,6 +743,7 @@ py::tuple grotto_lut_eval_ex(torch::Tensor&       sharedOutE,
         int ret = FastFss_cuda_grottoLutEval_ex(            //
             sharedOutE.mutable_data_ptr(),                  //
             sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutE.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -760,14 +768,14 @@ py::tuple grotto_lut_eval_ex(torch::Tensor&       sharedOutE,
     return py::make_tuple(sharedOutE, sharedOutT);
 }
 
-py::tuple grotto_lut_eval_ex2(torch::Tensor&       sharedOutE,
-                              torch::Tensor&       sharedOutT,
-                              const torch::Tensor& maskedX,
-                              const torch::Tensor& key,
-                              const torch::Tensor& seed,
+py::tuple grotto_lut_eval_ex2(torch::Tensor       &sharedOutE,
+                              torch::Tensor       &sharedOutT,
+                              const torch::Tensor &maskedX,
+                              const torch::Tensor &key,
+                              const torch::Tensor &seed,
                               int                  partyId,
-                              const torch::Tensor& points,
-                              const torch::Tensor& lookUpTable,
+                              const torch::Tensor &points,
+                              const torch::Tensor &lookUpTable,
                               std::size_t          bitWidthIn,
                               std::size_t          bitWidthOut,
                               std::size_t          elementNum)
@@ -833,6 +841,7 @@ py::tuple grotto_lut_eval_ex2(torch::Tensor&       sharedOutE,
         int ret = FastFss_cpu_grottoLutEval_ex2(            //
             sharedOutE.mutable_data_ptr(),                  //
             sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutE.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -859,6 +868,7 @@ py::tuple grotto_lut_eval_ex2(torch::Tensor&       sharedOutE,
         int ret = FastFss_cuda_grottoLutEval_ex2(           //
             sharedOutE.mutable_data_ptr(),                  //
             sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutE.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -886,15 +896,15 @@ py::tuple grotto_lut_eval_ex2(torch::Tensor&       sharedOutE,
     return py::make_tuple(sharedOutE, sharedOutT);
 }
 
-py::tuple grotto_interval_lut_eval(torch::Tensor&       sharedOutE,
-                                   torch::Tensor&       sharedOutT,
-                                   const torch::Tensor& maskedX,
-                                   const torch::Tensor& key,
-                                   const torch::Tensor& seed,
+py::tuple grotto_interval_lut_eval(torch::Tensor       &sharedOutE,
+                                   torch::Tensor       &sharedOutT,
+                                   const torch::Tensor &maskedX,
+                                   const torch::Tensor &key,
+                                   const torch::Tensor &seed,
                                    int                  partyId,
-                                   const torch::Tensor& leftBoundary,
-                                   const torch::Tensor& rightBoundary,
-                                   const torch::Tensor& lookUpTable,
+                                   const torch::Tensor &leftBoundary,
+                                   const torch::Tensor &rightBoundary,
+                                   const torch::Tensor &lookUpTable,
                                    std::size_t          bitWidthIn,
                                    std::size_t          bitWidthOut,
                                    std::size_t          elementNum)
@@ -965,6 +975,7 @@ py::tuple grotto_interval_lut_eval(torch::Tensor&       sharedOutE,
         int ret = FastFss_cpu_grottoIntervalLutEval(          //
             sharedOutE.mutable_data_ptr(),                    //
             sharedOutT.mutable_data_ptr(),                    //
+            (std::size_t)sharedOutE.numel() * elementSize,    //
             maskedX.const_data_ptr(),                         //
             (std::size_t)maskedX.numel() * elementSize,       //
             key.const_data_ptr(),                             //
@@ -991,6 +1002,7 @@ py::tuple grotto_interval_lut_eval(torch::Tensor&       sharedOutE,
         int ret = FastFss_cuda_grottoIntervalLutEval(         //
             sharedOutE.mutable_data_ptr(),                    //
             sharedOutT.mutable_data_ptr(),                    //
+            (std::size_t)sharedOutE.numel() * elementSize,    //
             maskedX.const_data_ptr(),                         //
             (std::size_t)maskedX.numel() * elementSize,       //
             key.const_data_ptr(),                             //

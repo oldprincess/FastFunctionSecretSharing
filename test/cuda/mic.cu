@@ -1,6 +1,5 @@
 // clang-format off
-// nvcc -I include src/cuda/mic.cu test/cuda/mic.cu -o cuda_mic.exe -std=c++17 --expt-relaxed-constexpr
-// nvcc -I include src/cuda/mic.cu test/cuda/mic.cu -o cuda_mic.exe -std=c++17 -lineinfo -O3 --expt-relaxed-constexpr
+// nvcc -I include src/cuda/config.cpp src/cuda/mic.cu test/cuda/mic.cu -o cuda_mic.exe -std=c++17 --expt-relaxed-constexpr
 // clang-format on
 #include <FastFss/cuda/mic.h>
 #include <cuda_runtime.h>

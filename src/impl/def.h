@@ -8,7 +8,7 @@
 #if defined(__CUDACC__)
 
 #define FAST_FSS_DEVICE        __device__
-#define CUDA_MAX_GRID_DIM      (128 * 32)
+#define CUDA_MAX_GRID_DIM      (128)
 #define CUDA_DEFAULT_BLOCK_DIM 256
 
 #else
@@ -29,7 +29,7 @@
 
 #define _FAST_FSS_DISPATCH_SWITCH(ELEMENT_SIZE, DEFAULT_CASE, ...) \
     [&] {                                                          \
-        const auto& THE_TYPE_SIZE = ELEMENT_SIZE;                  \
+        const auto &THE_TYPE_SIZE = ELEMENT_SIZE;                  \
         switch (THE_TYPE_SIZE)                                     \
         {                                                          \
             __VA_ARGS__                                            \

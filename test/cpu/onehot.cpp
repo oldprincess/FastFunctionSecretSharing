@@ -51,14 +51,14 @@ public:
                     std::size_t elementNum,
                     bool        testSpeed = false)
     {
-        std::printf("[TEST CUDA ONEHOT] bitWidthIn=%3zu, bitWidthOut=%3zu, "
+        std::printf("[TEST CPU ONEHOT] bitWidthIn=%3zu, bitWidthOut=%3zu, "
                     "elementNum=%8zu\n",
                     bitWidthIn, bitWidthOut, elementNum);
 
         int   ret;
-        void* dKey0 = nullptr;
-        void* dKey1 = nullptr;
-        void* dLut  = nullptr;
+        void *dKey0 = nullptr;
+        void *dKey1 = nullptr;
+        void *dLut  = nullptr;
 
         high_resolution_clock::time_point st;
         high_resolution_clock::time_point et;
@@ -109,7 +109,7 @@ public:
         std::memcpy(dLut, lut.data(), lutDataSize);
 
         {
-            void* dAlpha = std::malloc(alphaDataSize);
+            void *dAlpha = std::malloc(alphaDataSize);
             std::memcpy(dAlpha, alpha.data(), alphaDataSize);
 
             if (testSpeed)
@@ -126,7 +126,7 @@ public:
             {
                 et        = high_resolution_clock::now();
                 auto diff = duration_cast<microseconds>(et - st);
-                std::printf("[CUDA ONEHOT KEYGEN] %f ms,  %f us/element\n",
+                std::printf("[CPU ONEHOT KEYGEN] %f ms,  %f us/element\n",
                             (double)diff.count() / 1e3,
                             (double)diff.count() / elementNum);
             }
@@ -135,9 +135,9 @@ public:
         }
 
         {
-            void* dSharedOutE0 = std::malloc(sharedOutDataSize);
-            void* dSharedOutT0 = std::malloc(sharedOutDataSize);
-            void* dMaskedX     = std::malloc(maskedXDataSize);
+            void *dSharedOutE0 = std::malloc(sharedOutDataSize);
+            void *dSharedOutT0 = std::malloc(sharedOutDataSize);
+            void *dMaskedX     = std::malloc(maskedXDataSize);
 
             std::memcpy(dMaskedX, maskedX.data(), maskedXDataSize);
 
@@ -147,16 +147,16 @@ public:
             }
 
             ret = FastFss_cpu_onehotLutEval(
-                dSharedOutE0, dSharedOutT0, dMaskedX, maskedXDataSize, dKey0,
-                keyDataSize, 0, dLut, lutDataSize, bitWidthIn,
-                sizeof(GroupElement), elementNum);
+                dSharedOutE0, dSharedOutT0, sharedOutDataSize, dMaskedX,
+                maskedXDataSize, dKey0, keyDataSize, 0, dLut, lutDataSize,
+                bitWidthIn, sizeof(GroupElement), elementNum);
             CHECK(ret);
 
             if (testSpeed)
             {
                 et        = high_resolution_clock::now();
                 auto diff = duration_cast<microseconds>(et - st);
-                std::printf("[CUDA ONEHOT   EVAL] %f ms,  %f us/element\n",
+                std::printf("[CPU ONEHOT   EVAL] %f ms,  %f us/element\n",
                             (double)diff.count() / 1e3,
                             (double)diff.count() / elementNum);
             }
@@ -169,16 +169,16 @@ public:
             std::free(dMaskedX);
         }
         {
-            void* dSharedOutE1 = std::malloc(sharedOutDataSize);
-            void* dSharedOutT1 = std::malloc(sharedOutDataSize);
-            void* dMaskedX     = std::malloc(maskedXDataSize);
+            void *dSharedOutE1 = std::malloc(sharedOutDataSize);
+            void *dSharedOutT1 = std::malloc(sharedOutDataSize);
+            void *dMaskedX     = std::malloc(maskedXDataSize);
 
             std::memcpy(dMaskedX, maskedX.data(), maskedXDataSize);
 
             ret = FastFss_cpu_onehotLutEval(
-                dSharedOutE1, dSharedOutT1, dMaskedX, maskedXDataSize, dKey1,
-                keyDataSize, 1, dLut, lutDataSize, bitWidthIn,
-                sizeof(GroupElement), elementNum);
+                dSharedOutE1, dSharedOutT1, sharedOutDataSize, dMaskedX,
+                maskedXDataSize, dKey1, keyDataSize, 1, dLut, lutDataSize,
+                bitWidthIn, sizeof(GroupElement), elementNum);
             CHECK(ret);
 
             std::memcpy(sharedOutE1.data(), dSharedOutE1, sharedOutDataSize);

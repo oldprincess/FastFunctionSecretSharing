@@ -30,11 +30,11 @@ enum ERROR_CODE
 };
 
 template <typename GroupElement>
-static void dcfKeyGenKernel(void*       key,
-                            const void* alpha,
-                            const void* beta,
-                            const void* seed0,
-                            const void* seed1,
+static void dcfKeyGenKernel(void       *key,
+                            const void *alpha,
+                            const void *beta,
+                            const void *seed0,
+                            const void *seed1,
                             std::size_t bitWidthIn,
                             std::size_t bitWidthOut,
                             std::size_t elementNum)
@@ -42,10 +42,10 @@ static void dcfKeyGenKernel(void*       key,
     std::int64_t idx    = 0;
     std::int64_t stride = 1;
 
-    const GroupElement* alphaPtr = (const GroupElement*)alpha;
-    const GroupElement* betaPtr  = (const GroupElement*)beta;
-    const std::uint8_t* seed0Ptr = (const std::uint8_t*)seed0;
-    const std::uint8_t* seed1Ptr = (const std::uint8_t*)seed1;
+    const GroupElement *alphaPtr = (const GroupElement *)alpha;
+    const GroupElement *betaPtr  = (const GroupElement *)beta;
+    const std::uint8_t *seed0Ptr = (const std::uint8_t *)seed0;
+    const std::uint8_t *seed1Ptr = (const std::uint8_t *)seed1;
 
     omp_set_num_threads(FastFss_cpu_getNumThreads());
 #pragma omp parallel for
@@ -64,15 +64,15 @@ static void dcfKeyGenKernel(void*       key,
     }
 }
 
-int FastFss_cpu_dcfKeyGen(void*       key,
+int FastFss_cpu_dcfKeyGen(void       *key,
                           size_t      keyDataSize,
-                          const void* alpha,
+                          const void *alpha,
                           size_t      alphaDataSize,
-                          const void* beta,
+                          const void *beta,
                           size_t      betaDataSize,
-                          const void* seed0,
+                          const void *seed0,
                           size_t      seedDataSize0,
-                          const void* seed1,
+                          const void *seed1,
                           size_t      seedDataSize1,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
@@ -140,22 +140,22 @@ int FastFss_cpu_dcfKeyGen(void*       key,
 }
 
 template <typename GroupElement>
-static void dcfEvalKernel(void*       sharedOut,
-                          const void* maskedX,
-                          const void* key,
-                          const void* seed,
+static void dcfEvalKernel(void       *sharedOut,
+                          const void *maskedX,
+                          const void *key,
+                          const void *seed,
                           int         partyId,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
                           size_t      elementNum,
-                          void*       cache)
+                          void       *cache)
 {
     std::int64_t idx    = 0;
     std::int64_t stride = 1;
 
-    GroupElement*       sharedOutPtr = (GroupElement*)sharedOut;
-    const GroupElement* maskedXPtr   = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr      = (const std::uint8_t*)seed;
+    GroupElement       *sharedOutPtr = (GroupElement *)sharedOut;
+    const GroupElement *maskedXPtr   = (const GroupElement *)maskedX;
+    const std::uint8_t *seedPtr      = (const std::uint8_t *)seed;
 
     omp_set_num_threads(FastFss_cpu_getNumThreads());
 #pragma omp parallel for
@@ -172,20 +172,20 @@ static void dcfEvalKernel(void*       sharedOut,
     }
 }
 
-int FastFss_cpu_dcfEval(void*       sharedOut,
+int FastFss_cpu_dcfEval(void       *sharedOut,
                         size_t      sharedOutSize,
-                        const void* maskedX,
+                        const void *maskedX,
                         size_t      maskedXDataSize,
-                        const void* key,
+                        const void *key,
                         size_t      keyDataSize,
-                        const void* seed,
+                        const void *seed,
                         size_t      seedDataSize,
                         int         partyId,
                         size_t      bitWidthIn,
                         size_t      bitWidthOut,
                         size_t      elementSize,
                         size_t      elementNum,
-                        void*       cache,
+                        void       *cache,
                         size_t      cacheDataSize)
 {
     int         ret;
@@ -197,6 +197,9 @@ int FastFss_cpu_dcfEval(void*       sharedOut,
     if (ret != 0)
     {
         return ret;
+    }
+    if(sharedOutSize != elementNum * elementSize){
+        return ERROR_CODE::INVALID_SHARED_OUT_DATA_SIZE_ERROR;
     }
     if (maskedXDataSize != elementNum * elementSize)
     {
@@ -253,9 +256,9 @@ int FastFss_cpu_dcfEval(void*       sharedOut,
         });
 }
 
-int FastFss_cpu_dcfKeyZip(void*       zippedKey,
+int FastFss_cpu_dcfKeyZip(void       *zippedKey,
                           size_t      zippedKeyDataSize,
-                          const void* key,
+                          const void *key,
                           size_t      keyDataSize,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
@@ -265,9 +268,9 @@ int FastFss_cpu_dcfKeyZip(void*       zippedKey,
     return ERROR_CODE::RUNTIME_ERROR;
 }
 
-int FastFss_cpu_dcfKeyUnzip(void*       key,
+int FastFss_cpu_dcfKeyUnzip(void       *key,
                             size_t      keyDataSize,
-                            const void* zippedKey,
+                            const void *zippedKey,
                             size_t      zippedKeyDataSize,
                             size_t      bitWidthIn,
                             size_t      bitWidthOut,
@@ -277,7 +280,7 @@ int FastFss_cpu_dcfKeyUnzip(void*       key,
     return ERROR_CODE::RUNTIME_ERROR;
 }
 
-int FastFss_cpu_dcfGetKeyDataSize(size_t* keyDataSize,
+int FastFss_cpu_dcfGetKeyDataSize(size_t *keyDataSize,
                                   size_t  bitWidthIn,
                                   size_t  bitWidthOut,
                                   size_t  elementSize,
@@ -301,7 +304,7 @@ int FastFss_cpu_dcfGetKeyDataSize(size_t* keyDataSize,
     return ERROR_CODE::SUCCESS;
 }
 
-int FastFss_cpu_dcfGetZippedKeyDataSize(size_t* keyDataSize,
+int FastFss_cpu_dcfGetZippedKeyDataSize(size_t *keyDataSize,
                                         size_t  bitWidthIn,
                                         size_t  bitWidthOut,
                                         size_t  elementSize,
@@ -325,7 +328,7 @@ int FastFss_cpu_dcfGetZippedKeyDataSize(size_t* keyDataSize,
     return ERROR_CODE::SUCCESS;
 }
 
-int FastFss_cpu_dcfGetCacheDataSize(size_t* cacheDataSize,
+int FastFss_cpu_dcfGetCacheDataSize(size_t *cacheDataSize,
                                     size_t  bitWidthIn,
                                     size_t  bitWidthOut,
                                     size_t  elementSize,

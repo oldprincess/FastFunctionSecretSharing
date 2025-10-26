@@ -1,5 +1,5 @@
-#ifndef TEST_CPU_GROTTO_TEST_GROTTO_MIC_HPP
-#define TEST_CPU_GROTTO_TEST_GROTTO_MIC_HPP
+#ifndef TEST_CPU_GROTTO_TEST_GROTTO_MIC_EVAL_HPP
+#define TEST_CPU_GROTTO_TEST_GROTTO_MIC_EVAL_HPP
 
 #include <FastFss/cpu/grotto.h>
 
@@ -12,7 +12,7 @@
 #include "../mt19937.hpp"
 
 template <typename GroupElement>
-class TestGrottoMIC
+class TestGrottoMICEval
 {
     static constexpr GroupElement mod_bits(GroupElement x,
                                            int          bitWidth) noexcept
@@ -32,12 +32,12 @@ public:
                     std::size_t                     elementNum,
                     const std::vector<GroupElement> leftBoundary,
                     const std::vector<GroupElement> rightBoundary,
-                    MT19937Rng&                     rng)
+                    MT19937Rng                     &rng)
     {
-        std::printf("[cpu test GrottoMIC] elementSize = %2d bitWidthIn = %3d "
-                    "elementNum = %5d",
-                    (int)(sizeof(GroupElement)), (int)bitWidthIn,
-                    (int)elementNum);
+        std::printf(
+            "[cpu test GrottoMICEval] elementSize = %2d bitWidthIn = %3d "
+            "elementNum = %5d",
+            (int)(sizeof(GroupElement)), (int)bitWidthIn, (int)elementNum);
 
         std::size_t intervalNum = leftBoundary.size();
 
@@ -50,13 +50,13 @@ public:
         std::vector<std::uint8_t> seed0(elementNum * 16);
         std::vector<std::uint8_t> seed1(elementNum * 16);
 
-        void*       grottoMICKey = nullptr;
+        void       *grottoMICKey = nullptr;
         std::size_t grottoMICKeyDataSize;
         FastFss_cpu_grottoGetKeyDataSize(&grottoMICKeyDataSize, bitWidthIn,
                                          sizeof(GroupElement), elementNum);
         grottoMICKey = malloc(grottoMICKeyDataSize);
 
-        void*       cache = nullptr;
+        void       *cache = nullptr;
         std::size_t cacheDataSize;
         FastFss_cpu_grottoGetCacheDataSize(&cacheDataSize, bitWidthIn,
                                            sizeof(GroupElement), elementNum);
