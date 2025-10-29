@@ -147,9 +147,10 @@ public:
             }
 
             ret = FastFss_cpu_onehotLutEval(
-                dSharedOutE0, dSharedOutT0, sharedOutDataSize, dMaskedX,
-                maskedXDataSize, dKey0, keyDataSize, 0, dLut, lutDataSize,
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                dSharedOutE0, sharedOutDataSize, dSharedOutT0,
+                sharedOutDataSize, dMaskedX, maskedXDataSize, dKey0,
+                keyDataSize, 0, dLut, lutDataSize, bitWidthIn,
+                sizeof(GroupElement), elementNum);
             CHECK(ret);
 
             if (testSpeed)
@@ -176,9 +177,10 @@ public:
             std::memcpy(dMaskedX, maskedX.data(), maskedXDataSize);
 
             ret = FastFss_cpu_onehotLutEval(
-                dSharedOutE1, dSharedOutT1, sharedOutDataSize, dMaskedX,
-                maskedXDataSize, dKey1, keyDataSize, 1, dLut, lutDataSize,
-                bitWidthIn, sizeof(GroupElement), elementNum);
+                dSharedOutE1, sharedOutDataSize, dSharedOutT1,
+                sharedOutDataSize, dMaskedX, maskedXDataSize, dKey1,
+                keyDataSize, 1, dLut, lutDataSize, bitWidthIn,
+                sizeof(GroupElement), elementNum);
             CHECK(ret);
 
             std::memcpy(sharedOutE1.data(), dSharedOutE1, sharedOutDataSize);

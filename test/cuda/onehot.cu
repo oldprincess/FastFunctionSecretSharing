@@ -154,9 +154,10 @@ public:
             }
 
             ret = FastFss_cuda_onehotLutEval(
-                dSharedOutE0, dSharedOutT0, sharedOutDataSize, dMaskedX,
-                maskedXDataSize, dKey0, keyDataSize, 0, dLut, lutDataSize,
-                bitWidthIn, sizeof(GroupElement), elementNum, nullptr);
+                dSharedOutE0, sharedOutDataSize, dSharedOutT0,
+                sharedOutDataSize, dMaskedX, maskedXDataSize, dKey0,
+                keyDataSize, 0, dLut, lutDataSize, bitWidthIn,
+                sizeof(GroupElement), elementNum, nullptr);
             CHECK(ret);
 
             if (testSpeed)
@@ -185,9 +186,10 @@ public:
             cuda::memcpy_cpu2gpu(dMaskedX, maskedX.data(), maskedXDataSize);
 
             ret = FastFss_cuda_onehotLutEval(
-                dSharedOutE1, dSharedOutT1, sharedOutDataSize, dMaskedX,
-                maskedXDataSize, dKey1, keyDataSize, 1, dLut, lutDataSize,
-                bitWidthIn, sizeof(GroupElement), elementNum, nullptr);
+                dSharedOutE1, sharedOutDataSize, dSharedOutT1,
+                sharedOutDataSize, dMaskedX, maskedXDataSize, dKey1,
+                keyDataSize, 1, dLut, lutDataSize, bitWidthIn,
+                sizeof(GroupElement), elementNum, nullptr);
             CHECK(ret);
 
             cuda::memcpy_gpu2cpu(sharedOutE1.data(), dSharedOutE1,

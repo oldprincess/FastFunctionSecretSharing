@@ -17,8 +17,9 @@ int FastFss_cpu_onehotKeyGen(void       *key,
                              size_t      elementNum);
 
 int FastFss_cpu_onehotLutEval(void       *sharedOutE,
+                              size_t      sharedOutEDataSize,
                               void       *sharedOutT,
-                              size_t      sharedOutDataSize,
+                              size_t      sharedOutTDataSize,
                               const void *maskedX,
                               size_t      maskedXDataSize,
                               const void *key,

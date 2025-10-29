@@ -18,9 +18,10 @@ int FastFss_cuda_onehotKeyGen(void       *key,
                               void       *cudaStreamPtr); // cudaStream_t*
 
 int FastFss_cuda_onehotLutEval(void       *sharedOutE,
-                               void       *sharedOutT,
-                               size_t      sharedOutDataSize,
-                               const void *maskedX,
+                              size_t      sharedOutEDataSize,
+                              void       *sharedOutT,
+                              size_t      sharedOutTDataSize,
+                              const void *maskedX,
                                size_t      maskedXDataSize,
                                const void *key,
                                size_t      keyDataSize,
