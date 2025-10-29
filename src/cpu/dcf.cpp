@@ -7,27 +7,10 @@
 #define AES_IMPL
 #endif
 
+#include "../helper/dcf_helper.h"
 #include "../impl/dcf.h"
 
 using namespace FastFss;
-
-enum ERROR_CODE
-{
-    SUCCESS                            = 0,
-    RUNTIME_ERROR                      = -1,
-    INVALID_KEY_DATA_SIZE_ERROR        = -2,
-    INVALID_ALPHA_DATA_SIZE_ERROR      = -3,
-    INVALID_BETA_DATA_SIZE_ERROR       = -4,
-    INVALID_SEED_DATA_SIZE_ERROR       = -5,
-    INVALID_BOUNDARY_DATA_SIZE_ERROR   = -6,
-    INVALID_Z_DATA_SIZE_ERROR          = -7,
-    INVALID_SHARED_OUT_DATA_SIZE_ERROR = -8,
-    INVLIAD_MASKED_X_DATA_SIZE_ERROR   = -9,
-    INVALID_BITWIDTH_ERROR             = -10,
-    INVALID_ELEMENT_SIZE_ERROR         = -11,
-    INVALID_PARTY_ID_ERROR             = -12,
-    INVALID_CACHE_DATA_SIZE_ERROR      = -13,
-};
 
 template <typename GroupElement>
 static void dcfKeyGenKernel(void       *key,
@@ -79,50 +62,26 @@ int FastFss_cpu_dcfKeyGen(void       *key,
                           size_t      elementSize,
                           size_t      elementNum)
 {
-    int         ret;
-    std::size_t needKeyDataSize = 0;
+    int ret = FastFss_helper_checkDcfKeyGenParams( //
+        keyDataSize,                               //
+        alphaDataSize,                             //
+        betaDataSize,                              //
+        seedDataSize0,                             //
+        seedDataSize1,                             //
+        bitWidthIn,                                //
+        bitWidthOut,                               //
+        elementSize,                               //
+        elementNum,                                //
+        FastFss_cpu_dcfGetKeyDataSize              //
+    );
 
-    ret = FastFss_cpu_dcfGetKeyDataSize(                                   //
-        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
-    );                                                                     //
-    if (ret != 0)
+    if (ret != FAST_FSS_SUCCESS)
     {
         return ret;
     }
-    if (keyDataSize != needKeyDataSize)
-    {
-        return ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR;
-    }
-    if (alphaDataSize != elementNum * elementSize)
-    {
-        return ERROR_CODE::INVALID_ALPHA_DATA_SIZE_ERROR;
-    }
-    if (betaDataSize != 0)
-    {
-        if (betaDataSize != elementNum * elementSize)
-        {
-            return ERROR_CODE::INVALID_BETA_DATA_SIZE_ERROR;
-        }
-    }
-    if (seedDataSize0 != elementNum * 16)
-    {
-        return ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR;
-    }
-    if (seedDataSize1 != elementNum * 16)
-    {
-        return ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR;
-    }
-    if (bitWidthIn > elementSize * 8)
-    {
-        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
-    }
-    if (bitWidthOut > elementSize * 8)
-    {
-        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
-    }
 
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
-        elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
+        elementSize, { return FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             dcfKeyGenKernel<scalar_t>(           //
                 key,                             //
@@ -133,9 +92,9 @@ int FastFss_cpu_dcfKeyGen(void       *key,
                 bitWidthIn,                      //
                 bitWidthOut,                     //
                 elementNum                       //
-            );                                   //
+            );
 
-            return ERROR_CODE::SUCCESS;
+            return FAST_FSS_SUCCESS;
         });
 }
 
@@ -188,71 +147,32 @@ int FastFss_cpu_dcfEval(void       *sharedOut,
                         void       *cache,
                         size_t      cacheDataSize)
 {
-    int         ret;
-    std::size_t needKeyDataSize = 0;
+    int ret = FastFss_helper_checkDcfEvalParams( //
+        sharedOutSize,                           //
+        maskedXDataSize,                         //
+        keyDataSize,                             //
+        seedDataSize,                            //
+        partyId,                                 //
+        bitWidthIn,                              //
+        bitWidthOut,                             //
+        elementSize,                             //
+        elementNum,                              //
+        cacheDataSize,                           //
+        FastFss_cpu_dcfGetKeyDataSize,           //
+        FastFss_cpu_dcfGetCacheDataSize          //
+    );
 
-    ret = FastFss_cpu_dcfGetKeyDataSize(                                   //
-        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
-    );                                                                     //
-    if (ret != 0)
+    if (ret != FAST_FSS_SUCCESS)
     {
         return ret;
     }
-    if(sharedOutSize != elementNum * elementSize){
-        return ERROR_CODE::INVALID_SHARED_OUT_DATA_SIZE_ERROR;
-    }
-    if (maskedXDataSize != elementNum * elementSize)
-    {
-        return ERROR_CODE::INVLIAD_MASKED_X_DATA_SIZE_ERROR;
-    }
-    if (keyDataSize != needKeyDataSize)
-    {
-        return ERROR_CODE::INVALID_KEY_DATA_SIZE_ERROR;
-    }
-    if (seedDataSize != elementNum * 16)
-    {
-        return ERROR_CODE::INVALID_SEED_DATA_SIZE_ERROR;
-    }
-    if (partyId != 0 && partyId != 1)
-    {
-        return ERROR_CODE::INVALID_PARTY_ID_ERROR;
-    }
-    if (bitWidthIn > elementSize * 8)
-    {
-        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
-    }
-    if (bitWidthOut > elementSize * 8)
-    {
-        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
-    }
-    if (cacheDataSize != 0)
-    {
-        std::size_t needCacheDataSize = 0;
-
-        ret = FastFss_cpu_dcfGetCacheDataSize( //
-            &needCacheDataSize,                //
-            bitWidthIn,                        //
-            bitWidthOut,                       //
-            elementSize,                       //
-            elementNum                         //
-        );                                     //
-
-        if (ret != 0)
-        {
-            return ret;
-        }
-        if (needCacheDataSize != cacheDataSize)
-        {
-            return ERROR_CODE::INVALID_CACHE_DATA_SIZE_ERROR;
-        }
-    }
 
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
-        elementSize, { return ERROR_CODE::INVALID_ELEMENT_SIZE_ERROR; },
+        elementSize, { return FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             dcfEvalKernel<scalar_t>(sharedOut, maskedX, key, seed, partyId,
                                     bitWidthIn, bitWidthOut, elementNum, cache);
-            return ERROR_CODE::SUCCESS;
+            return FAST_FSS_SUCCESS;
         });
 }
 
@@ -265,7 +185,7 @@ int FastFss_cpu_dcfKeyZip(void       *zippedKey,
                           size_t      elementSize,
                           size_t      elementNum)
 {
-    return ERROR_CODE::RUNTIME_ERROR;
+    return FAST_FSS_RUNTIME_ERROR;
 }
 
 int FastFss_cpu_dcfKeyUnzip(void       *key,
@@ -277,7 +197,7 @@ int FastFss_cpu_dcfKeyUnzip(void       *key,
                             size_t      elementSize,
                             size_t      elementNum)
 {
-    return ERROR_CODE::RUNTIME_ERROR;
+    return FAST_FSS_RUNTIME_ERROR;
 }
 
 int FastFss_cpu_dcfGetKeyDataSize(size_t *keyDataSize,
@@ -286,13 +206,13 @@ int FastFss_cpu_dcfGetKeyDataSize(size_t *keyDataSize,
                                   size_t  elementSize,
                                   size_t  elementNum)
 {
-    if (bitWidthIn > elementSize * 8)
+    if (!(0 < bitWidthIn && bitWidthIn <= elementSize * 8))
     {
-        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+        return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
-    if (bitWidthOut > elementSize * 8)
+    if (!(0 < bitWidthOut && bitWidthOut <= elementSize * 8))
     {
-        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+        return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
 
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
@@ -301,7 +221,7 @@ int FastFss_cpu_dcfGetKeyDataSize(size_t *keyDataSize,
             return impl::dcfGetKeyDataSize<scalar_t>(bitWidthIn, bitWidthOut,
                                                      elementNum);
         });
-    return ERROR_CODE::SUCCESS;
+    return FAST_FSS_SUCCESS;
 }
 
 int FastFss_cpu_dcfGetZippedKeyDataSize(size_t *keyDataSize,
@@ -310,13 +230,13 @@ int FastFss_cpu_dcfGetZippedKeyDataSize(size_t *keyDataSize,
                                         size_t  elementSize,
                                         size_t  elementNum)
 {
-    if (bitWidthIn > elementSize * 8)
+    if (!(0 < bitWidthIn && bitWidthIn <= elementSize * 8))
     {
-        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+        return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
-    if (bitWidthOut > elementSize * 8)
+    if (!(0 < bitWidthOut && bitWidthOut <= elementSize * 8))
     {
-        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+        return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
 
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
@@ -325,7 +245,7 @@ int FastFss_cpu_dcfGetZippedKeyDataSize(size_t *keyDataSize,
             return impl::dcfGetZippedKeyDataSize<scalar_t>(
                 bitWidthIn, bitWidthOut, elementNum);
         });
-    return ERROR_CODE::SUCCESS;
+    return FAST_FSS_SUCCESS;
 }
 
 int FastFss_cpu_dcfGetCacheDataSize(size_t *cacheDataSize,
@@ -334,13 +254,13 @@ int FastFss_cpu_dcfGetCacheDataSize(size_t *cacheDataSize,
                                     size_t  elementSize,
                                     size_t  elementNum)
 {
-    if (bitWidthIn > elementSize * 8)
+    if (!(0 < bitWidthIn && bitWidthIn <= elementSize * 8))
     {
-        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+        return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
-    if (bitWidthOut > elementSize * 8)
+    if (!(0 < bitWidthOut && bitWidthOut <= elementSize * 8))
     {
-        return ERROR_CODE::INVALID_BITWIDTH_ERROR;
+        return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
 
     *cacheDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
@@ -348,5 +268,5 @@ int FastFss_cpu_dcfGetCacheDataSize(size_t *cacheDataSize,
         [&] {
             return impl::dcfGetCacheDataSize<scalar_t>(bitWidthIn, elementNum);
         });
-    return ERROR_CODE::SUCCESS;
+    return FAST_FSS_SUCCESS;
 }
