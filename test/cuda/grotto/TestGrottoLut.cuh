@@ -159,6 +159,7 @@ public:
 
             int ret2 = FastFss_cuda_grottoLutEval( //
                 dSharedOutE0.get(),                //
+                maskedXDataSize,                   //
                 dSharedOutT0.get(),                //
                 maskedXDataSize,                   //
                 dMaskedX.get(),                    //
@@ -204,6 +205,7 @@ public:
 
             int ret3 = FastFss_cuda_grottoLutEval( //
                 dSharedOutE1.get(),                //
+                maskedXDataSize,                   //
                 dSharedOutT1.get(),                //
                 maskedXDataSize,                   //
                 dMaskedX.get(),                    //

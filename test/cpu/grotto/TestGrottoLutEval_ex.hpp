@@ -147,6 +147,7 @@ public:
             auto start_time = high_resolution_clock::now();
             int  ret2       = FastFss_cpu_grottoLutEval_ex( //
                 sharedOutE0.get(),                   //
+                sharedOutDataSize,                   //
                 sharedOutT0.get(),                   //
                 sharedOutDataSize,                   //
                 maskedX.get(),                       //
@@ -181,6 +182,7 @@ public:
             auto start_time = high_resolution_clock::now();
             int  ret3       = FastFss_cpu_grottoLutEval_ex( //
                 sharedOutE1.get(),                   //
+                sharedOutDataSize,                   //
                 sharedOutT1.get(),                   //
                 sharedOutDataSize,                   //
                 maskedX.get(),                       //

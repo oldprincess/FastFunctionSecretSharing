@@ -180,6 +180,7 @@ public:
             auto start_time = high_resolution_clock::now();
             int  ret2       = FastFss_cuda_grottoLutEval_ex2( //
                 d_sharedOutE0.get(),                   //
+                maskedXDataSize,                       //
                 d_sharedOutT0.get(),                   //
                 maskedXDataSize,                       //
                 d_maskedX.get(),                       //
@@ -224,6 +225,7 @@ public:
             auto start_time = high_resolution_clock::now();
             int  ret3       = FastFss_cuda_grottoLutEval_ex2( //
                 d_sharedOutE1.get(),                   //
+                maskedXDataSize,                       //
                 d_sharedOutT1.get(),                   //
                 maskedXDataSize,                       //
                 d_maskedX.get(),                       //

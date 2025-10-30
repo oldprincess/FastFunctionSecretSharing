@@ -94,8 +94,9 @@ int FastFss_cuda_grottoMICEval(void       *sharedBooleanOut,
                                void       *cudaStreamPtr);
 
 int FastFss_cuda_grottoLutEval(void       *sharedOutE,
+                               size_t      sharedOutEDataSize,
                                void       *sharedOutT,
-                               size_t      sharedOutDataSize,
+                               size_t      sharedOutTDataSize,
                                const void *maskedX,
                                size_t      maskedXDataSize,
                                const void *key,
@@ -114,8 +115,9 @@ int FastFss_cuda_grottoLutEval(void       *sharedOutE,
                                void       *cudaStreamPtr);
 
 int FastFss_cuda_grottoLutEval_ex(void       *sharedOutE,
+                                  size_t      sharedOutEDataSize,
                                   void       *sharedOutT,
-                                  size_t      sharedOutDataSize,
+                                  size_t      sharedOutTDataSize,
                                   const void *maskedX,
                                   size_t      maskedXDataSize,
                                   const void *key,
@@ -135,8 +137,9 @@ int FastFss_cuda_grottoLutEval_ex(void       *sharedOutE,
                                   void       *cudaStreamPtr);
 
 int FastFss_cuda_grottoLutEval_ex2(void       *sharedOutE,
+                                   size_t      sharedOutEDataSize,
                                    void       *sharedOutT,
-                                   size_t      sharedOutDataSize,
+                                   size_t      sharedOutTDataSize,
                                    const void *maskedX,
                                    size_t      maskedXDataSize,
                                    const void *key,
@@ -157,8 +160,9 @@ int FastFss_cuda_grottoLutEval_ex2(void       *sharedOutE,
                                    void       *cudaStreamPtr);
 
 int FastFss_cuda_grottoIntervalLutEval(void       *sharedOutE,
+                                       size_t      sharedOutEDataSize,
                                        void       *sharedOutT,
-                                       size_t      sharedOutDataSize,
+                                       size_t      sharedOutTDataSize,
                                        const void *maskedX,
                                        size_t      maskedXDataSize,
                                        const void *key,

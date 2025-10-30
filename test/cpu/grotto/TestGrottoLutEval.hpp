@@ -146,6 +146,7 @@ public:
         {
             int ret2 = FastFss_cpu_grottoLutEval( //
                 sharedOutE0.get(),                //
+                sharedOutDataSize,                //
                 sharedOutT0.get(),                //
                 sharedOutDataSize,                //
                 maskedX.get(),                    //
@@ -174,6 +175,7 @@ public:
         {
             int ret3 = FastFss_cpu_grottoLutEval( //
                 sharedOutE1.get(),                //
+                sharedOutDataSize,                //
                 sharedOutT1.get(),                //
                 sharedOutDataSize,                //
                 maskedX.get(),                    //

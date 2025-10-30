@@ -89,8 +89,9 @@ int FastFss_cpu_grottoMICEval(void       *sharedBooleanOut,
                               size_t      cacheDataSize);
 
 int FastFss_cpu_grottoLutEval(void       *sharedOutE,
+                              size_t      sharedOutEDataSize,
                               void       *sharedOutT,
-                              size_t      sharedOutDataSize,
+                              size_t      sharedOutTDataSize,
                               const void *maskedX,
                               size_t      maskedXDataSize,
                               const void *key,
@@ -108,8 +109,9 @@ int FastFss_cpu_grottoLutEval(void       *sharedOutE,
                               size_t      cacheDataSize);
 
 int FastFss_cpu_grottoLutEval_ex(void       *sharedOutE,
+                                 size_t      sharedOutEDataSize,
                                  void       *sharedOutT,
-                                 size_t      sharedOutDataSize,
+                                 size_t      sharedOutTDataSize,
                                  const void *maskedX,
                                  size_t      maskedXDataSize,
                                  const void *key,
@@ -128,8 +130,9 @@ int FastFss_cpu_grottoLutEval_ex(void       *sharedOutE,
                                  size_t      cacheDataSize);
 
 int FastFss_cpu_grottoLutEval_ex2(void       *sharedOutE,
+                                  size_t      sharedOutEDataSize,
                                   void       *sharedOutT,
-                                  size_t      sharedOutDataSize,
+                                  size_t      sharedOutTDataSize,
                                   const void *maskedX,
                                   size_t      maskedXDataSize,
                                   const void *key,
@@ -149,8 +152,9 @@ int FastFss_cpu_grottoLutEval_ex2(void       *sharedOutE,
                                   size_t      cacheDataSize);
 
 int FastFss_cpu_grottoIntervalLutEval(void       *sharedOutE,
+                                      size_t      sharedOutEDataSize,
                                       void       *sharedOutT,
-                                      size_t      sharedOutDataSize,
+                                      size_t      sharedOutTDataSize,
                                       const void *maskedX,
                                       size_t      maskedXDataSize,
                                       const void *key,
