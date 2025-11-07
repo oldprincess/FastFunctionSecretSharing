@@ -1,15 +1,15 @@
-#include <FastFss/cuda/onehot.h>
+#include <FastFss/cuda/ottt.h>
 
-#include "../helper/onehot_helper.h"
-#include "../impl/onehot.h"
+#include "../helper/ottt_helper.h"
+#include "../impl/ottt.h"
 
 using namespace FastFss;
 
 template <typename GroupElement>
-__global__ static void onehotKeyGenKernel(void       *key,
-                                          const void *alpha,
-                                          std::size_t bitWidthIn,
-                                          std::size_t elementNum)
+__global__ static void otttKeyGenKernel(void       *key,
+                                        const void *alpha,
+                                        std::size_t bitWidthIn,
+                                        std::size_t elementNum)
 {
     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
     std::size_t stride = blockDim.x * gridDim.x;
@@ -19,21 +19,21 @@ __global__ static void onehotKeyGenKernel(void       *key,
     for (std::size_t i = idx; i < elementNum; i += stride)
     {
         std::size_t keyOffset = i * (1ULL << bitWidthIn) / 8; //
-        impl::onehotKeyGen<GroupElement>(                     //
+        impl::otttKeyGen<GroupElement>(                       //
             keyPtr + keyOffset, alphaPtr[i], bitWidthIn       //
         );                                                    //
     }
 }
 
 template <typename GroupElement>
-__global__ static void onehotLutEvalKernel(void       *sharedOutE,
-                                           void       *sharedOutT,
-                                           const void *maskedX,
-                                           const void *key,
-                                           const void *lut,
-                                           int         partyId,
-                                           std::size_t bitWidthIn,
-                                           std::size_t elementNum)
+__global__ static void otttLutEvalKernel(void       *sharedOutE,
+                                         void       *sharedOutT,
+                                         const void *maskedX,
+                                         const void *key,
+                                         const void *lut,
+                                         int         partyId,
+                                         std::size_t bitWidthIn,
+                                         std::size_t elementNum)
 {
     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
     std::size_t stride = blockDim.x * gridDim.x;
@@ -48,29 +48,29 @@ __global__ static void onehotLutEvalKernel(void       *sharedOutE,
     {
         std::size_t keyOffset = i * (1ULL << bitWidthIn) / 8; //
 
-        impl::onehotLutEval<GroupElement>( //
-            sharedOutEPtr + i,             //
-            sharedOutTPtr + i,             //
-            maskedXPtr[i],                 //
-            keyPtr + keyOffset,            //
-            lutPtr,                        //
-            partyId,                       //
+        impl::otttLutEval<GroupElement>( //
+            sharedOutEPtr + i,           //
+            sharedOutTPtr + i,           //
+            maskedXPtr[i],               //
+            keyPtr + keyOffset,          //
+            lutPtr,                      //
+            partyId,                     //
             bitWidthIn);
     }
 }
 
-int FastFss_cuda_onehotKeyGen(void       *key,
-                              size_t      keyDataSize,
-                              const void *alpha,
-                              size_t      alphaDataSize,
-                              size_t      bitWidthIn,
-                              size_t      elementSize,
-                              size_t      elementNum,
-                              void       *cudaStreamPtr) // cudaStream_t*
+int FastFss_cuda_otttKeyGen(void       *key,
+                            size_t      keyDataSize,
+                            const void *alpha,
+                            size_t      alphaDataSize,
+                            size_t      bitWidthIn,
+                            size_t      elementSize,
+                            size_t      elementNum,
+                            void       *cudaStreamPtr) // cudaStream_t*
 {
-    int ret = FastFss_helper_checkOnehotKeyGenParams(
+    int ret = FastFss_helper_checkOtttKeyGenParams(
         keyDataSize, alphaDataSize, bitWidthIn, elementSize, elementNum,
-        FastFss_cuda_onehotGetKeyDataSize);
+        FastFss_cuda_otttGetKeyDataSize);
     if (ret != FAST_FSS_SUCCESS)
     {
         return ret;
@@ -92,7 +92,7 @@ int FastFss_cuda_onehotKeyGen(void       *key,
         elementSize,                                     //
         { return FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; }, //
         [&] {
-            onehotKeyGenKernel<scalar_t>               //
+            otttKeyGenKernel<scalar_t>                 //
                 <<<GRID_DIM, BLOCK_DIM, 0, stream>>>(  //
                     key, alpha, bitWidthIn, elementNum //
                 );                                     //
@@ -105,26 +105,26 @@ int FastFss_cuda_onehotKeyGen(void       *key,
     return ret;
 }
 
-int FastFss_cuda_onehotLutEval(void       *sharedOutE,
-                               size_t      sharedOutEDataSize,
-                               void       *sharedOutT,
-                               size_t      sharedOutTDataSize,
-                               const void *maskedX,
-                               size_t      maskedXDataSize,
-                               const void *key,
-                               size_t      keyDataSize,
-                               int         partyId,
-                               const void *lookUpTable,
-                               size_t      lookUpTableDataSize,
-                               size_t      bitWidthIn,
-                               size_t      elementSize,
-                               size_t      elementNum,
-                               void       *cudaStreamPtr) // cudaStream_t*
+int FastFss_cuda_otttLutEval(void       *sharedOutE,
+                             size_t      sharedOutEDataSize,
+                             void       *sharedOutT,
+                             size_t      sharedOutTDataSize,
+                             const void *maskedX,
+                             size_t      maskedXDataSize,
+                             const void *key,
+                             size_t      keyDataSize,
+                             int         partyId,
+                             const void *lookUpTable,
+                             size_t      lookUpTableDataSize,
+                             size_t      bitWidthIn,
+                             size_t      elementSize,
+                             size_t      elementNum,
+                             void       *cudaStreamPtr) // cudaStream_t*
 {
-    int ret = FastFss_helper_checkOnehotLutEvalParams(
+    int ret = FastFss_helper_checkOtttLutEvalParams(
         sharedOutEDataSize, sharedOutTDataSize, maskedXDataSize, keyDataSize,
         partyId, lookUpTableDataSize, bitWidthIn, elementSize, elementNum,
-        FastFss_cuda_onehotGetKeyDataSize);
+        FastFss_cuda_otttGetKeyDataSize);
     if (ret != FAST_FSS_SUCCESS)
     {
         return ret;
@@ -146,7 +146,7 @@ int FastFss_cuda_onehotLutEval(void       *sharedOutE,
         elementSize,                                     //
         { return FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; }, //
         [&] {
-            onehotLutEvalKernel<scalar_t>             //
+            otttLutEvalKernel<scalar_t>               //
                 <<<GRID_DIM, BLOCK_DIM, 0, stream>>>( //
                     sharedOutE,                       //
                     sharedOutT,                       //
@@ -165,14 +165,14 @@ int FastFss_cuda_onehotLutEval(void       *sharedOutE,
     return ret;
 }
 
-int FastFss_cuda_onehotGetKeyDataSize(size_t *keyDataSize,
-                                      size_t  bitWidthIn,
-                                      size_t  elementNum)
+int FastFss_cuda_otttGetKeyDataSize(size_t *keyDataSize,
+                                    size_t  bitWidthIn,
+                                    size_t  elementNum)
 {
     if (bitWidthIn < 3)
     {
         return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
-    *keyDataSize = impl::onehotGetKeyDataSize(bitWidthIn, elementNum);
+    *keyDataSize = impl::otttGetKeyDataSize(bitWidthIn, elementNum);
     return FAST_FSS_SUCCESS;
 }

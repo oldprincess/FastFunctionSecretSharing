@@ -1,18 +1,20 @@
-#ifndef FAST_FSS_HELPER_ONEHOT_HELPER_H
-#define FAST_FSS_HELPER_ONEHOT_HELPER_H
+#ifndef FAST_FSS_HELPER_OTTT_HELPER_H
+#define FAST_FSS_HELPER_OTTT_HELPER_H
 
 #include <cstddef>
 #include <cstdint>
 
 #include "error_code.h"
 
-static int FastFss_helper_checkOnehotKeyGenParams(
+static int FastFss_helper_checkOtttKeyGenParams(
     size_t keyDataSize,
     size_t alphaDataSize,
     size_t bitWidthIn,
     size_t elementSize,
     size_t elementNum,
-    int (*getKeyDataSizeFunc)(size_t *, size_t, size_t))
+    int (*getKeyDataSizeFunc)(size_t *keyDataSize,
+                              size_t  bitWidthIn,
+                              size_t  elementNum))
 {
     int         ret;
     std::size_t needKeyDataSize = 0;
@@ -40,7 +42,7 @@ static int FastFss_helper_checkOnehotKeyGenParams(
     return FAST_FSS_SUCCESS;
 }
 
-static int FastFss_helper_checkOnehotLutEvalParams(
+static int FastFss_helper_checkOtttLutEvalParams(
     size_t sharedOutEDataSize,
     size_t sharedOutTDataSize,
     size_t maskedXDataSize,
@@ -50,7 +52,9 @@ static int FastFss_helper_checkOnehotLutEvalParams(
     size_t bitWidthIn,
     size_t elementSize,
     size_t elementNum,
-    int (*getKeyDataSizeFunc)(size_t *, size_t, size_t))
+    int (*getKeyDataSizeFunc)(size_t *keyDataSize,
+                              size_t  bitWidthIn,
+                              size_t  elementNum))
 {
     int         ret;
     std::size_t needKeyDataSize = 0;
@@ -75,13 +79,13 @@ static int FastFss_helper_checkOnehotLutEvalParams(
         return FAST_FSS_INVALID_KEY_DATA_SIZE_ERROR;
     }
 
-    if (lookUpTableDataSize % (elementSize * (1ULL << bitWidthIn)) != 0)
+    std::size_t eachLookUpTableSize = elementSize * (1ULL << bitWidthIn);
+    if (lookUpTableDataSize % eachLookUpTableSize != 0)
     {
         return FAST_FSS_INVALID_SEED_DATA_SIZE_ERROR;
     }
 
-    std::size_t lookUpTableNum =
-        lookUpTableDataSize / (elementSize * (1ULL << bitWidthIn));
+    std::size_t lookUpTableNum = lookUpTableDataSize / eachLookUpTableSize;
 
     if (sharedOutEDataSize != elementNum * elementSize)
     {
@@ -101,4 +105,4 @@ static int FastFss_helper_checkOnehotLutEvalParams(
     return FAST_FSS_SUCCESS;
 }
 
-#endif // FAST_FSS_HELPER_ONEHOT_HELPER_H
+#endif // FAST_FSS_HELPER_Ottt_HELPER_H

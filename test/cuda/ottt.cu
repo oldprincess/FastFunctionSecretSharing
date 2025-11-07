@@ -1,7 +1,7 @@
 // clang-format off
-// nvcc -I include src/cuda/onehot.cu test/cuda/onehot.cu -o cuda_onehot.exe -std=c++17 --expt-relaxed-constexpr
+// nvcc -I include src/cuda/ottt.cu test/cuda/ottt.cu -o cuda_ottt.exe -std=c++17 --expt-relaxed-constexpr
 // clang-format on
-#include <FastFss/cuda/onehot.h>
+#include <FastFss/cuda/ottt.h>
 
 #include <chrono>
 #include <cstdio>
@@ -53,7 +53,7 @@ public:
                     std::size_t elementNum,
                     bool        testSpeed = false)
     {
-        std::printf("[TEST CUDA ONEHOT] bitWidthIn=%3zu, bitWidthOut=%3zu, "
+        std::printf("[TEST CUDA OTTT] bitWidthIn=%3zu, bitWidthOut=%3zu, "
                     "elementNum=%8zu\n",
                     bitWidthIn, bitWidthOut, elementNum);
 
@@ -68,8 +68,8 @@ public:
         high_resolution_clock::time_point et;
 
         std::size_t keyDataSize;
-        ret = FastFss_cuda_onehotGetKeyDataSize(&keyDataSize, bitWidthIn,
-                                                elementNum);
+        ret = FastFss_cuda_otttGetKeyDataSize(&keyDataSize, bitWidthIn,
+                                              elementNum);
         CHECK(ret);
 
         std::size_t xDataSize       = elementNum * sizeof(GroupElement);
@@ -124,7 +124,7 @@ public:
                 st = high_resolution_clock::now();
             }
 
-            ret = FastFss_cuda_onehotKeyGen(
+            ret = FastFss_cuda_otttKeyGen(
                 dKey1, keyDataSize, dAlpha, alphaDataSize, bitWidthIn,
                 sizeof(GroupElement), elementNum, nullptr);
             CHECK(ret);
@@ -153,7 +153,7 @@ public:
                 st = high_resolution_clock::now();
             }
 
-            ret = FastFss_cuda_onehotLutEval(
+            ret = FastFss_cuda_otttLutEval(
                 dSharedOutE0, sharedOutDataSize, dSharedOutT0,
                 sharedOutDataSize, dMaskedX, maskedXDataSize, dKey0,
                 keyDataSize, 0, dLut, lutDataSize, bitWidthIn,
@@ -185,7 +185,7 @@ public:
 
             cuda::memcpy_cpu2gpu(dMaskedX, maskedX.data(), maskedXDataSize);
 
-            ret = FastFss_cuda_onehotLutEval(
+            ret = FastFss_cuda_otttLutEval(
                 dSharedOutE1, sharedOutDataSize, dSharedOutT1,
                 sharedOutDataSize, dMaskedX, maskedXDataSize, dKey1,
                 keyDataSize, 1, dLut, lutDataSize, bitWidthIn,

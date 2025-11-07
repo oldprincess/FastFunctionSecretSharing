@@ -1,11 +1,12 @@
 // clang-format off
-// g++ -I include src/cpu/onehot.cpp src/cpu/config.cpp test/cpu/onehot.cpp -o cpu_onehot.exe -std=c++17 -fopenmp
+// g++ -I include src/cpu/ottt.cpp src/cpu/config.cpp test/cpu/ottt.cpp -o cpu_ottt.exe -std=c++17 -fopenmp
 // clang-format on
-#include <FastFss/cpu/onehot.h>
+#include <FastFss/cpu/ottt.h>
 
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <vector>
 
 #include "mt19937.hpp"
@@ -51,7 +52,7 @@ public:
                     std::size_t elementNum,
                     bool        testSpeed = false)
     {
-        std::printf("[TEST CPU ONEHOT] bitWidthIn=%3zu, bitWidthOut=%3zu, "
+        std::printf("[TEST CPU OTTT] bitWidthIn=%3zu, bitWidthOut=%3zu, "
                     "elementNum=%8zu\n",
                     bitWidthIn, bitWidthOut, elementNum);
 
@@ -64,8 +65,8 @@ public:
         high_resolution_clock::time_point et;
 
         std::size_t keyDataSize;
-        ret = FastFss_cpu_onehotGetKeyDataSize(&keyDataSize, bitWidthIn,
-                                               elementNum);
+        ret = FastFss_cpu_otttGetKeyDataSize(&keyDataSize, bitWidthIn,
+                                             elementNum);
         CHECK(ret);
 
         std::size_t xDataSize       = elementNum * sizeof(GroupElement);
@@ -117,9 +118,9 @@ public:
                 st = high_resolution_clock::now();
             }
 
-            ret = FastFss_cpu_onehotKeyGen(dKey1, keyDataSize, dAlpha,
-                                           alphaDataSize, bitWidthIn,
-                                           sizeof(GroupElement), elementNum);
+            ret = FastFss_cpu_otttKeyGen(dKey1, keyDataSize, dAlpha,
+                                         alphaDataSize, bitWidthIn,
+                                         sizeof(GroupElement), elementNum);
             CHECK(ret);
 
             if (testSpeed)
@@ -146,7 +147,7 @@ public:
                 st = high_resolution_clock::now();
             }
 
-            ret = FastFss_cpu_onehotLutEval(
+            ret = FastFss_cpu_otttLutEval(
                 dSharedOutE0, sharedOutDataSize, dSharedOutT0,
                 sharedOutDataSize, dMaskedX, maskedXDataSize, dKey0,
                 keyDataSize, 0, dLut, lutDataSize, bitWidthIn,
@@ -176,7 +177,7 @@ public:
 
             std::memcpy(dMaskedX, maskedX.data(), maskedXDataSize);
 
-            ret = FastFss_cpu_onehotLutEval(
+            ret = FastFss_cpu_otttLutEval(
                 dSharedOutE1, sharedOutDataSize, dSharedOutT1,
                 sharedOutDataSize, dMaskedX, maskedXDataSize, dKey1,
                 keyDataSize, 1, dLut, lutDataSize, bitWidthIn,
