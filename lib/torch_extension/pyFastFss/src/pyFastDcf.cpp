@@ -37,7 +37,7 @@ std::size_t dcf_get_key_data_size(std::size_t bitWidthIn,
                                   std::size_t elementNum)
 {
     std::size_t dataSize;
-    int ret = FastFss_cpu_dcfGetKeyDataSize(&dataSize, bitWidthIn, bitWidthOut,
+    int ret = FastFss_cpu_dcfGetKeyDataSize(&dataSize, bitWidthIn, bitWidthOut,1,
                                             elementSize, elementNum);
     CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfGetKeyDataSize");
     return dataSize;
@@ -112,6 +112,7 @@ torch::Tensor &dcf_key_gen(torch::Tensor       &keyOut,
             (std::size_t)seed1.numel(),               //
             bitWidthIn,                               //
             bitWidthOut,                              //
+            1,                                        //
             elementSize,                              //
             elementNum                                //
         );
@@ -134,6 +135,7 @@ torch::Tensor &dcf_key_gen(torch::Tensor       &keyOut,
             (std::size_t)seed1.numel(),               //
             bitWidthIn,                               //
             bitWidthOut,                              //
+            1,                                        //
             elementSize,                              //
             elementNum,                               //
             &stream);
@@ -205,6 +207,7 @@ torch::Tensor &dcf_eval(torch::Tensor      &sharedOut,
             partyId,                                      //
             bitWidthIn,                                   //
             bitWidthOut,                                  //
+            1,                                            //
             elementSize,                                  //
             elementNum, nullptr, 0);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfEval");
@@ -225,6 +228,7 @@ torch::Tensor &dcf_eval(torch::Tensor      &sharedOut,
             partyId,                                      //
             bitWidthIn,                                   //
             bitWidthOut,                                  //
+            1,                                            //
             elementSize,                                  //
             elementNum, nullptr, 0, &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dcfEval");
