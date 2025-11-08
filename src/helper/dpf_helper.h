@@ -14,13 +14,15 @@ static int FastFss_helper_checkDpfKeyGenParams(
     std::size_t seedDataSize1,
     std::size_t bitWidthIn,
     std::size_t bitWidthOut,
+    std::size_t groupSize,
     std::size_t elementSize,
     std::size_t elementNum,
-    int (*getKeyDataSizeFunc)(std::size_t *,
-                              std::size_t,
-                              std::size_t,
-                              std::size_t,
-                              std::size_t))
+    int (*getKeyDataSizeFunc)(std::size_t *keyDataSize,
+                              std::size_t  bitWidthIn,
+                              std::size_t  bitWidthOut,
+                              std::size_t  groupSize,
+                              std::size_t  elementSize,
+                              std::size_t  elementNum))
 {
     int         ret;
     std::size_t needKeyDataSize = 0;
@@ -33,9 +35,18 @@ static int FastFss_helper_checkDpfKeyGenParams(
     {
         return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
+    if (groupSize == 0)
+    {
+        return FAST_FSS_INVALID_GROUP_SIZE_ERROR;
+    }
 
-    ret = getKeyDataSizeFunc(                                              //
-        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+    ret = getKeyDataSizeFunc( //
+        &needKeyDataSize,     //
+        bitWidthIn,           //
+        bitWidthOut,          //
+        groupSize,            //
+        elementSize,          //
+        elementNum            //
     );
     if (ret != 0)
     {
@@ -53,7 +64,14 @@ static int FastFss_helper_checkDpfKeyGenParams(
 
     if (betaDataSize != 0)
     {
-        if (betaDataSize % (elementNum * elementSize) != 0)
+        if (betaDataSize != elementNum * elementSize * groupSize)
+        {
+            return FAST_FSS_INVALID_BETA_DATA_SIZE_ERROR;
+        }
+    }
+    else
+    {
+        if (groupSize != 1)
         {
             return FAST_FSS_INVALID_BETA_DATA_SIZE_ERROR;
         }
@@ -76,32 +94,41 @@ static int FastFss_helper_checkDpfEvalParams(
     int         partyId,
     std::size_t bitWidthIn,
     std::size_t bitWidthOut,
+    std::size_t groupSize,
     std::size_t elementSize,
     std::size_t elementNum,
-    int (*getKeyDataSizeFunc)(std::size_t *,
-                              std::size_t,
-                              std::size_t,
-                              std::size_t,
-                              std::size_t),
-    int (*getCacheDataSizeFunc)(std::size_t *,
-                                std::size_t,
-                                std::size_t,
-                                std::size_t,
-                                std::size_t))
+    int (*getKeyDataSizeFunc)(std::size_t *keyDataSize,
+                              std::size_t  bitWidthIn,
+                              std::size_t  bitWidthOut,
+                              std::size_t  groupSize,
+                              std::size_t  elementSize,
+                              std::size_t  elementNum),
+    int (*getCacheDataSizeFunc)(std::size_t *cacheDataSize,
+                                std::size_t  bitWidthIn,
+                                std::size_t  elementSize,
+                                std::size_t  elementNum))
 {
     int         ret;
     std::size_t needKeyDataSize   = 0;
     std::size_t needCacheDataSize = 0;
 
-    ret = getKeyDataSizeFunc(                                              //
-        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+    ret = getKeyDataSizeFunc( //
+        &needKeyDataSize,     //
+        bitWidthIn,           //
+        bitWidthOut,          //
+        groupSize,            //
+        elementSize,          //
+        elementNum            //
     );
     if (ret != 0)
     {
         return ret;
     }
-    ret = getCacheDataSizeFunc(                                              //
-        &needCacheDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+    ret = getCacheDataSizeFunc( //
+        &needCacheDataSize,     //
+        bitWidthIn,             //
+        elementSize,            //
+        elementNum              //
     );
     if (ret != 0)
     {
@@ -115,6 +142,10 @@ static int FastFss_helper_checkDpfEvalParams(
     if (!(0 < bitWidthOut && bitWidthOut <= elementSize * 8))
     {
         return FAST_FSS_INVALID_BITWIDTH_ERROR;
+    }
+    if (groupSize == 0)
+    {
+        return FAST_FSS_INVALID_GROUP_SIZE_ERROR;
     }
 
     if (partyId != 0 && partyId != 1)
@@ -137,7 +168,7 @@ static int FastFss_helper_checkDpfEvalParams(
         return FAST_FSS_INVALID_MASKED_X_DATA_SIZE_ERROR;
     }
 
-    if (sharedOutDataSize % (elementNum * elementSize) != 0)
+    if (sharedOutDataSize != elementNum * elementSize * groupSize)
     {
         return FAST_FSS_INVALID_SHARED_OUT_DATA_SIZE_ERROR;
     }
@@ -162,25 +193,31 @@ static int FastFss_helper_checkDpfEvalAllParams(
     int         partyId,
     std::size_t bitWidthIn,
     std::size_t bitWidthOut,
+    std::size_t groupSize,
     std::size_t elementSize,
     std::size_t elementNum,
-    int (*getKeyDataSizeFunc)(std::size_t *,
-                              std::size_t,
-                              std::size_t,
-                              std::size_t,
-                              std::size_t),
-    int (*getCacheDataSizeFunc)(std::size_t *,
-                                std::size_t,
-                                std::size_t,
-                                std::size_t,
-                                std::size_t))
+    int (*getKeyDataSizeFunc)(std::size_t *keyDataSize,
+                              std::size_t  bitWidthIn,
+                              std::size_t  bitWidthOut,
+                              std::size_t  groupSize,
+                              std::size_t  elementSize,
+                              std::size_t  elementNum),
+    int (*getCacheDataSizeFunc)(std::size_t *cacheDataSize,
+                                std::size_t  bitWidthIn,
+                                std::size_t  elementSize,
+                                std::size_t  elementNum))
 {
     int         ret;
     std::size_t needKeyDataSize   = 0;
     std::size_t needCacheDataSize = 0;
 
-    ret = getKeyDataSizeFunc(                                              //
-        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+    ret = getKeyDataSizeFunc( //
+        &needKeyDataSize,     //
+        bitWidthIn,           //
+        bitWidthOut,          //
+        groupSize,            //
+        elementSize,          //
+        elementNum            //
     );
     if (ret != 0)
     {
@@ -195,6 +232,10 @@ static int FastFss_helper_checkDpfEvalAllParams(
     {
         return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
+    if (groupSize == 0)
+    {
+        return FAST_FSS_INVALID_GROUP_SIZE_ERROR;
+    }
 
     if (partyId != 0 && partyId != 1)
     {
@@ -206,7 +247,8 @@ static int FastFss_helper_checkDpfEvalAllParams(
         return FAST_FSS_INVALID_KEY_DATA_SIZE_ERROR;
     }
 
-    if (sharedOutDataSize != elementNum * elementSize * (1ULL << bitWidthIn))
+    if (sharedOutDataSize !=
+        elementNum * elementSize * (1ULL << bitWidthIn) * groupSize)
     {
         return FAST_FSS_INVALID_SHARED_OUT_DATA_SIZE_ERROR;
     }
@@ -223,8 +265,11 @@ static int FastFss_helper_checkDpfEvalAllParams(
 
     if (cacheDataSize != 0)
     {
-        ret = getCacheDataSizeFunc(                                              //
-            &needCacheDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+        ret = getCacheDataSizeFunc( //
+            &needCacheDataSize,     //
+            bitWidthIn,             //
+            elementSize,            //
+            elementNum              //
         );
         if (ret != 0)
         {
@@ -249,25 +294,31 @@ static int FastFss_helper_checkDpfMultiEvalParams(
     int         partyId,
     std::size_t bitWidthIn,
     std::size_t bitWidthOut,
+    std::size_t groupSize,
     std::size_t elementSize,
     std::size_t elementNum,
-    int (*getKeyDataSizeFunc)(std::size_t *,
-                              std::size_t,
-                              std::size_t,
-                              std::size_t,
-                              std::size_t),
-    int (*getCacheDataSizeFunc)(std::size_t *,
-                                std::size_t,
-                                std::size_t,
-                                std::size_t,
-                                std::size_t))
+    int (*getKeyDataSizeFunc)(std::size_t *keyDataSize,
+                              std::size_t  bitWidthIn,
+                              std::size_t  bitWidthOut,
+                              std::size_t  groupSize,
+                              std::size_t  elementSize,
+                              std::size_t  elementNum),
+    int (*getCacheDataSizeFunc)(std::size_t *cacheDataSize,
+                                std::size_t  bitWidthIn,
+                                std::size_t  elementSize,
+                                std::size_t  elementNum))
 {
     int         ret;
     std::size_t needKeyDataSize   = 0;
     std::size_t needCacheDataSize = 0;
 
-    ret = getKeyDataSizeFunc(                                              //
-        &needKeyDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+    ret = getKeyDataSizeFunc( //
+        &needKeyDataSize,     //
+        bitWidthIn,           //
+        bitWidthOut,          //
+        groupSize,            //
+        elementSize,          //
+        elementNum            //
     );
     if (ret != 0)
     {
@@ -282,6 +333,10 @@ static int FastFss_helper_checkDpfMultiEvalParams(
     {
         return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
+    if (groupSize == 0)
+    {
+        return FAST_FSS_INVALID_GROUP_SIZE_ERROR;
+    }
 
     if (partyId != 0 && partyId != 1)
     {
@@ -293,7 +348,8 @@ static int FastFss_helper_checkDpfMultiEvalParams(
         return FAST_FSS_INVALID_KEY_DATA_SIZE_ERROR;
     }
 
-    if (sharedOutDataSize != elementNum * elementSize * (pointDataSize / elementSize))
+    if (sharedOutDataSize !=
+        elementNum * elementSize * (pointDataSize / elementSize) * groupSize)
     {
         return FAST_FSS_INVALID_SHARED_OUT_DATA_SIZE_ERROR;
     }
@@ -315,8 +371,11 @@ static int FastFss_helper_checkDpfMultiEvalParams(
 
     if (cacheDataSize != 0)
     {
-        ret = getCacheDataSizeFunc(                                              //
-            &needCacheDataSize, bitWidthIn, bitWidthOut, elementSize, elementNum //
+        ret = getCacheDataSizeFunc( //
+            &needCacheDataSize,     //
+            bitWidthIn,             //
+            elementSize,            //
+            elementNum              //
         );
         if (ret != 0)
         {
@@ -331,4 +390,4 @@ static int FastFss_helper_checkDpfMultiEvalParams(
     return FAST_FSS_SUCCESS;
 }
 
-#endif  // FAST_FSS_HELPER_DPF_HELPER_H
+#endif // FAST_FSS_HELPER_DPF_HELPER_H

@@ -21,8 +21,11 @@ static void dpfKeyGenKernel(void       *key,
                             const void *seed1,
                             std::size_t bitWidthIn,
                             std::size_t bitWidthOut,
+                            std::size_t groupSize,
                             std::size_t elementNum)
 {
+    static const GroupElement ONE = 1;
+
     std::int64_t idx    = 0;
     std::int64_t stride = 1;
 
@@ -36,14 +39,22 @@ static void dpfKeyGenKernel(void       *key,
     for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
         impl::DpfKey<GroupElement> keyObj;
-        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
-        impl::dpfKeyGen(keyObj,                                   //
-                        alphaPtr[i],                              //
-                        (betaPtr) ? betaPtr[i] : (GroupElement)1, //
-                        seed0Ptr + 16 * i,                        //
-                        seed1Ptr + 16 * i,                        //
-                        bitWidthIn,                               //
-                        bitWidthOut                               //
+        impl::dpfKeySetPtr(                                                //
+            keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum //
+        );
+        const GroupElement *ptr = &ONE;
+        if (betaPtr != nullptr)
+        {
+            ptr = betaPtr + groupSize * i;
+        }
+        impl::dpfKeyGen(keyObj,            //
+                        alphaPtr[i],       //
+                        ptr,               //
+                        seed0Ptr + 16 * i, //
+                        seed1Ptr + 16 * i, //
+                        bitWidthIn,        //
+                        bitWidthOut,       //
+                        groupSize          //
         );
     }
 }
@@ -60,12 +71,13 @@ int FastFss_cpu_dpfKeyGen(void       *key,
                           size_t      seedDataSize1,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
+                          size_t      groupSize,
                           size_t      elementSize,
                           size_t      elementNum)
 {
     int ret = FastFss_helper_checkDpfKeyGenParams(
         keyDataSize, alphaDataSize, betaDataSize, seedDataSize0, seedDataSize1,
-        bitWidthIn, bitWidthOut, elementSize, elementNum,
+        bitWidthIn, bitWidthOut, groupSize, elementSize, elementNum,
         FastFss_cpu_dpfGetKeyDataSize);
     if (ret != FAST_FSS_SUCCESS)
     {
@@ -77,7 +89,7 @@ int FastFss_cpu_dpfKeyGen(void       *key,
         [&] {
             dpfKeyGenKernel<scalar_t>(
                 key, alpha, (betaDataSize) ? beta : nullptr, seed0, seed1,
-                bitWidthIn, bitWidthOut, elementNum);
+                bitWidthIn, bitWidthOut, groupSize, elementNum);
 
             return FAST_FSS_SUCCESS;
         });
@@ -91,6 +103,7 @@ static void dpfEvalKernel(void       *sharedOut,
                           int         partyId,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
+                          size_t      groupSize,
                           size_t      elementNum,
                           void       *cache)
 {
@@ -108,19 +121,24 @@ static void dpfEvalKernel(void       *sharedOut,
         impl::DpfKey<GroupElement>    keyObj;
         impl::DpfCache<GroupElement>  cacheObj;
         impl::DpfCache<GroupElement> *cacheObjPtr = nullptr;
-        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
+        impl::dpfKeySetPtr(                                                //
+            keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum //
+        );                                                                 //
         if (cache != nullptr)
         {
-            impl::dpfCacheSetPtr(cacheObj, cache, bitWidthIn, bitWidthOut, i,
-                                 elementNum);
+            impl::dpfCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
             cacheObjPtr = &cacheObj;
         }
-        sharedOutPtr[i] = impl::dpfEval(keyObj,           //
-                                        maskedXPtr[i],    //
-                                        seedPtr + 16 * i, //
-                                        partyId,          //
-                                        bitWidthIn,       //
-                                        bitWidthOut, cacheObjPtr);
+        impl::dpfEval(sharedOutPtr + i * groupSize, //
+                      keyObj,                       //
+                      maskedXPtr[i],                //
+                      seedPtr + 16 * i,             //
+                      partyId,                      //
+                      bitWidthIn,                   //
+                      bitWidthOut,                  //
+                      groupSize,                    //
+                      cacheObjPtr                   //
+        );
     }
 }
 
@@ -135,6 +153,7 @@ int FastFss_cpu_dpfEval(void       *sharedOut,
                         int         partyId,
                         size_t      bitWidthIn,
                         size_t      bitWidthOut,
+                        size_t      groupSize,
                         size_t      elementSize,
                         size_t      elementNum,
                         void       *cache,
@@ -142,7 +161,7 @@ int FastFss_cpu_dpfEval(void       *sharedOut,
 {
     int ret = FastFss_helper_checkDpfEvalParams(
         sharedOutDataSize, maskedXDataSize, keyDataSize, seedDataSize,
-        cacheDataSize, partyId, bitWidthIn, bitWidthOut, elementSize,
+        cacheDataSize, partyId, bitWidthIn, bitWidthOut, groupSize, elementSize,
         elementNum, FastFss_cpu_dpfGetKeyDataSize,
         FastFss_cpu_dpfGetCacheDataSize);
     if (ret != FAST_FSS_SUCCESS)
@@ -154,7 +173,8 @@ int FastFss_cpu_dpfEval(void       *sharedOut,
         elementSize, { return FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             dpfEvalKernel<scalar_t>(sharedOut, maskedX, key, seed, partyId,
-                                    bitWidthIn, bitWidthOut, elementNum, cache);
+                                    bitWidthIn, bitWidthOut, groupSize,
+                                    elementNum, cache);
             return FAST_FSS_SUCCESS;
         });
 }
@@ -167,6 +187,7 @@ static void dpfEvalAllKernel(void       *sharedOut,
                              int         partyId,
                              size_t      bitWidthIn,
                              size_t      bitWidthOut,
+                             size_t      groupSize,
                              size_t      elementNum,
                              void       *cache)
 {
@@ -184,30 +205,29 @@ static void dpfEvalAllKernel(void       *sharedOut,
         impl::DpfKey<GroupElement>    keyObj;
         impl::DpfCache<GroupElement>  cacheObj;
         impl::DpfCache<GroupElement> *cacheObjPtr = nullptr;
-        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
+        impl::dpfKeySetPtr(                                                //
+            keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum //
+        );                                                                 //
         if (cache != nullptr)
         {
-            impl::dpfCacheSetPtr(cacheObj,    //
-                                 cache,       //
-                                 bitWidthIn,  //
-                                 bitWidthOut, //
-                                 i,           //
-                                 elementNum   //
-            );                                //
+            impl::dpfCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
             cacheObjPtr = &cacheObj;
         }
         std::size_t size = (std::size_t)(1ULL << bitWidthIn);
         for (std::size_t j = 0; j < size; j++)
         {
-            sharedOutPtr[size * i + (maskedXPtr[i] - j) % size] =
-                impl::dpfEval(keyObj,           //
-                              (GroupElement)j,  //
-                              seedPtr + 16 * i, //
-                              partyId,          //
-                              bitWidthIn,       //
-                              bitWidthOut,      //
-                              cacheObjPtr       //
-                );
+            std::size_t k =
+                groupSize * (std::size_t)((maskedXPtr[i] - j) % size);
+            impl::dpfEval(sharedOutPtr + size * i * groupSize + k,
+                          keyObj,           //
+                          (GroupElement)j,  //
+                          seedPtr + 16 * i, //
+                          partyId,          //
+                          bitWidthIn,       //
+                          bitWidthOut,      //
+                          groupSize,        //
+                          cacheObjPtr       //
+            );
         }
     }
 }
@@ -223,6 +243,7 @@ int FastFss_cpu_dpfEvalAll(void       *sharedOut,
                            int         partyId,
                            size_t      bitWidthIn,
                            size_t      bitWidthOut,
+                           size_t      groupSize,
                            size_t      elementSize,
                            size_t      elementNum,
                            void       *cache,
@@ -230,7 +251,7 @@ int FastFss_cpu_dpfEvalAll(void       *sharedOut,
 {
     int ret = FastFss_helper_checkDpfEvalAllParams(
         sharedOutDataSize, maskedXDataSize, keyDataSize, seedDataSize,
-        cacheDataSize, partyId, bitWidthIn, bitWidthOut, elementSize,
+        cacheDataSize, partyId, bitWidthIn, bitWidthOut, groupSize, elementSize,
         elementNum, FastFss_cpu_dpfGetKeyDataSize,
         FastFss_cpu_dpfGetCacheDataSize);
     if (ret != FAST_FSS_SUCCESS)
@@ -249,6 +270,7 @@ int FastFss_cpu_dpfEvalAll(void       *sharedOut,
                 partyId,                //
                 bitWidthIn,             //
                 bitWidthOut,            //
+                groupSize,              //
                 elementNum,             //
                 cache                   //
             );                          //
@@ -266,6 +288,7 @@ static void dpfMultiEvalKernel(void       *sharedOut,
                                size_t      pointNum,
                                size_t      bitWidthIn,
                                size_t      bitWidthOut,
+                               size_t      groupSize,
                                size_t      elementNum,
                                void       *cache)
 {
@@ -284,30 +307,28 @@ static void dpfMultiEvalKernel(void       *sharedOut,
         impl::DpfKey<GroupElement>    keyObj;
         impl::DpfCache<GroupElement>  cacheObj;
         impl::DpfCache<GroupElement> *cacheObjPtr = nullptr;
-        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
+        impl::dpfKeySetPtr(                                                //
+            keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum //
+        );                                                                 //
         if (cache != nullptr)
         {
-            impl::dpfCacheSetPtr(cacheObj,    //
-                                 cache,       //
-                                 bitWidthIn,  //
-                                 bitWidthOut, //
-                                 i,           //
-                                 elementNum   //
-            );                                //
+            impl::dpfCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
             cacheObjPtr = &cacheObj;
         }
         for (std::size_t j = 0; j < pointNum; j++)
         {
-            GroupElement tmp               = maskedXPtr[i] - pointPtr[j];
-            sharedOutPtr[pointNum * i + j] = impl::dpfEval( //
-                keyObj,                                     //
-                tmp,                                        //
-                seedPtr + 16 * i,                           //
-                partyId,                                    //
-                bitWidthIn,                                 //
-                bitWidthOut,                                //
-                cacheObjPtr                                 //
-            );                                              //
+            GroupElement tmp = maskedXPtr[i] - pointPtr[j];
+            impl::dpfEval(                                               //
+                sharedOutPtr + pointNum * i * groupSize + j * groupSize, //
+                keyObj,                                                  //
+                tmp,                                                     //
+                seedPtr + 16 * i,                                        //
+                partyId,                                                 //
+                bitWidthIn,                                              //
+                bitWidthOut,                                             //
+                groupSize,                                               //
+                cacheObjPtr                                              //
+            );                                                           //
         }
     }
 }
@@ -325,6 +346,7 @@ int FastFss_cpu_dpfMultiEval(void       *sharedOut,
                              size_t      pointDataSize,
                              size_t      bitWidthIn,
                              size_t      bitWidthOut,
+                             size_t      groupSize,
                              size_t      elementSize,
                              size_t      elementNum,
                              void       *cache,
@@ -333,7 +355,7 @@ int FastFss_cpu_dpfMultiEval(void       *sharedOut,
     int ret = FastFss_helper_checkDpfMultiEvalParams(
         sharedOutDataSize, maskedXDataSize, keyDataSize, seedDataSize,
         pointDataSize, cacheDataSize, partyId, bitWidthIn, bitWidthOut,
-        elementSize, elementNum, FastFss_cpu_dpfGetKeyDataSize,
+        groupSize, elementSize, elementNum, FastFss_cpu_dpfGetKeyDataSize,
         FastFss_cpu_dpfGetCacheDataSize);
     if (ret != FAST_FSS_SUCCESS)
     {
@@ -353,6 +375,7 @@ int FastFss_cpu_dpfMultiEval(void       *sharedOut,
                 pointDataSize / elementSize, //
                 bitWidthIn,                  //
                 bitWidthOut,                 //
+                groupSize,                   //
                 elementNum,                  //
                 cache                        //
             );                               //
@@ -366,6 +389,7 @@ int FastFss_cpu_dpfKeyZip(void       *zippedKey,
                           size_t      keyDataSize,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
+                          size_t      groupSize,
                           size_t      elementSize,
                           size_t      elementNum)
 {
@@ -378,6 +402,7 @@ int FastFss_cpu_dpfKeyUnzip(void       *key,
                             size_t      zippedKeyDataSize,
                             size_t      bitWidthIn,
                             size_t      bitWidthOut,
+                            size_t      groupSize,
                             size_t      elementSize,
                             size_t      elementNum)
 {
@@ -387,54 +412,57 @@ int FastFss_cpu_dpfKeyUnzip(void       *key,
 int FastFss_cpu_dpfGetKeyDataSize(size_t *keyDataSize,
                                   size_t  bitWidthIn,
                                   size_t  bitWidthOut,
+                                  size_t  groupSize,
                                   size_t  elementSize,
                                   size_t  elementNum)
 {
-    if (bitWidthIn > elementSize * 8)
-    {
-        return FAST_FSS_INVALID_BITWIDTH_ERROR;
-    }
-    if (bitWidthOut > elementSize * 8)
+    if (bitWidthIn > elementSize * 8 || bitWidthOut > elementSize * 8)
     {
         return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
 
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
-        elementSize, { return (std::size_t)0; },
+        elementSize, { return (std::size_t)(-1); },
         [&] {
-            return impl::dpfGetKeyDataSize<scalar_t>(bitWidthIn, bitWidthOut,
-                                                     elementNum);
+            return impl::dpfGetKeyDataSize<scalar_t>(          //
+                bitWidthIn, bitWidthOut, groupSize, elementNum //
+            );                                                 //
         });
+    if (*keyDataSize == (std::size_t)(-1))
+    {
+        return FAST_FSS_INVALID_ELEMENT_SIZE_ERROR;
+    }
     return FAST_FSS_SUCCESS;
 }
 
 int FastFss_cpu_dpfGetZippedKeyDataSize(size_t *keyDataSize,
                                         size_t  bitWidthIn,
                                         size_t  bitWidthOut,
+                                        size_t  groupSize,
                                         size_t  elementSize,
                                         size_t  elementNum)
 {
-    if (bitWidthIn > elementSize * 8)
-    {
-        return FAST_FSS_INVALID_BITWIDTH_ERROR;
-    }
-    if (bitWidthOut > elementSize * 8)
+    if (bitWidthIn > elementSize * 8 || bitWidthOut > elementSize * 8)
     {
         return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
 
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
-        elementSize, { return (std::size_t)0; },
+        elementSize, { return (std::size_t)(-1); },
         [&] {
-            return impl::dpfGetZippedKeyDataSize<scalar_t>(
-                bitWidthIn, bitWidthOut, elementNum);
+            return impl::dpfGetZippedKeyDataSize<scalar_t>(    //
+                bitWidthIn, bitWidthOut, groupSize, elementNum //
+            );                                                 //
         });
+    if (*keyDataSize == (std::size_t)(-1))
+    {
+        return FAST_FSS_INVALID_ELEMENT_SIZE_ERROR;
+    }
     return FAST_FSS_SUCCESS;
 }
 
 int FastFss_cpu_dpfGetCacheDataSize(size_t *cacheDataSize,
                                     size_t  bitWidthIn,
-                                    size_t  bitWidthOut,
                                     size_t  elementSize,
                                     size_t  elementNum)
 {
@@ -442,15 +470,15 @@ int FastFss_cpu_dpfGetCacheDataSize(size_t *cacheDataSize,
     {
         return FAST_FSS_INVALID_BITWIDTH_ERROR;
     }
-    if (bitWidthOut > elementSize * 8)
-    {
-        return FAST_FSS_INVALID_BITWIDTH_ERROR;
-    }
 
     *cacheDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
-        elementSize, { return (std::size_t)0; },
+        elementSize, { return (std::size_t)(-1); },
         [&] {
             return impl::dpfGetCacheDataSize<scalar_t>(bitWidthIn, elementNum);
         });
+    if (*cacheDataSize == (std::size_t)(-1))
+    {
+        return FAST_FSS_INVALID_ELEMENT_SIZE_ERROR;
+    }
     return FAST_FSS_SUCCESS;
 }

@@ -545,38 +545,43 @@ public:
     }
 
 public:
-    FAST_FSS_DEVICE void set_enc_key(const void                *user_key,
-                                     const AES128GlobalContext *ctx) noexcept
+    FAST_FSS_DEVICE void set_enc_key(
+        const void                *user_key,
+        const AES128GlobalContext *ctx = nullptr) noexcept
     {
         internal::aes128_enc_key_init(rk_, (const std::uint8_t *)user_key);
     }
 
-    FAST_FSS_DEVICE void enc_block(void                      *out,
-                                   const void                *in,
-                                   const AES128GlobalContext *ctx) noexcept
+    FAST_FSS_DEVICE void enc_block(
+        void                      *out,
+        const void                *in,
+        const AES128GlobalContext *ctx = nullptr) noexcept
     {
         internal::aes128_compute_block(rk_, out, in);
     }
 
-    FAST_FSS_DEVICE void enc4_block(void                      *out,
-                                    const void                *in,
-                                    const AES128GlobalContext *ctx) noexcept
+    FAST_FSS_DEVICE void enc4_block(
+        void                      *out,
+        const void                *in,
+        const AES128GlobalContext *ctx = nullptr) noexcept
     {
         internal::aes128_compute_n_block<4>(rk_, out, in);
     }
 
     template <int N>
-    FAST_FSS_DEVICE void enc_n_block(void                      *out,
-                                     const void                *in,
-                                     const AES128GlobalContext *ctx) noexcept
+    FAST_FSS_DEVICE void enc_n_block(
+        void                      *out,
+        const void                *in,
+        const AES128GlobalContext *ctx = nullptr) noexcept
     {
         internal::aes128_compute_n_block<N>(rk_, out, in);
     }
 
-    FAST_FSS_DEVICE void enc_blocks(void                      *out,
-                                    const void                *in,
-                                    std::size_t                block_num,
-                                    const AES128GlobalContext *ctx) noexcept
+    FAST_FSS_DEVICE void enc_blocks(
+        void                      *out,
+        const void                *in,
+        std::size_t                block_num,
+        const AES128GlobalContext *ctx = nullptr) noexcept
     {
         std::uint8_t       *out_u8 = (std::uint8_t *)out;
         const std::uint8_t *in_u8  = (const std::uint8_t *)in;
