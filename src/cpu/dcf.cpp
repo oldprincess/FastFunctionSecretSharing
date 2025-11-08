@@ -20,8 +20,11 @@ static void dcfKeyGenKernel(void       *key,
                             const void *seed1,
                             std::size_t bitWidthIn,
                             std::size_t bitWidthOut,
+                            std::size_t groupSize,
                             std::size_t elementNum)
 {
+    const GroupElement ONE = 1;
+
     std::int64_t idx    = 0;
     std::int64_t stride = 1;
 
@@ -35,14 +38,21 @@ static void dcfKeyGenKernel(void       *key,
     for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
         impl::DcfKey<GroupElement> keyObj;
-        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
-        impl::dcfKeyGen(keyObj,                                   //
-                        alphaPtr[i],                              //
-                        (betaPtr) ? betaPtr[i] : (GroupElement)1, //
-                        seed0Ptr + 16 * i,                        //
-                        seed1Ptr + 16 * i,                        //
-                        bitWidthIn,                               //
-                        bitWidthOut                               //
+        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i,
+                           elementNum);
+        const GroupElement *ptr = &ONE;
+        if (betaPtr != nullptr)
+        {
+            ptr = betaPtr + groupSize * i;
+        }
+        impl::dcfKeyGen(keyObj,            //
+                        alphaPtr[i],       //
+                        ptr,               //
+                        seed0Ptr + 16 * i, //
+                        seed1Ptr + 16 * i, //
+                        bitWidthIn,        //
+                        bitWidthOut,       //
+                        groupSize          //
         );
     }
 }
@@ -59,6 +69,7 @@ int FastFss_cpu_dcfKeyGen(void       *key,
                           size_t      seedDataSize1,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
+                          size_t      groupSize,
                           size_t      elementSize,
                           size_t      elementNum)
 {
@@ -70,6 +81,7 @@ int FastFss_cpu_dcfKeyGen(void       *key,
         seedDataSize1,                             //
         bitWidthIn,                                //
         bitWidthOut,                               //
+        groupSize,                                 //
         elementSize,                               //
         elementNum,                                //
         FastFss_cpu_dcfGetKeyDataSize              //
@@ -91,6 +103,7 @@ int FastFss_cpu_dcfKeyGen(void       *key,
                 seed1,                           //
                 bitWidthIn,                      //
                 bitWidthOut,                     //
+                groupSize,                       //
                 elementNum                       //
             );
 
@@ -106,6 +119,7 @@ static void dcfEvalKernel(void       *sharedOut,
                           int         partyId,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
+                          size_t      groupSize,
                           size_t      elementNum,
                           void       *cache)
 {
@@ -121,13 +135,17 @@ static void dcfEvalKernel(void       *sharedOut,
     for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
         impl::DcfKey<GroupElement> keyObj;
-        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
-        sharedOutPtr[i] = impl::dcfEval(keyObj,           //
-                                        maskedXPtr[i],    //
-                                        seedPtr + 16 * i, //
-                                        partyId,          //
-                                        bitWidthIn,       //
-                                        bitWidthOut);
+        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i,
+                           elementNum);
+        impl::dcfEval(sharedOutPtr + i * groupSize, //
+                      keyObj,                       //
+                      maskedXPtr[i],                //
+                      seedPtr + 16 * i,             //
+                      partyId,                      //
+                      bitWidthIn,                   //
+                      bitWidthOut,                  //
+                      groupSize                     //
+        );
     }
 }
 
@@ -142,6 +160,7 @@ int FastFss_cpu_dcfEval(void       *sharedOut,
                         int         partyId,
                         size_t      bitWidthIn,
                         size_t      bitWidthOut,
+                        size_t      groupSize,
                         size_t      elementSize,
                         size_t      elementNum,
                         void       *cache,
@@ -155,6 +174,7 @@ int FastFss_cpu_dcfEval(void       *sharedOut,
         partyId,                                 //
         bitWidthIn,                              //
         bitWidthOut,                             //
+        groupSize,                               //
         elementSize,                             //
         elementNum,                              //
         cacheDataSize,                           //
@@ -171,7 +191,8 @@ int FastFss_cpu_dcfEval(void       *sharedOut,
         elementSize, { return FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             dcfEvalKernel<scalar_t>(sharedOut, maskedX, key, seed, partyId,
-                                    bitWidthIn, bitWidthOut, elementNum, cache);
+                                    bitWidthIn, bitWidthOut, groupSize,
+                                    elementNum, cache);
             return FAST_FSS_SUCCESS;
         });
 }
@@ -182,6 +203,7 @@ int FastFss_cpu_dcfKeyZip(void       *zippedKey,
                           size_t      keyDataSize,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
+                          size_t      groupSize,
                           size_t      elementSize,
                           size_t      elementNum)
 {
@@ -194,6 +216,7 @@ int FastFss_cpu_dcfKeyUnzip(void       *key,
                             size_t      zippedKeyDataSize,
                             size_t      bitWidthIn,
                             size_t      bitWidthOut,
+                            size_t      groupSize,
                             size_t      elementSize,
                             size_t      elementNum)
 {
@@ -203,6 +226,7 @@ int FastFss_cpu_dcfKeyUnzip(void       *key,
 int FastFss_cpu_dcfGetKeyDataSize(size_t *keyDataSize,
                                   size_t  bitWidthIn,
                                   size_t  bitWidthOut,
+                                  size_t  groupSize,
                                   size_t  elementSize,
                                   size_t  elementNum)
 {
@@ -216,17 +240,22 @@ int FastFss_cpu_dcfGetKeyDataSize(size_t *keyDataSize,
     }
 
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
-        elementSize, { return (std::size_t)0; },
+        elementSize, { return (std::size_t)(-1); },
         [&] {
             return impl::dcfGetKeyDataSize<scalar_t>(bitWidthIn, bitWidthOut,
-                                                     elementNum);
+                                                     groupSize, elementNum);
         });
+    if (*keyDataSize == (std::size_t)(-1))
+    {
+        return FAST_FSS_INVALID_ELEMENT_SIZE_ERROR;
+    }
     return FAST_FSS_SUCCESS;
 }
 
 int FastFss_cpu_dcfGetZippedKeyDataSize(size_t *keyDataSize,
                                         size_t  bitWidthIn,
                                         size_t  bitWidthOut,
+                                        size_t  groupSize,
                                         size_t  elementSize,
                                         size_t  elementNum)
 {
@@ -240,17 +269,22 @@ int FastFss_cpu_dcfGetZippedKeyDataSize(size_t *keyDataSize,
     }
 
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
-        elementSize, { return (std::size_t)0; },
+        elementSize, { return (std::size_t)(-1); },
         [&] {
             return impl::dcfGetZippedKeyDataSize<scalar_t>(
-                bitWidthIn, bitWidthOut, elementNum);
+                bitWidthIn, bitWidthOut, groupSize, elementNum);
         });
+    if (*keyDataSize == (std::size_t)(-1))
+    {
+        return FAST_FSS_INVALID_ELEMENT_SIZE_ERROR;
+    }
     return FAST_FSS_SUCCESS;
 }
 
 int FastFss_cpu_dcfGetCacheDataSize(size_t *cacheDataSize,
                                     size_t  bitWidthIn,
                                     size_t  bitWidthOut,
+                                    size_t  groupSize,
                                     size_t  elementSize,
                                     size_t  elementNum)
 {
@@ -264,9 +298,14 @@ int FastFss_cpu_dcfGetCacheDataSize(size_t *cacheDataSize,
     }
 
     *cacheDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
-        elementSize, { return (std::size_t)0; },
+        elementSize, { return (std::size_t)(-1); },
         [&] {
-            return impl::dcfGetCacheDataSize<scalar_t>(bitWidthIn, elementNum);
+            return impl::dcfGetCacheDataSize<scalar_t>(bitWidthIn, groupSize,
+                                                       elementNum);
         });
+    if (*cacheDataSize == (std::size_t)(-1))
+    {
+        return FAST_FSS_INVALID_ELEMENT_SIZE_ERROR;
+    }
     return FAST_FSS_SUCCESS;
 }

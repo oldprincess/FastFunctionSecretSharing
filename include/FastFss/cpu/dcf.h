@@ -21,6 +21,7 @@ int FastFss_cpu_dcfKeyGen(void       *key,
                           size_t      seedDataSize1,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
+                          size_t      groupSize,
                           size_t      elementSize,
                           size_t      elementNum);
 
@@ -35,6 +36,7 @@ int FastFss_cpu_dcfEval(void       *sharedOut,
                         int         partyId,
                         size_t      bitWidthIn,
                         size_t      bitWidthOut,
+                        size_t      groupSize,
                         size_t      elementSize,
                         size_t      elementNum,
                         void       *cache,
@@ -46,6 +48,7 @@ int FastFss_cpu_dcfKeyZip(void       *zippedKey,
                           size_t      keyDataSize,
                           size_t      bitWidthIn,
                           size_t      bitWidthOut,
+                          size_t      groupSize,
                           size_t      elementSize,
                           size_t      elementNum);
 
@@ -55,24 +58,28 @@ int FastFss_cpu_dcfKeyUnzip(void       *key,
                             size_t      zippedKeyDataSize,
                             size_t      bitWidthIn,
                             size_t      bitWidthOut,
+                            size_t      groupSize,
                             size_t      elementSize,
                             size_t      elementNum);
 
 int FastFss_cpu_dcfGetKeyDataSize(size_t *keyDataSize,
                                   size_t  bitWidthIn,
                                   size_t  bitWidthOut,
+                                  size_t  groupSize,
                                   size_t  elementSize,
                                   size_t  elementNum);
 
 int FastFss_cpu_dcfGetZippedKeyDataSize(size_t *keyDataSize,
                                         size_t  bitWidthIn,
                                         size_t  bitWidthOut,
+                                        size_t  groupSize,
                                         size_t  elementSize,
                                         size_t  elementNum);
 
 int FastFss_cpu_dcfGetCacheDataSize(size_t *cacheDataSize,
                                     size_t  bitWidthIn,
                                     size_t  bitWidthOut,
+                                    size_t  groupSize,
                                     size_t  elementSize,
                                     size_t  elementNum);
 

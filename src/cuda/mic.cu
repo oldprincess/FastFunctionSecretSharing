@@ -33,7 +33,8 @@ __global__ static void dcfMICKeyGenKernel(void       *key,
     impl::DcfKey<GroupElement> keyObj;
     for (std::size_t i = idx; i < elementNum; i += stride)
     {
-        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
+        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, 1, i,
+                           elementNum);
         impl::dcfMICKeyGen(keyObj,                 //
                            zPtr + intervalNum * i, //
                            alphaPtr[i],            //
@@ -128,11 +129,11 @@ __global__ static void dcfMICEvalKernel(void       *sharedOut,
     impl::DcfCache<GroupElement> *cachePtr = nullptr;
     for (std::size_t i = idx; i < elementNum; i += stride)
     {
-        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
+        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, 1, i,
+                           elementNum);
         if (cache != nullptr)
         {
-            impl::dcfCacheSetPtr(cacheObj, cache, bitWidthIn, bitWidthOut, i,
-                                 elementNum);
+            impl::dcfCacheSetPtr(cacheObj, cache, bitWidthIn, 1, i, elementNum);
             cachePtr = &cacheObj;
         }
         impl::dcfMICEval(sharedOutPtr + intervalNum * i, //
@@ -192,17 +193,18 @@ __global__ static void dcfMICEvalKernelParallel(void       *sharedOut,
         }
         if (i == (idx * chunkSize) || elementIdx != preElementIdx)
         {
-            impl::dcfKeySetPtr(                                              //
-                keyObj, key, bitWidthIn, bitWidthOut, elementIdx, elementNum //
-            );                                                               //
-            impl::dcfCacheSetPtr(                                            //
-                cacheObj,                                                    //
-                cache,                                                       //
-                bitWidthIn,                                                  //
-                bitWidthOut,                                                 //
-                idx,                                                         //
-                stride                                                       //
-            );                                                               //
+            impl::dcfKeySetPtr( //
+                keyObj, key, bitWidthIn, bitWidthOut, 1, elementIdx,
+                elementNum        //
+            );                    //
+            impl::dcfCacheSetPtr( //
+                cacheObj,         //
+                cache,            //
+                bitWidthIn,       //
+                1,                //
+                idx,              //
+                stride            //
+            );                    //
         }
 
         std::size_t size = (idx + 1) * chunkSize - i;
@@ -350,30 +352,6 @@ int FastFss_cuda_dcfMICEval(void       *sharedOut,
         });
 }
 
-int FastFss_cuda_dcfMICKeyZip(void       *zippedKey,
-                              size_t      zippedKeyDataSize,
-                              const void *key,
-                              size_t      keyDataSize,
-                              size_t      bitWidthIn,
-                              size_t      bitWidthOut,
-                              size_t      elementSize,
-                              size_t      elementNum)
-{
-    return FAST_FSS_RUNTIME_ERROR;
-}
-
-int FastFss_cuda_dcfMICKeyUnzip(void       *key,
-                                size_t      keyDataSize,
-                                const void *zippedKey,
-                                size_t      zippedKeyDataSize,
-                                size_t      bitWidthIn,
-                                size_t      bitWidthOut,
-                                size_t      elementSize,
-                                size_t      elementNum)
-{
-    return FAST_FSS_RUNTIME_ERROR;
-}
-
 int FastFss_cuda_dcfMICGetCacheDataSize(size_t *cacheDataSize,
                                         size_t  bitWidthIn,
                                         size_t  bitWidthOut,
@@ -383,7 +361,8 @@ int FastFss_cuda_dcfMICGetCacheDataSize(size_t *cacheDataSize,
     *cacheDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (std::size_t)0; },
         [&] {
-            return impl::dcfGetCacheDataSize<scalar_t>(bitWidthIn, elementNum);
+            return impl::dcfGetCacheDataSize<scalar_t>(bitWidthIn, 1,
+                                                       elementNum);
         });
     return FAST_FSS_SUCCESS;
 }
@@ -397,23 +376,8 @@ int FastFss_cuda_dcfMICGetKeyDataSize(size_t *keyDataSize,
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (std::size_t)0; },
         [&] {
-            return impl::dcfGetKeyDataSize<scalar_t>(bitWidthIn, bitWidthOut,
+            return impl::dcfGetKeyDataSize<scalar_t>(bitWidthIn, bitWidthOut, 1,
                                                      elementNum);
-        });
-    return FAST_FSS_SUCCESS;
-}
-
-int FastFss_cuda_dcfMICGetZippedKeyDataSize(size_t *keyDataSize,
-                                            size_t  bitWidthIn,
-                                            size_t  bitWidthOut,
-                                            size_t  elementSize,
-                                            size_t  elementNum)
-{
-    *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
-        elementSize, { return (std::size_t)0; },
-        [&] {
-            return impl::dcfGetZippedKeyDataSize<scalar_t>(
-                bitWidthIn, bitWidthOut, elementNum);
         });
     return FAST_FSS_SUCCESS;
 }

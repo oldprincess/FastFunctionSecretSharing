@@ -8,20 +8,21 @@ namespace FastFss::impl {
 
 template <typename GroupElement>
 FAST_FSS_DEVICE inline void dcfMICKeyGen(
-    DcfKey<GroupElement>&      key,
-    GroupElement*              z, // intervalNum
+    DcfKey<GroupElement>      &key,
+    GroupElement              *z, // intervalNum
     GroupElement               alpha,
-    const void*                seed0,
-    const void*                seed1,
-    const GroupElement*        leftBoundary,
-    const GroupElement*        rightBoundary,
+    const void                *seed0,
+    const void                *seed1,
+    const GroupElement        *leftBoundary,
+    const GroupElement        *rightBoundary,
     std::size_t                intervalNum,
     std::size_t                bitWidthIn,
     std::size_t                bitWidthOut,
-    const AES128GlobalContext* aesCtx = nullptr)
+    const AES128GlobalContext *aesCtx = nullptr)
 {
-    dcfKeyGen<GroupElement>(key, alpha - 1, 1, seed0, seed1, bitWidthIn,
-                            bitWidthOut, aesCtx);
+    const GroupElement ONE = 1;
+    dcfKeyGen<GroupElement>(key, alpha - 1, &ONE, seed0, seed1, bitWidthIn,
+                            bitWidthOut, 1, aesCtx);
 
     GroupElement MAX = modBits<GroupElement>((GroupElement)(-1), bitWidthIn);
     for (std::size_t i = 0; i < intervalNum; i++)
@@ -43,19 +44,19 @@ FAST_FSS_DEVICE inline void dcfMICKeyGen(
 
 template <typename GroupElement>
 FAST_FSS_DEVICE inline void dcfMICEval(
-    GroupElement*               sharedOut, // intervalNum
+    GroupElement               *sharedOut, // intervalNum
     GroupElement                maskedX,
-    const DcfKey<GroupElement>& key,
-    const GroupElement*         sharedZ, // intervalNum
-    const void*                 seed,
+    const DcfKey<GroupElement> &key,
+    const GroupElement         *sharedZ, // intervalNum
+    const void                 *seed,
     int                         partyId,
-    const GroupElement*         leftBoundary,
-    const GroupElement*         rightBoundary,
+    const GroupElement         *leftBoundary,
+    const GroupElement         *rightBoundary,
     std::size_t                 intervalNum,
     std::size_t                 bitWidthIn,
     std::size_t                 bitWidthOut,
-    DcfCache<GroupElement>*     cache  = nullptr,
-    const AES128GlobalContext*  aesCtx = nullptr)
+    DcfCache<GroupElement>     *cache  = nullptr,
+    const AES128GlobalContext  *aesCtx = nullptr)
 {
     maskedX = modBits<GroupElement>(maskedX, bitWidthIn);
 
@@ -69,10 +70,10 @@ FAST_FSS_DEVICE inline void dcfMICEval(
         xP      = modBits<GroupElement>(xP, bitWidthIn);
         xQPrime = modBits<GroupElement>(xQPrime, bitWidthIn);
 
-        sp = dcfEval<GroupElement>(key, xP, seed, partyId, bitWidthIn,
-                                   bitWidthOut, cache, aesCtx);
-        sq = dcfEval<GroupElement>(key, xQPrime, seed, partyId, bitWidthIn,
-                                   bitWidthOut, cache, aesCtx);
+        dcfEval<GroupElement>(&sp, key, xP, seed, partyId, bitWidthIn,
+                              bitWidthOut, 1, cache, aesCtx);
+        dcfEval<GroupElement>(&sq, key, xQPrime, seed, partyId, bitWidthIn,
+                              bitWidthOut, 1, cache, aesCtx);
 
         sharedOut[0] = sq - sp + sharedZ[0];
         if (partyId == 1)
@@ -98,11 +99,11 @@ FAST_FSS_DEVICE inline void dcfMICEval(
         }
         else
         {
-            sp = dcfEval<GroupElement>(key, xP, seed, partyId, bitWidthIn,
-                                       bitWidthOut, cache, aesCtx);
+            dcfEval<GroupElement>(&sp, key, xP, seed, partyId, bitWidthIn,
+                                  bitWidthOut, 1, cache, aesCtx);
         }
-        sq = dcfEval<GroupElement>(key, xQPrime, seed, partyId, bitWidthIn,
-                                   bitWidthOut, cache, aesCtx);
+        dcfEval<GroupElement>(&sq, key, xQPrime, seed, partyId, bitWidthIn,
+                              bitWidthOut, 1, cache, aesCtx);
         sharedOut[i] = sq - sp + sharedZ[i];
         if (partyId == 1)
         {

@@ -28,44 +28,55 @@ MT19937Rng rng;
         }                             \
     }()
 
-template <typename GroupElement>
-constexpr GroupElement mod_bits(GroupElement x, int bitWidth) noexcept
+template <typename T>
+constexpr T mod_bits(T x, int bitWidth) noexcept
 {
-    if (bitWidth == sizeof(GroupElement) * 8)
+    if (bitWidth == sizeof(T) * 8)
     {
         return x;
     }
     else
     {
-        return x & (((GroupElement)1 << bitWidth) - 1);
+        return x & (((T)1 << bitWidth) - 1);
     }
 }
 
-template <typename GroupElement>
+template <typename T>
 class TestDcf
 {
 public:
     static void run(std::size_t bitWidthIn,
                     std::size_t bitWidthOut,
+                    std::size_t groupSize,
                     std::size_t elementNum)
     {
-        std::printf(
-            "[cpu test] elementSize = %2d bitWidthIn = %3d bitWidthOut = "
-            "%3d elementNum = %5d",
-            (int)(sizeof(GroupElement)), (int)bitWidthIn, (int)bitWidthOut,
-            (int)elementNum);
+        std::printf("[cpu test] "
+                    "elementSize = %2d "
+                    "groupSize = %3d "
+                    "bitWidthIn = %3d "
+                    "bitWidthOut = %3d "
+                    "elementNum = %5d",
+                    (int)(sizeof(T)), //
+                    (int)groupSize,   //
+                    (int)bitWidthIn,  //
+                    (int)bitWidthOut, //
+                    (int)elementNum);
 
-        std::unique_ptr<GroupElement[]> alpha(new GroupElement[elementNum]);
-        std::unique_ptr<GroupElement[]> beta(new GroupElement[elementNum]);
-        std::size_t alphaDataSize = sizeof(GroupElement) * elementNum;
-        std::size_t betaDataSize  = sizeof(GroupElement) * elementNum;
+        std::unique_ptr<T[]> alpha(new T[elementNum]);
+        std::unique_ptr<T[]> beta(new T[elementNum * groupSize]);
+        std::size_t          alphaDataSize = sizeof(T) * elementNum;
+        std::size_t          betaDataSize  = sizeof(T) * elementNum * groupSize;
+        std::size_t          outDataSize   = sizeof(T) * elementNum * groupSize;
 
         for (std::size_t i = 0; i < elementNum; i++)
         {
-            alpha[i] = rng.rand<GroupElement>();
-            beta[i]  = rng.rand<GroupElement>();
-            alpha[i] = mod_bits<GroupElement>(alpha[i], bitWidthIn);
-            beta[i]  = mod_bits<GroupElement>(beta[i], bitWidthOut);
+            alpha[i] = rng.rand<T>();
+            alpha[i] = mod_bits<T>(alpha[i], bitWidthIn);
+        }
+        for (std::size_t i = 0; i < elementNum * groupSize; i++)
+        {
+            beta[i] = rng.rand<T>();
+            beta[i] = mod_bits<T>(beta[i], bitWidthOut);
         }
 
         std::unique_ptr<std::uint8_t[]> seed0(new uint8_t[16 * elementNum]);
@@ -76,27 +87,25 @@ public:
         rng.gen(seed0.get(), seedDataSize0);
         rng.gen(seed1.get(), seedDataSize1);
 
-        std::unique_ptr<GroupElement[]> x(new GroupElement[elementNum]);
-        std::unique_ptr<GroupElement[]> y(new GroupElement[elementNum]);
-        std::unique_ptr<GroupElement[]> maskedX(new GroupElement[elementNum]);
-        std::unique_ptr<GroupElement[]> sharedOut0(
-            new GroupElement[elementNum]);
-        std::unique_ptr<GroupElement[]> sharedOut1(
-            new GroupElement[elementNum]);
-        std::size_t maskedXDataSize = sizeof(GroupElement) * elementNum;
+        std::unique_ptr<T[]> x(new T[elementNum]);
+        std::unique_ptr<T[]> y(new T[elementNum]);
+        std::unique_ptr<T[]> maskedX(new T[elementNum]);
+        std::unique_ptr<T[]> sharedOut0(new T[elementNum * groupSize]);
+        std::unique_ptr<T[]> sharedOut1(new T[elementNum * groupSize]);
+        std::size_t          maskedXDataSize = sizeof(T) * elementNum;
         for (std::size_t i = 0; i < elementNum; i++)
         {
-            x[i]       = rng.rand<GroupElement>();
-            x[i]       = mod_bits<GroupElement>(x[i], bitWidthIn);
+            x[i]       = rng.rand<T>();
+            x[i]       = mod_bits<T>(x[i], bitWidthIn);
             maskedX[i] = x[i] + alpha[i];
-            maskedX[i] = mod_bits<GroupElement>(maskedX[i], bitWidthIn);
+            maskedX[i] = mod_bits<T>(maskedX[i], bitWidthIn);
         }
         int         ret;
-        void*       dcfKey = nullptr;
+        void       *dcfKey = nullptr;
         std::size_t dcfKeyDataSize;
 
         ret = FastFss_cpu_dcfGetKeyDataSize(&dcfKeyDataSize, bitWidthIn,
-                                            bitWidthOut, sizeof(GroupElement),
+                                            bitWidthOut, groupSize, sizeof(T),
                                             elementNum);
         CHECK(ret);
         dcfKey = std::malloc(dcfKeyDataSize);
@@ -107,42 +116,57 @@ public:
                                         alphaDataSize, beta.get(), betaDataSize,
                                         seed0.get(), seedDataSize0, seed1.get(),
                                         seedDataSize1, bitWidthIn, bitWidthOut,
-                                        sizeof(GroupElement), elementNum);
+                                        groupSize, sizeof(T), elementNum);
             CHECK(ret);
         }
 
         {
             ret = FastFss_cpu_dcfEval(
-                sharedOut0.get(), maskedXDataSize, maskedX.get(),
-                maskedXDataSize, dcfKey, dcfKeyDataSize, seed0.get(),
-                seedDataSize0, 0, bitWidthIn, bitWidthOut, sizeof(GroupElement),
-                elementNum, nullptr, 0);
+                sharedOut0.get(), outDataSize, maskedX.get(), maskedXDataSize,
+                dcfKey, dcfKeyDataSize, seed0.get(), seedDataSize0, 0,
+                bitWidthIn, bitWidthOut, groupSize, sizeof(T), elementNum,
+                nullptr, 0);
             CHECK(ret);
         }
 
         {
             ret = FastFss_cpu_dcfEval(
-                sharedOut1.get(), maskedXDataSize, maskedX.get(),
-                maskedXDataSize, dcfKey, dcfKeyDataSize, seed1.get(),
-                seedDataSize1, 1, bitWidthIn, bitWidthOut, sizeof(GroupElement),
-                elementNum, nullptr, 0);
+                sharedOut1.get(), outDataSize, maskedX.get(), maskedXDataSize,
+                dcfKey, dcfKeyDataSize, seed1.get(), seedDataSize1, 1,
+                bitWidthIn, bitWidthOut, groupSize, sizeof(T), elementNum,
+                nullptr, 0);
             CHECK(ret);
         }
 
         for (int i = 0; i < elementNum; i++)
         {
-            GroupElement v = sharedOut0[i] + sharedOut1[i];
-            v              = mod_bits<GroupElement>(v, bitWidthOut);
-
-            bool cmp0 = ((maskedX[i] < alpha[i]) && (v == beta[i]));
-            bool cmp1 = ((maskedX[i] >= alpha[i]) && (v == 0));
-            if (!(cmp0 || cmp1))
+            if (maskedX[i] < alpha[i])
             {
-                std::printf("\n[%d] alpha = %lld, beta = %lld ", __LINE__,
-                            (long long)alpha[i], (long long)beta[i]);
-                std::printf("maskedX = %lld v = %lld", (long long)maskedX[i],
-                            (long long)v);
-                std::exit(-1);
+                for (std::size_t j = 0; j < groupSize; j++)
+                {
+                    T v = sharedOut0[i * groupSize + j] +
+                          sharedOut1[i * groupSize + j];
+                    v = mod_bits<T>(v, bitWidthOut);
+                    if (v != beta[i * groupSize + j])
+                    {
+                        std::printf("Error in %s:%d\n", __FILE__, __LINE__);
+                        std::exit(-1);
+                    }
+                }
+            }
+            else
+            {
+                for (std::size_t j = 0; j < groupSize; j++)
+                {
+                    T v = sharedOut0[i * groupSize + j] +
+                          sharedOut1[i * groupSize + j];
+                    v = mod_bits<T>(v, bitWidthOut);
+                    if (v != 0)
+                    {
+                        std::printf("Error in %s:%d\n", __FILE__, __LINE__);
+                        std::exit(-1);
+                    }
+                }
             }
         }
         std::free(dcfKey);
@@ -155,24 +179,34 @@ int main()
 {
     rng.reseed(7);
     // uint8
-    TestDcf<std::uint8_t>::run(1, 8, 1024 - 1);
-    TestDcf<std::uint8_t>::run(2, 8, 1024 - 1);
-    TestDcf<std::uint8_t>::run(3, 8, 1024 - 1);
-    TestDcf<std::uint8_t>::run(4, 8, 1024 - 1);
-    TestDcf<std::uint8_t>::run(5, 8, 1024 - 1);
-    TestDcf<std::uint8_t>::run(6, 8, 1024 - 1);
-    TestDcf<std::uint8_t>::run(7, 8, 1024 - 1);
-    TestDcf<std::uint8_t>::run(8, 8, 1024 - 1);
+    TestDcf<std::uint8_t>::run(1, 8, 1, 1024 - 1);
+    TestDcf<std::uint8_t>::run(2, 8, 1, 1024 - 1);
+    TestDcf<std::uint8_t>::run(3, 8, 1, 1024 - 1);
+    TestDcf<std::uint8_t>::run(4, 8, 1, 1024 - 1);
+    TestDcf<std::uint8_t>::run(5, 8, 1, 1024 - 1);
+    TestDcf<std::uint8_t>::run(6, 8, 1, 1024 - 1);
+    TestDcf<std::uint8_t>::run(7, 8, 1, 1024 - 1);
+    TestDcf<std::uint8_t>::run(8, 8, 1, 1024 - 1);
+    TestDcf<std::uint8_t>::run(8, 8, 4, 1024 - 1);
+    TestDcf<std::uint8_t>::run(8, 8, 30, 1024 - 1);
     // uint16
-    TestDcf<std::uint16_t>::run(12, 8, 1024 - 1);
-    TestDcf<std::uint16_t>::run(16, 8, 1024 - 1);
+    TestDcf<std::uint16_t>::run(12, 8, 1, 1024 - 1);
+    TestDcf<std::uint16_t>::run(16, 8, 1, 1024 - 1);
+    TestDcf<std::uint16_t>::run(16, 8, 4, 1024 - 1);
+    TestDcf<std::uint16_t>::run(16, 8, 30, 1024 - 1);
     // uint32
-    TestDcf<std::uint32_t>::run(18, 16, 1024 - 1);
-    TestDcf<std::uint32_t>::run(18, 8, 1024 - 1);
+    TestDcf<std::uint32_t>::run(18, 16, 1, 1024 - 1);
+    TestDcf<std::uint32_t>::run(18, 8, 1, 1024 - 1);
+    TestDcf<std::uint32_t>::run(18, 8, 4, 1024 - 1);
+    TestDcf<std::uint32_t>::run(18, 8, 30, 1024 - 1);
     // uint64
-    TestDcf<std::uint64_t>::run(63, 16, 1024 - 1);
+    TestDcf<std::uint64_t>::run(63, 16, 1, 1024 - 1);
+    TestDcf<std::uint64_t>::run(63, 16, 4, 1024 - 1);
+    TestDcf<std::uint64_t>::run(63, 16, 30, 1024 - 1);
     // uint128
-    TestDcf<uint128_t>::run(127, 128, 1024 - 1);
-    TestDcf<uint128_t>::run(128, 127, 1024 - 1);
+    TestDcf<uint128_t>::run(127, 128, 1, 1024 - 1);
+    TestDcf<uint128_t>::run(128, 127, 1, 1024 - 1);
+    TestDcf<uint128_t>::run(128, 127, 4, 1024 - 1);
+    TestDcf<uint128_t>::run(128, 127, 30, 1024 - 1);
     return 0;
 }

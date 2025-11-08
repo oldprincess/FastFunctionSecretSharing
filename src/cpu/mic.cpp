@@ -39,7 +39,8 @@ static void dcfMICKeyGenKernel(void       *key,
     for (std::int64_t i = idx; i < (std::int64_t)elementNum; i += stride)
     {
         impl::DcfKey<GroupElement> keyObj;
-        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
+        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, 1, i,
+                           elementNum);
         impl::dcfMICKeyGen(keyObj,                 //
                            zPtr + intervalNum * i, //
                            alphaPtr[i],            //
@@ -135,11 +136,11 @@ static void dcfMICEvalKernel(void       *sharedOut,
         impl::DcfKey<GroupElement>    keyObj;
         impl::DcfCache<GroupElement>  cacheObj;
         impl::DcfCache<GroupElement> *cachePtr = nullptr;
-        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, i, elementNum);
+        impl::dcfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, 1, i,
+                           elementNum);
         if (cache != nullptr)
         {
-            impl::dcfCacheSetPtr(cacheObj, cache, bitWidthIn, bitWidthOut, i,
-                                 elementNum);
+            impl::dcfCacheSetPtr(cacheObj, cache, bitWidthIn, 1, i, elementNum);
             cachePtr = &cacheObj;
         }
         impl::dcfMICEval(sharedOutPtr + intervalNum * i, //
@@ -247,7 +248,8 @@ int FastFss_cpu_dcfMICGetCacheDataSize(size_t *cacheDataSize,
     *cacheDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (std::size_t)0; },
         [&] {
-            return impl::dcfGetCacheDataSize<scalar_t>(bitWidthIn, elementNum);
+            return impl::dcfGetCacheDataSize<scalar_t>(bitWidthIn, 1,
+                                                       elementNum);
         });
     return FAST_FSS_SUCCESS;
 }
@@ -261,7 +263,7 @@ int FastFss_cpu_dcfMICGetKeyDataSize(size_t *keyDataSize,
     *keyDataSize = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (std::size_t)0; },
         [&] {
-            return impl::dcfGetKeyDataSize<scalar_t>(bitWidthIn, bitWidthOut,
+            return impl::dcfGetKeyDataSize<scalar_t>(bitWidthIn, bitWidthOut, 1,
                                                      elementNum);
         });
     return FAST_FSS_SUCCESS;
@@ -277,7 +279,7 @@ int FastFss_cpu_dcfMICGetZippedKeyDataSize(size_t *keyDataSize,
         elementSize, { return (std::size_t)0; },
         [&] {
             return impl::dcfGetZippedKeyDataSize<scalar_t>(
-                bitWidthIn, bitWidthOut, elementNum);
+                bitWidthIn, bitWidthOut, 1, elementNum);
         });
     return FAST_FSS_SUCCESS;
 }
