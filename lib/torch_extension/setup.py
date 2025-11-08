@@ -1,6 +1,8 @@
 from setuptools import setup, Extension, find_packages
 from torch.utils import cpp_extension
 import sys
+import glob
+import os
 
 cxx_flags = []
 if sys.platform == "linux":
@@ -10,7 +12,7 @@ else:
 
 setup(
     name="pyFastFss",
-    version="0.0.202510262010",
+    version="0.0.202511081500",
     description="Fast Function Secret Sharing (Dpf and Dcf)",
     long_description="",
     author="oldprincess",
@@ -21,31 +23,14 @@ setup(
             name="pyFastFss" + "._C",
             sources=[
                 # python
-                "pyFastFss/src/pyFastDcf.cpp",
-                "pyFastFss/src/pyFastDcfMIC.cpp",
-                "pyFastFss/src/pyFastDpf.cpp",
-                "pyFastFss/src/pyFastFss.cpp",
-                "pyFastFss/src/pyFastGrotto.cpp",
-                "pyFastFss/src/pyFastOnehot.cpp",
-                "pyFastFss/src/pyFastPrng.cpp",
+                *glob.glob("pyFastFss/src/*.cpp"),
                 # cpu
-                "../../src/cpu/config.cpp",
-                "../../src/cpu/dcf.cpp",
-                "../../src/cpu/dpf.cpp",
-                "../../src/cpu/grotto.cpp",
-                "../../src/cpu/mic.cpp",
-                "../../src/cpu/onehot.cpp",
-                "../../src/cpu/prng.cpp",
+                *glob.glob("../../src/cpu/*.cpp"),
                 # cuda
-                "../../src/cuda/config.cpp",
-                "../../src/cuda/dcf.cu",
-                "../../src/cuda/dpf.cu",
-                "../../src/cuda/grotto.cu",
-                "../../src/cuda/mic.cu",
-                "../../src/cuda/onehot.cu",
-                "../../src/cuda/prng.cu",
+                *glob.glob("../../src/cuda/*.cpp"),
+                *glob.glob("../../src/cuda/*.cu"),
             ],
-            include_dirs=["../../include"],
+            include_dirs=[os.path.abspath("../../include")],
             extra_compile_args={
                 "cxx": cxx_flags,
                 "nvcc": ["-O3", "-std=c++17"],

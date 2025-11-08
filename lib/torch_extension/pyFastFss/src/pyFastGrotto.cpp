@@ -600,8 +600,9 @@ py::tuple grotto_lut_eval(torch::Tensor       &sharedOutE,
     {
         int ret = FastFss_cpu_grottoLutEval(                //
             sharedOutE.mutable_data_ptr(),                  //
-            sharedOutT.mutable_data_ptr(),                  //
             (std::size_t)sharedOutE.numel() * elementSize,  //
+            sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutT.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -623,8 +624,9 @@ py::tuple grotto_lut_eval(torch::Tensor       &sharedOutE,
 
         int ret = FastFss_cuda_grottoLutEval(               //
             sharedOutE.mutable_data_ptr(),                  //
-            sharedOutT.mutable_data_ptr(),                  //
             (std::size_t)sharedOutE.numel() * elementSize,  //
+            sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutT.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -717,8 +719,9 @@ py::tuple grotto_lut_eval_ex(torch::Tensor       &sharedOutE,
     {
         int ret = FastFss_cpu_grottoLutEval_ex(             //
             sharedOutE.mutable_data_ptr(),                  //
-            sharedOutT.mutable_data_ptr(),                  //
             (std::size_t)sharedOutE.numel() * elementSize,  //
+            sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutT.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -742,8 +745,9 @@ py::tuple grotto_lut_eval_ex(torch::Tensor       &sharedOutE,
 
         int ret = FastFss_cuda_grottoLutEval_ex(            //
             sharedOutE.mutable_data_ptr(),                  //
-            sharedOutT.mutable_data_ptr(),                  //
             (std::size_t)sharedOutE.numel() * elementSize,  //
+            sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutT.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -840,8 +844,9 @@ py::tuple grotto_lut_eval_ex2(torch::Tensor       &sharedOutE,
     {
         int ret = FastFss_cpu_grottoLutEval_ex2(            //
             sharedOutE.mutable_data_ptr(),                  //
-            sharedOutT.mutable_data_ptr(),                  //
             (std::size_t)sharedOutE.numel() * elementSize,  //
+            sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutT.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -867,8 +872,9 @@ py::tuple grotto_lut_eval_ex2(torch::Tensor       &sharedOutE,
 
         int ret = FastFss_cuda_grottoLutEval_ex2(           //
             sharedOutE.mutable_data_ptr(),                  //
-            sharedOutT.mutable_data_ptr(),                  //
             (std::size_t)sharedOutE.numel() * elementSize,  //
+            sharedOutT.mutable_data_ptr(),                  //
+            (std::size_t)sharedOutT.numel() * elementSize,  //
             maskedX.const_data_ptr(),                       //
             (std::size_t)maskedX.numel() * elementSize,     //
             key.const_data_ptr(),                           //
@@ -974,8 +980,9 @@ py::tuple grotto_interval_lut_eval(torch::Tensor       &sharedOutE,
     {
         int ret = FastFss_cpu_grottoIntervalLutEval(          //
             sharedOutE.mutable_data_ptr(),                    //
+            (std::size_t)sharedOutE.numel() * elementSize,
             sharedOutT.mutable_data_ptr(),                    //
-            (std::size_t)sharedOutE.numel() * elementSize,    //
+            (std::size_t)sharedOutT.numel() * elementSize,    //
             maskedX.const_data_ptr(),                         //
             (std::size_t)maskedX.numel() * elementSize,       //
             key.const_data_ptr(),                             //
@@ -1001,8 +1008,9 @@ py::tuple grotto_interval_lut_eval(torch::Tensor       &sharedOutE,
 
         int ret = FastFss_cuda_grottoIntervalLutEval(         //
             sharedOutE.mutable_data_ptr(),                    //
+            (std::size_t)sharedOutE.numel() * elementSize,
             sharedOutT.mutable_data_ptr(),                    //
-            (std::size_t)sharedOutE.numel() * elementSize,    //
+            (std::size_t)sharedOutT.numel() * elementSize,    //
             maskedX.const_data_ptr(),                         //
             (std::size_t)maskedX.numel() * elementSize,       //
             key.const_data_ptr(),                             //

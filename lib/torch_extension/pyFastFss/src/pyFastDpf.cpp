@@ -38,7 +38,7 @@ std::size_t dpf_get_key_data_size(std::size_t bitWidthIn,
 {
     std::size_t dataSize;
     int ret = FastFss_cpu_dpfGetKeyDataSize(&dataSize, bitWidthIn, bitWidthOut,
-                                            elementSize, elementNum);
+                                            1, elementSize, elementNum);
     CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfGetKeyDataSize");
     return dataSize;
 }
@@ -112,6 +112,7 @@ torch::Tensor &dpf_key_gen(torch::Tensor       &keyOut,
             (std::size_t)seed1.numel(),               //
             bitWidthIn,                               //
             bitWidthOut,                              //
+            1,                                        //
             elementSize,                              //
             elementNum                                //
         );
@@ -134,6 +135,7 @@ torch::Tensor &dpf_key_gen(torch::Tensor       &keyOut,
             (std::size_t)seed1.numel(),               //
             bitWidthIn,                               //
             bitWidthOut,                              //
+            1,                                        //
             elementSize,                              //
             elementNum,                               //
             &stream);
@@ -205,6 +207,7 @@ torch::Tensor &dpf_eval(torch::Tensor       &sharedOut,
             partyId,                                      //
             bitWidthIn,                                   //
             bitWidthOut,                                  //
+            1,                                            //
             elementSize,                                  //
             elementNum, nullptr, 0);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfEval");
@@ -225,6 +228,7 @@ torch::Tensor &dpf_eval(torch::Tensor       &sharedOut,
             partyId,                                      //
             bitWidthIn,                                   //
             bitWidthOut,                                  //
+            1,                                            //
             elementSize,                                  //
             elementNum, nullptr, 0, &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dpfEval");
@@ -283,8 +287,8 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
 
     std::size_t cacheSize;
     {
-        int ret = FastFss_cpu_dpfGetCacheDataSize(
-            &cacheSize, bitWidthIn, bitWidthOut, elementSize, elementNum);
+        int ret = FastFss_cpu_dpfGetCacheDataSize(&cacheSize, bitWidthIn,
+                                                  elementSize, elementNum);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfGetCacheDataSize");
     }
     torch::TensorOptions options;
@@ -309,6 +313,7 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
             point.numel() * elementSize,                //
             bitWidthIn,                                 //
             bitWidthOut,                                //
+            1,                                          //
             elementSize,                                //
             elementNum,                                 //
             cache.mutable_data_ptr(), cacheSize);
@@ -332,6 +337,7 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
             point.numel() * elementSize,                //
             bitWidthIn,                                 //
             bitWidthOut,                                //
+            1,                                          //
             elementSize,                                //
             elementNum,                                 //
             cache.mutable_data_ptr(), cacheSize,        //
