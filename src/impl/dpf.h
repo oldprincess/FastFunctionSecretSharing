@@ -62,15 +62,6 @@ static inline std::size_t dpfGetCacheDataSize(std::size_t bitWidthIn,
 }
 
 template <typename GroupElement>
-FAST_FSS_DEVICE static inline GroupElement dpfConvert(const std::uint64_t s[2],
-                                                      int bitWidthOut) noexcept
-{
-    static_assert(sizeof(GroupElement) <= 16,
-                  "GroupElement must be 128 bits or less");
-    return *((GroupElement *)s);
-}
-
-template <typename GroupElement>
 class DpfConvertCtx
 {
 public:

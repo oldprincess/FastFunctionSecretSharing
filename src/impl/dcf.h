@@ -366,7 +366,7 @@ FAST_FSS_DEVICE inline void dcfKeyGen(
     // CW(n+1) <- (-1)^t1 * ( convert(s1) - convert(s0) - vAlpha )
     for (std::size_t j = 0; j < groupSize; j++)
     {
-        key.lastCW[j] = -vAlphaPtr[j];
+        key.lastCW[j] = (GroupElement)(-vAlphaPtr[j]);
     }
     dcfConvertCtx.init(curS1, groupSize, bitWidthOut, aesCtx);
     for (std::size_t j = 0; j < groupSize; j++)
