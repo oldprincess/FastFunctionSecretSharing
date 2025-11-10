@@ -1,3 +1,10 @@
+/**
+ * @cite https://eprint.iacr.org/2020/1392.pdf
+ *
+ * Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation
+ *
+ * Fig.14: FSS Gate for Multiple Interval Containment G_{MIC}
+ */
 #pragma once
 #ifndef SRC_IMPL_MIC_H
 #define SRC_IMPL_MIC_H
@@ -31,14 +38,16 @@ FAST_FSS_DEVICE inline void dcfMICKeyGen(
         GroupElement alphaP      = leftBoundary[i] + alpha;
         GroupElement alphaQ      = rightBoundary[i] + alpha;
         GroupElement alphaQPrime = rightBoundary[i] + 1 + alpha;
+        GroupElement pi          = leftBoundary[i];
 
         qPrime      = modBits<GroupElement>(qPrime, bitWidthIn);
         alphaP      = modBits<GroupElement>(alphaP, bitWidthIn);
         alphaQ      = modBits<GroupElement>(alphaQ, bitWidthIn);
         alphaQPrime = modBits<GroupElement>(alphaQPrime, bitWidthIn);
+        pi          = modBits<GroupElement>(pi, bitWidthIn);
 
-        z[i] = (alphaP > alphaQ) - (alphaP > leftBoundary[i]) +
-               (alphaQPrime > qPrime) + (alphaQ == MAX);
+        z[i] = (alphaP > alphaQ) - (alphaP > pi) + (alphaQPrime > qPrime) +
+               (alphaQ == MAX);
     }
 }
 
@@ -65,10 +74,12 @@ FAST_FSS_DEVICE inline void dcfMICEval(
         GroupElement qPrime  = rightBoundary[0] + 1;
         GroupElement xP      = (maskedX - 1 - leftBoundary[0]);
         GroupElement xQPrime = (maskedX - 1 - qPrime);
+        GroupElement p0      = leftBoundary[0];
 
         qPrime  = modBits<GroupElement>(qPrime, bitWidthIn);
         xP      = modBits<GroupElement>(xP, bitWidthIn);
         xQPrime = modBits<GroupElement>(xQPrime, bitWidthIn);
+        p0      = modBits<GroupElement>(p0, bitWidthIn);
 
         dcfEval<GroupElement>(&sp, key, xP, seed, partyId, bitWidthIn,
                               bitWidthOut, 1, cache, aesCtx);
@@ -78,7 +89,7 @@ FAST_FSS_DEVICE inline void dcfMICEval(
         sharedOut[0] = sq - sp + sharedZ[0];
         if (partyId == 1)
         {
-            sharedOut[0] += (maskedX > leftBoundary[0]) - (maskedX > qPrime);
+            sharedOut[0] += (maskedX > p0) - (maskedX > qPrime);
         }
     }
     for (std::size_t i = 1; i < intervalNum; i++)
@@ -87,11 +98,13 @@ FAST_FSS_DEVICE inline void dcfMICEval(
         GroupElement xP        = (maskedX - 1 - leftBoundary[i]);
         GroupElement xQPrime   = (maskedX - 1 - qPrime);
         GroupElement privQAdd1 = rightBoundary[i - 1] + 1;
+        GroupElement pi        = leftBoundary[i];
 
         privQAdd1 = modBits<GroupElement>(privQAdd1, bitWidthIn);
         qPrime    = modBits<GroupElement>(qPrime, bitWidthIn);
         xP        = modBits<GroupElement>(xP, bitWidthIn);
         xQPrime   = modBits<GroupElement>(xQPrime, bitWidthIn);
+        pi        = modBits<GroupElement>(pi, bitWidthIn);
 
         if (leftBoundary[i] == privQAdd1)
         {
@@ -107,7 +120,7 @@ FAST_FSS_DEVICE inline void dcfMICEval(
         sharedOut[i] = sq - sp + sharedZ[i];
         if (partyId == 1)
         {
-            sharedOut[i] += (maskedX > leftBoundary[i]) - (maskedX > qPrime);
+            sharedOut[i] += (maskedX > pi) - (maskedX > qPrime);
         }
     }
 }

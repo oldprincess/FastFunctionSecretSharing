@@ -1,3 +1,11 @@
+/**
+ * @cite https://eprint.iacr.org/2020/1392.pdf
+ *
+ * Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation
+ *
+ * Fig.1: Optimized FSS scheme for the class of comparison functions.
+ * outputting beta for 0 <= x < alpha and 0 for x >= alpha
+ */
 #pragma once
 #ifndef SRC_IMPL_DCF_H
 #define SRC_IMPL_DCF_H
@@ -406,6 +414,7 @@ FAST_FSS_DEVICE inline void dcfEval(
     };
     int curT = partyId;
 
+    maskedX = modBits<GroupElement>(maskedX, bitWidthIn);
     for (std::size_t j = 0; j < groupSize; j++)
     {
         out[j] = 0;
