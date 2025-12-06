@@ -4,7 +4,9 @@
 #include <FastFss/cpu/mic.h>
 #include <FastFss/cuda/dcf.h>
 #include <FastFss/cuda/mic.h>
+#ifndef NO_CUDA
 #include <c10/cuda/CUDAStream.h>
+#endif
 #include <torch/extension.h>
 
 #include <cstddef>
@@ -55,13 +57,13 @@ std::size_t dcf_mic_get_cache_data_size(std::size_t bitWidthIn,
     return result;
 }
 
-py::tuple dcf_mic_key_gen(torch::Tensor&       keyOut,
-                          torch::Tensor&       zOut,
-                          const torch::Tensor& alpha,
-                          const torch::Tensor& seed0,
-                          const torch::Tensor& seed1,
-                          const torch::Tensor& leftBoundary,
-                          const torch::Tensor& rightBoundary,
+py::tuple dcf_mic_key_gen(torch::Tensor       &keyOut,
+                          torch::Tensor       &zOut,
+                          const torch::Tensor &alpha,
+                          const torch::Tensor &seed0,
+                          const torch::Tensor &seed1,
+                          const torch::Tensor &leftBoundary,
+                          const torch::Tensor &rightBoundary,
                           std::size_t          bitWidthIn,
                           std::size_t          bitWidthOut,
                           std::size_t          elementNum)
@@ -145,6 +147,7 @@ py::tuple dcf_mic_key_gen(torch::Tensor&       keyOut,
         );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfMICKeyGen");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -172,6 +175,7 @@ py::tuple dcf_mic_key_gen(torch::Tensor&       keyOut,
         );
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dcfMICKeyGen");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -179,14 +183,14 @@ py::tuple dcf_mic_key_gen(torch::Tensor&       keyOut,
     return py::make_tuple(keyOut, zOut);
 }
 
-torch::Tensor& dcf_mic_eval(torch::Tensor&       sharedOut,
-                            const torch::Tensor& maskedX,
-                            const torch::Tensor& key,
-                            const torch::Tensor& sharedZ,
-                            const torch::Tensor& seed,
+torch::Tensor &dcf_mic_eval(torch::Tensor       &sharedOut,
+                            const torch::Tensor &maskedX,
+                            const torch::Tensor &key,
+                            const torch::Tensor &sharedZ,
+                            const torch::Tensor &seed,
                             int                  partyId,
-                            const torch::Tensor& leftBoundary,
-                            const torch::Tensor& rightBoundary,
+                            const torch::Tensor &leftBoundary,
+                            const torch::Tensor &rightBoundary,
                             std::size_t          bitWidthIn,
                             std::size_t          bitWidthOut,
                             std::size_t          elementNum)
@@ -274,6 +278,7 @@ torch::Tensor& dcf_mic_eval(torch::Tensor&       sharedOut,
             cache.numel());
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfMICEval");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -303,6 +308,7 @@ torch::Tensor& dcf_mic_eval(torch::Tensor&       sharedOut,
             &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dcfMICEval");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");

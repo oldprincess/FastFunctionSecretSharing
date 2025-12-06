@@ -4,7 +4,9 @@
 #include <FastFss/cpu/mic.h>
 #include <FastFss/cuda/dcf.h>
 #include <FastFss/cuda/mic.h>
+#ifndef NO_CUDA
 #include <c10/cuda/CUDAStream.h>
+#endif
 #include <torch/extension.h>
 
 #include <cstddef>
@@ -37,8 +39,8 @@ std::size_t dcf_get_key_data_size(std::size_t bitWidthIn,
                                   std::size_t elementNum)
 {
     std::size_t dataSize;
-    int ret = FastFss_cpu_dcfGetKeyDataSize(&dataSize, bitWidthIn, bitWidthOut,1,
-                                            elementSize, elementNum);
+    int ret = FastFss_cpu_dcfGetKeyDataSize(&dataSize, bitWidthIn, bitWidthOut,
+                                            1, elementSize, elementNum);
     CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfGetKeyDataSize");
     return dataSize;
 }
@@ -118,6 +120,7 @@ torch::Tensor &dcf_key_gen(torch::Tensor       &keyOut,
         );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfKeyGen");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -141,6 +144,7 @@ torch::Tensor &dcf_key_gen(torch::Tensor       &keyOut,
             &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dcfKeyGen");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -212,6 +216,7 @@ torch::Tensor &dcf_eval(torch::Tensor      &sharedOut,
             elementNum, nullptr, 0);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfEval");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -233,6 +238,7 @@ torch::Tensor &dcf_eval(torch::Tensor      &sharedOut,
             elementNum, nullptr, 0, &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dcfEval");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");

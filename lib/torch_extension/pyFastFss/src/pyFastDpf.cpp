@@ -4,7 +4,9 @@
 #include <FastFss/cpu/mic.h>
 #include <FastFss/cuda/dpf.h>
 #include <FastFss/cuda/mic.h>
+#ifndef NO_CUDA
 #include <c10/cuda/CUDAStream.h>
+#endif
 #include <torch/extension.h>
 
 #include <cstddef>
@@ -118,6 +120,7 @@ torch::Tensor &dpf_key_gen(torch::Tensor       &keyOut,
         );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfKeyGen");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -141,6 +144,7 @@ torch::Tensor &dpf_key_gen(torch::Tensor       &keyOut,
             &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dpfKeyGen");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -212,6 +216,7 @@ torch::Tensor &dpf_eval(torch::Tensor       &sharedOut,
             elementNum, nullptr, 0);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfEval");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -233,6 +238,7 @@ torch::Tensor &dpf_eval(torch::Tensor       &sharedOut,
             elementNum, nullptr, 0, &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dpfEval");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -319,6 +325,7 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
             cache.mutable_data_ptr(), cacheSize);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfMultiEval");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -344,6 +351,7 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
             &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dpfMultiEval");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");

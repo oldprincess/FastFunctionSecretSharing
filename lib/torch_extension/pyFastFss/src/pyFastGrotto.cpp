@@ -2,7 +2,9 @@
 
 #include <FastFss/cpu/grotto.h>
 #include <FastFss/cuda/grotto.h>
+#ifndef NO_CUDA
 #include <c10/cuda/CUDAStream.h>
+#endif
 #include <torch/extension.h>
 
 #include <cstddef>
@@ -100,6 +102,7 @@ torch::Tensor &grotto_key_gen(torch::Tensor       &keyOut,
         );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoKeyGen");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -120,6 +123,7 @@ torch::Tensor &grotto_key_gen(torch::Tensor       &keyOut,
         );
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoKeyGen");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -190,6 +194,7 @@ torch::Tensor &grotto_eq_eval(torch::Tensor       &sharedOut,
         );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEqEval");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -211,8 +216,9 @@ torch::Tensor &grotto_eq_eval(torch::Tensor       &sharedOut,
             0,                                            //
             &stream                                       //
         );
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEqEval");
+        CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoEqEval");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -298,6 +304,7 @@ torch::Tensor &grotto_eq_multi_eval(torch::Tensor       &sharedOut,
             cache.mutable_data_ptr(), cacheSize);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEqMultiEval");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -320,6 +327,7 @@ torch::Tensor &grotto_eq_multi_eval(torch::Tensor       &sharedOut,
             cache.mutable_data_ptr(), cacheSize, &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoEqMultiEval");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -387,6 +395,7 @@ torch::Tensor &grotto_eval(torch::Tensor       &sharedOut,
             0);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEqEval");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -411,6 +420,7 @@ torch::Tensor &grotto_eval(torch::Tensor       &sharedOut,
         );
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoEval");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -499,6 +509,7 @@ torch::Tensor &grotto_mic_eval(torch::Tensor       &sharedBooleanOut,
             cache.mutable_data_ptr(), cacheSize);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoMICEval");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -525,6 +536,7 @@ torch::Tensor &grotto_mic_eval(torch::Tensor       &sharedBooleanOut,
         );
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoMICEval");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -618,6 +630,7 @@ py::tuple grotto_lut_eval(torch::Tensor       &sharedOutE,
             elementNum, cache.mutable_data_ptr(), cacheSize);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoLutEval");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -642,6 +655,7 @@ py::tuple grotto_lut_eval(torch::Tensor       &sharedOutE,
             elementNum, cache.mutable_data_ptr(), cacheSize, &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoLutEval");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -739,6 +753,7 @@ py::tuple grotto_lut_eval_ex(torch::Tensor       &sharedOutE,
             cache0.mutable_data_ptr(), cacheSize);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoLutEval_ex");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -765,6 +780,7 @@ py::tuple grotto_lut_eval_ex(torch::Tensor       &sharedOutE,
             cache0.mutable_data_ptr(), cacheSize, &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoLutEval_ex");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -866,6 +882,7 @@ py::tuple grotto_lut_eval_ex2(torch::Tensor       &sharedOutE,
             cacheSize);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoLutEval_ex2");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -895,6 +912,7 @@ py::tuple grotto_lut_eval_ex2(torch::Tensor       &sharedOutE,
             &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoLutEval_ex2");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -978,8 +996,8 @@ py::tuple grotto_interval_lut_eval(torch::Tensor       &sharedOutE,
 
     if (device.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_grottoIntervalLutEval(          //
-            sharedOutE.mutable_data_ptr(),                    //
+        int ret = FastFss_cpu_grottoIntervalLutEval( //
+            sharedOutE.mutable_data_ptr(),           //
             (std::size_t)sharedOutE.numel() * elementSize,
             sharedOutT.mutable_data_ptr(),                    //
             (std::size_t)sharedOutT.numel() * elementSize,    //
@@ -1002,12 +1020,13 @@ py::tuple grotto_interval_lut_eval(torch::Tensor       &sharedOutE,
             elementNum, cache.mutable_data_ptr(), cacheSize);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoIntervalLutEval");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
 
-        int ret = FastFss_cuda_grottoIntervalLutEval(         //
-            sharedOutE.mutable_data_ptr(),                    //
+        int ret = FastFss_cuda_grottoIntervalLutEval( //
+            sharedOutE.mutable_data_ptr(),            //
             (std::size_t)sharedOutE.numel() * elementSize,
             sharedOutT.mutable_data_ptr(),                    //
             (std::size_t)sharedOutT.numel() * elementSize,    //
@@ -1030,6 +1049,7 @@ py::tuple grotto_interval_lut_eval(torch::Tensor       &sharedOutE,
             elementNum, cache.mutable_data_ptr(), cacheSize, &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoIntervalLutEval");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");

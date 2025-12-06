@@ -2,7 +2,9 @@
 
 #include <FastFss/cpu/prng.h>
 #include <FastFss/cuda/prng.h>
+#ifndef NO_CUDA
 #include <c10/cuda/CUDAStream.h>
+#endif
 #include <torch/extension.h>
 #include <torch/python.h>
 
@@ -24,7 +26,7 @@
 #define CHECK_ERROR_CODE(ret, func)             \
     if (ret != 0)                               \
     {                                           \
-        ERR_LOG(func " ret = %d", ret);          \
+        ERR_LOG(func " ret = %d", ret);         \
         throw std::runtime_error(func " fail"); \
     }
 
@@ -40,6 +42,7 @@ Prng::Prng(torch::Device device) : device_{device}
             throw std::runtime_error("FastFss_cpu_prngInit failed");
         }
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         ctx_ = FastFss_cuda_prngInit();
@@ -48,6 +51,7 @@ Prng::Prng(torch::Device device) : device_{device}
             throw std::runtime_error("FastFss_cuda_prngInit failed");
         }
     }
+#endif
     else
     {
         throw std::invalid_argument("Unsupported device type");
@@ -63,10 +67,17 @@ Prng::~Prng()
             FastFss_cpu_prngRelease(ctx_);
             ctx_ = nullptr;
         }
+#ifndef NO_CUDA
         else if (device_.type() == torch::kCUDA)
         {
             FastFss_cuda_prngRelease(ctx_);
             ctx_ = nullptr;
+        }
+#endif
+        else
+        {
+            std::fprintf(stderr, "Unsupported device type");
+            std::exit(-1);
         }
     }
 }
@@ -94,6 +105,7 @@ void Prng::set_current_seed(py::bytes seed128bit, py::bytes counter128bit)
             throw std::runtime_error("FastFss_cpu_prngSetCurrentSeed failed");
         }
     }
+#ifndef NO_CUDA
     else if (device_.type() == torch::kCUDA)
     {
         int ret = FastFss_cuda_prngSetCurrentSeed(                //
@@ -106,6 +118,7 @@ void Prng::set_current_seed(py::bytes seed128bit, py::bytes counter128bit)
             throw std::runtime_error("FastFss_cuda_prngSetCurrentSeed failed");
         }
     }
+#endif
     else
     {
         ERR_LOG("Unsupported device type");
@@ -128,6 +141,7 @@ py::tuple Prng::get_current_seed() const
             throw std::runtime_error("FastFss_cpu_prngGetCurrentSeed failed");
         }
     }
+#ifndef NO_CUDA
     else if (device_.type() == torch::kCUDA)
     {
         int ret = FastFss_cuda_prngGetCurrentSeed( //
@@ -139,6 +153,7 @@ py::tuple Prng::get_current_seed() const
             throw std::runtime_error("FastFss_cuda_prngGetCurrentSeed failed");
         }
     }
+#endif
     else
     {
         ERR_LOG("Unsupported device type");
@@ -165,6 +180,7 @@ Prng &Prng::to_(torch::Device device)
             return *this;
         }
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         if (device_.type() == torch::kCUDA)
@@ -172,6 +188,7 @@ Prng &Prng::to_(torch::Device device)
             return *this;
         }
     }
+#endif
     else
     {
         ERR_LOG("Unsupported device type");
@@ -191,6 +208,7 @@ Prng &Prng::to_(torch::Device device)
             throw std::runtime_error("FastFss_cpu_prngGetCurrentSeed failed");
         }
     }
+#ifndef NO_CUDA
     if (device_.type() == torch::kCUDA)
     {
         int ret = FastFss_cuda_prngGetCurrentSeed( //
@@ -202,6 +220,12 @@ Prng &Prng::to_(torch::Device device)
             throw std::runtime_error("FastFss_cuda_prngGetCurrentSeed failed");
         }
     }
+#endif
+    else
+    {
+        ERR_LOG("Unsupported device type");
+        throw std::invalid_argument("Unsupported device type");
+    }
 
     //
     int   ret    = 0;
@@ -210,10 +234,12 @@ Prng &Prng::to_(torch::Device device)
     {
         newCtx = FastFss_cpu_prngInit();
     }
-    if (device.type() == torch::kCUDA)
+#ifndef NO_CUDA
+    else if (device.type() == torch::kCUDA)
     {
         newCtx = FastFss_cuda_prngInit();
     }
+#endif
     if (newCtx == nullptr)
     {
         throw std::runtime_error("FastFss_prngInit failed");
@@ -223,11 +249,13 @@ Prng &Prng::to_(torch::Device device)
     {
         ret = FastFss_cpu_prngSetCurrentSeed(newCtx, seed128bit, counter128bit);
     }
-    if (device.type() == torch::kCUDA)
+#ifndef NO_CUDA
+    else if (device.type() == torch::kCUDA)
     {
         ret =
             FastFss_cuda_prngSetCurrentSeed(newCtx, seed128bit, counter128bit);
     }
+#endif
     if (ret != 0)
     {
         throw std::runtime_error("FastFss_prngSetCurrentSeed failed");
@@ -237,10 +265,12 @@ Prng &Prng::to_(torch::Device device)
     {
         FastFss_cpu_prngRelease(ctx_);
     }
+#ifndef NO_CUDA
     if (device_.type() == torch::kCUDA)
     {
         FastFss_cuda_prngRelease(ctx_);
     }
+#endif
     ctx_    = newCtx;
     device_ = device;
 
@@ -265,6 +295,7 @@ torch::Tensor &Prng::rand_(torch::Tensor &out, std::size_t bitWidth)
         );                                                    //
         CHECK_ERROR_CODE(ret, "FastFss_cpu_prngGen");
     }
+#ifndef NO_CUDA
     else if (device_.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -278,6 +309,7 @@ torch::Tensor &Prng::rand_(torch::Tensor &out, std::size_t bitWidth)
         );                                                     //
         CHECK_ERROR_CODE(ret, "FastFss_cuda_prngGen");
     }
+#endif
     else
     {
         throw std::runtime_error("Unsupported device type");

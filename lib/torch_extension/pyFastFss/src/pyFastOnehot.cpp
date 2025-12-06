@@ -2,7 +2,9 @@
 
 #include <FastFss/cpu/onehot.h>
 #include <FastFss/cuda/onehot.h>
+#ifndef NO_CUDA
 #include <c10/cuda/CUDAStream.h>
+#endif
 #include <torch/extension.h>
 
 #include <cstddef>
@@ -83,6 +85,7 @@ torch::Tensor &onehot_key_gen(torch::Tensor       &keyInOut,
         );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_onehotKeyGen");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -99,6 +102,7 @@ torch::Tensor &onehot_key_gen(torch::Tensor       &keyInOut,
         );
         CHECK_ERROR_CODE(ret, "FastFss_cuda_onehotKeyGen");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
@@ -171,6 +175,7 @@ py::tuple onehot_lut_eval(torch::Tensor       &sharedOutE,
             elementNum);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_onehotLutEval");
     }
+#ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
@@ -192,6 +197,7 @@ py::tuple onehot_lut_eval(torch::Tensor       &sharedOutE,
             elementNum, &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_onehotLutEval");
     }
+#endif
     else
     {
         throw std::invalid_argument("device must be CPU or CUDA");
