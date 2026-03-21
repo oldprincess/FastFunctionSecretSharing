@@ -1,5 +1,18 @@
-// Function secret sharing: Improvements and extensions
-// https://eprint.iacr.org/2018/707
+// clang-format off
+/*
+ * BibTeX:
+ * @inproceedings{boyle2016function,
+ *   title     = {Function Secret Sharing: Improvements and Extensions},
+ *   author    = {Boyle, Elette and Gilboa, Niv and Ishai, Yuval},
+ *   booktitle = {Proceedings of the 2016 ACM SIGSAC Conference on Computer and Communications Security},
+ *   pages     = {1292--1303},
+ *   year      = {2016}
+ * }
+ * 
+ * Cite: https://eprint.iacr.org/2018/707
+ */
+// clang-format on
+
 #ifndef FAST_FSS_CPU_DPF_H
 #define FAST_FSS_CPU_DPF_H
 
@@ -60,7 +73,7 @@ int FastFss_cpu_dpfEvalAll(void       *sharedOut,
                            void       *cache,
                            size_t      cacheDataSize);
 
-int FastFss_cpu_dpfMultiEval(void       *sharedOut,
+int FastFss_cpu_dpfEvalMulti(void       *sharedOut,
                              size_t      sharedOutDataSize,
                              const void *maskedX,
                              size_t      maskedXDataSize,

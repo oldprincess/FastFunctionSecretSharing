@@ -305,7 +305,7 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
 
     if (device.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_dpfMultiEval(             //
+        int ret = FastFss_cpu_dpfEvalMulti(             //
             sharedOut.mutable_data_ptr(),               //
             sharedOut.numel() * elementSize,            //
             maskedX.const_data_ptr(),                   //
@@ -323,14 +323,14 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
             elementSize,                                //
             elementNum,                                 //
             cache.mutable_data_ptr(), cacheSize);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfMultiEval");
+        CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfEvalMulti");
     }
 #ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
 
-        int ret = FastFss_cuda_dpfMultiEval(            //
+        int ret = FastFss_cuda_dpfEvalMulti(            //
             sharedOut.mutable_data_ptr(),               //
             sharedOut.numel() * elementSize,            //
             maskedX.const_data_ptr(),                   //
@@ -349,7 +349,7 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
             elementNum,                                 //
             cache.mutable_data_ptr(), cacheSize,        //
             &stream);
-        CHECK_ERROR_CODE(ret, "FastFss_cuda_dpfMultiEval");
+        CHECK_ERROR_CODE(ret, "FastFss_cuda_dpfEvalMulti");
     }
 #endif
     else

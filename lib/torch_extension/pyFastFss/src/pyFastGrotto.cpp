@@ -286,7 +286,7 @@ torch::Tensor &grotto_eq_multi_eval(torch::Tensor       &sharedOut,
 
     if (device.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_grottoEqMultiEval(          //
+        int ret = FastFss_cpu_grottoEqEvalMulti(          //
             sharedOut.mutable_data_ptr(),                 //
             (std::size_t)sharedOut.numel() * elementSize, //
             maskedX.const_data_ptr(),                     //
@@ -302,14 +302,14 @@ torch::Tensor &grotto_eq_multi_eval(torch::Tensor       &sharedOut,
             elementSize,                                  //
             elementNum,                                   //
             cache.mutable_data_ptr(), cacheSize);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEqMultiEval");
+        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEqEvalMulti");
     }
 #ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
 
-        int ret = FastFss_cuda_grottoEqMultiEval(         //
+        int ret = FastFss_cuda_grottoEqEvalMulti(         //
             sharedOut.mutable_data_ptr(),                 //
             (std::size_t)sharedOut.numel() * elementSize, //
             maskedX.const_data_ptr(),                     //
@@ -325,7 +325,7 @@ torch::Tensor &grotto_eq_multi_eval(torch::Tensor       &sharedOut,
             elementSize,                                  //
             elementNum,                                   //
             cache.mutable_data_ptr(), cacheSize, &stream);
-        CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoEqMultiEval");
+        CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoEqEvalMulti");
     }
 #endif
     else

@@ -1,125 +1,77 @@
 // clang-format off
-// g++ -I include test/cpu/prng.cpp src/cpu/prng.cpp -o cpu_prng.exe -std=c++17 -maes
+// g++ -I include -I third_party/googletest/googletest/include -I third_party/googletest/googletest src/cpu/prng.cpp test/cpu/prng.cpp third_party/googletest/googletest/src/gtest-all.cc third_party/googletest/googletest/src/gtest_main.cc -o cpu_prng.exe -std=c++17 -maes
 // clang-format on
 #include <FastFss/cpu/prng.h>
+#include <gtest/gtest.h>
 
-#include <chrono>
-#include <cstddef>
+#include <array>
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <vector>
 
-int main()
+namespace {
+
+class CpuPrngTest : public ::testing::Test
 {
-    int ret;
-    // PRNG Init
-    void* prng = FastFss_cpu_prngInit();
-    if (prng == nullptr)
+protected:
+    void SetUp() override
     {
-        std::printf("[%d] [FastFss Error]. %s:%d\n", __LINE__, __FILE__,
-                    __LINE__);
-        std::exit(-1);
-    }
-    // PRNG Seed
-    std::uint8_t seed[16], counter[16];
-    std::memset(seed, 1, 16);
-    std::memset(counter, 2, 16);
-
-    ret = FastFss_cpu_prngSetCurrentSeed(prng, seed, counter);
-    if (ret != 0)
-    {
-        std::printf("[%d] [FastFss Error] FastFss_cpu_prngSetCurrentSeed ret = "
-                    "%d. %s:%d\n",
-                    __LINE__, ret, __FILE__, __LINE__);
-        std::exit(-1);
+        prng = FastFss_cpu_prngInit();
+        ASSERT_NE(prng, nullptr);
     }
 
-    // Gen
-    std::uint8_t buffer1[163], buffer2[163];
-    ret = FastFss_cpu_prngGen(prng, buffer1, 8, 1, 163);
-    if (ret != 0)
+    void TearDown() override
     {
-        std::printf(
-            "[%d] [FastFss Error] FastFss_cpu_prngGen ret = %d. %s:%d\n",
-            __LINE__, ret, __FILE__, __LINE__);
-        std::exit(-1);
+        if (prng != nullptr)
+        {
+            FastFss_cpu_prngRelease(prng);
+        }
     }
 
-    ret = FastFss_cpu_prngSetCurrentSeed(prng, seed, counter);
-    if (ret != 0)
-    {
-        std::printf("[%d] [FastFss Error] FastFss_cpu_prngSetCurrentSeed ret = "
-                    "%d. %s:%d\n",
-                    __LINE__, ret, __FILE__, __LINE__);
-        std::exit(-1);
-    }
+    void *prng = nullptr;
+};
 
-    ret = FastFss_cpu_prngGen(prng, buffer2, 8, 1, 163);
-    if (ret != 0)
-    {
-        std::printf(
-            "[%d] [FastFss Error] FastFss_cpu_prngGen ret = %d. %s:%d\n",
-            __LINE__, ret, __FILE__, __LINE__);
-        std::exit(-1);
-    }
+TEST_F(CpuPrngTest, ReseedingReproducesSameBytes)
+{
+    const std::array<std::uint8_t, 16> seed{};
+    const std::array<std::uint8_t, 16> counter = {
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    };
+    std::vector<std::uint8_t> buffer1(163);
+    std::vector<std::uint8_t> buffer2(163);
 
-    std::printf("[%d] Buffer1[: 32] ", __LINE__);
-    for (int i = 0; i < 32; i++)
-    {
-        std::printf("%02x ", buffer1[i]);
-    }
-    std::printf("\n");
-    std::printf("[%d] Buffer2[: 32] ", __LINE__);
-    for (int i = 0; i < 32; i++)
-    {
-        std::printf("%02x ", buffer2[i]);
-    }
-    std::printf("\n");
+    ASSERT_EQ(FastFss_cpu_prngSetCurrentSeed(prng, seed.data(), counter.data()),
+              0);
+    ASSERT_EQ(FastFss_cpu_prngGen(prng, buffer1.data(), 8, 1, buffer1.size()),
+              0);
 
-    if (std::memcmp(buffer1, buffer2, 163) != 0)
-    {
-        std::printf("[%d] [FastFss Error] buffer1 != buffer2. %s:%d\n",
-                    __LINE__, __FILE__, __LINE__);
-        std::exit(-1);
-    }
+    ASSERT_EQ(FastFss_cpu_prngSetCurrentSeed(prng, seed.data(), counter.data()),
+              0);
+    ASSERT_EQ(FastFss_cpu_prngGen(prng, buffer2.data(), 8, 1, buffer2.size()),
+              0);
 
-    // speed
-    int speedElementNum  = 1024 * 1024 * 128;
-    int speedElementSize = 4;
-
-    auto buffer = std::vector<std::uint8_t>(speedElementNum * speedElementSize);
-    auto start  = std::chrono::high_resolution_clock::now();
-    ret         = FastFss_cpu_prngGen(prng,                 //
-                                      buffer.data(),        //
-                                      speedElementSize * 8, //
-                                      speedElementSize,     //
-                                      speedElementNum);
-    auto stop   = std::chrono::high_resolution_clock::now();
-    if (ret != 0)
-    {
-        std::printf(
-            "[%d] [FastFss Error] FastFss_cpu_prngGen ret = %d. %s:%d\n",
-            __LINE__, ret, __FILE__, __LINE__);
-        std::exit(-1);
-    }
-    double timeSeconds =
-        std::chrono::duration_cast<std::chrono::microseconds>(stop - start)
-            .count() /
-        1e6;
-    std::size_t processBytes = speedElementNum * speedElementSize;
-    std::printf("[%d] [FastFss Info] "                                   //
-                "ElementNum = %d, ElementSize = %d Speed: %.2f GB/s.\n", //
-                __LINE__,                                                //
-                speedElementNum,                                         //
-                speedElementSize,                                        //
-                processBytes / timeSeconds / 1024.0 / 1024.0 / 1024.0    //
-    );
-
-    // Release
-    FastFss_cpu_prngRelease(prng);
-
-    std::printf("[%d] [FastFss Info] Cpu Test Passed.\n", __LINE__);
-    return 0;
+    EXPECT_EQ(buffer1, buffer2);
 }
+
+TEST_F(CpuPrngTest, GetCurrentSeedReturnsLastConfiguredSeed)
+{
+    const std::array<std::uint8_t, 16> seed = {
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    };
+    const std::array<std::uint8_t, 16> counter = {
+        9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
+    };
+    std::array<std::uint8_t, 16> currentSeed{};
+    std::array<std::uint8_t, 16> currentCounter{};
+
+    ASSERT_EQ(FastFss_cpu_prngSetCurrentSeed(prng, seed.data(), counter.data()),
+              0);
+    ASSERT_EQ(FastFss_cpu_prngGetCurrentSeed(prng, currentSeed.data(),
+                                             currentCounter.data()),
+              0);
+
+    EXPECT_EQ(currentSeed, seed);
+    EXPECT_EQ(currentCounter, counter);
+}
+
+} // namespace

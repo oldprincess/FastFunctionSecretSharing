@@ -55,7 +55,7 @@ int FastFss_cuda_grottoEqEval(void       *sharedBooleanOut,
                               size_t      cacheDataSize,
                               void       *cudaStreamPtr);
 
-int FastFss_cuda_grottoEqMultiEval(void       *sharedBooleanOut,
+int FastFss_cuda_grottoEqEvalMulti(void       *sharedBooleanOut,
                                    size_t      sharedOutDataSize,
                                    const void *maskedX,
                                    size_t      maskedXDataSize,
@@ -82,10 +82,10 @@ int FastFss_cuda_grottoMICEval(void       *sharedBooleanOut,
                                const void *seed,
                                size_t      seedDataSize,
                                int         partyId,
-                               const void *leftBoundary,
-                               size_t      leftBoundaryDataSize,
-                               const void *rightBoundary,
-                               size_t      rightBoundaryDataSize,
+                               const void *leftEndpoints,
+                               size_t      leftEndpointsDataSize,
+                               const void *rightEndpoints,
+                               size_t      rightEndpointsDataSize,
                                size_t      bitWidthIn,
                                size_t      elementSize,
                                size_t      elementNum,
@@ -170,10 +170,10 @@ int FastFss_cuda_grottoIntervalLutEval(void       *sharedOutE,
                                        const void *seed,
                                        size_t      seedDataSize,
                                        int         partyId,
-                                       const void *leftBoundary,
-                                       size_t      leftBoundaryDataSize,
-                                       const void *rightBoundary,
-                                       size_t      rightBoundaryDataSize,
+                                       const void *leftEndpoints,
+                                       size_t      leftEndpointsDataSize,
+                                       const void *rightEndpoints,
+                                       size_t      rightEndpointsDataSize,
                                        const void *lookUpTable,
                                        size_t      lookUpTableDataSize,
                                        size_t      bitWidthIn,
@@ -190,8 +190,7 @@ int FastFss_cuda_grottoKeyZip(void       *zippedKey,
                               size_t      keyDataSize,
                               size_t      bitWidthIn,
                               size_t      elementSize,
-                              size_t      elementNum,
-                              void       *cudaStreamPtr);
+                              size_t      elementNum);
 
 int FastFss_cuda_grottoKeyUnzip(void       *key,
                                 size_t      keyDataSize,
@@ -199,8 +198,38 @@ int FastFss_cuda_grottoKeyUnzip(void       *key,
                                 size_t      zippedKeyDataSize,
                                 size_t      bitWidthIn,
                                 size_t      elementSize,
-                                size_t      elementNum,
-                                void       *cudaStreamPtr);
+                                size_t      elementNum);
+
+int FastFss_cuda_grottoGetKeyDataSize(size_t *keyDataSize,
+                                      size_t  bitWidthIn,
+                                      size_t  elementSize,
+                                      size_t  elementNum);
+
+int FastFss_cuda_grottoGetZippedKeyDataSize(size_t *keyDataSize,
+                                            size_t  bitWidthIn,
+                                            size_t  elementSize,
+                                            size_t  elementNum);
+
+int FastFss_cuda_grottoGetCacheDataSize(size_t *cacheDataSize,
+                                        size_t  bitWidthIn,
+                                        size_t  elementSize,
+                                        size_t  elementNum);
+
+int FastFss_cuda_grottoKeyZip(void       *zippedKey,
+                              size_t      zippedKeyDataSize,
+                              const void *key,
+                              size_t      keyDataSize,
+                              size_t      bitWidthIn,
+                              size_t      elementSize,
+                              size_t      elementNum);
+
+int FastFss_cuda_grottoKeyUnzip(void       *key,
+                                size_t      keyDataSize,
+                                const void *zippedKey,
+                                size_t      zippedKeyDataSize,
+                                size_t      bitWidthIn,
+                                size_t      elementSize,
+                                size_t      elementNum);
 
 int FastFss_cuda_grottoGetKeyDataSize(size_t *keyDataSize,
                                       size_t  bitWidthIn,

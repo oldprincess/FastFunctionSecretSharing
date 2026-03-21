@@ -1,17 +1,23 @@
-// nvcc -I include test/cuda/aes.cu -o cuda_aes.exe -std=c++17
+// clang-format off
+// nvcc -I include -I third_party/googletest/googletest/include -I third_party/googletest/googletest test/cuda/aes.cu third_party/googletest/googletest/src/gtest-all.cc third_party/googletest/googletest/src/gtest_main.cc -o cuda_aes.exe -std=c++17 --expt-relaxed-constexpr
+// clang-format on
 #include <cuda_runtime.h>
+#include <gtest/gtest.h>
 
-#include <cstdio>
+#include <array>
+#include <cstdint>
 
 #include "../../src/cuda/aes.cuh"
 
-__device__ static std::uint8_t user_key[32] = {
+namespace {
+
+constexpr std::array<std::uint8_t, 32> kUserKey = {
     0x04, 0xb5, 0xf0, 0x47, 0x03, 0xe2, 0x02, 0x5f, 0x5d, 0x08, 0x46,
     0xc8, 0x0a, 0x68, 0x19, 0xa0, 0x04, 0xb5, 0xf0, 0x47, 0x03, 0xe2,
     0x02, 0x5f, 0x5d, 0x08, 0x46, 0xc8, 0x0a, 0x68, 0x19, 0xa0,
 };
 
-__device__ static std::uint8_t pt[] = {
+constexpr std::array<std::uint8_t, 144> kPlaintext = {
     0x13, 0xf1, 0xdb, 0xd4, 0x4e, 0x92, 0x3a, 0x83, 0xd0, 0x23, 0x29, 0x7d,
     0xb0, 0x72, 0x59, 0x22, 0x12, 0x9f, 0x6f, 0xff, 0xc1, 0x85, 0x11, 0xde,
     0x69, 0xcf, 0xca, 0x6f, 0x9a, 0xf5, 0xdc, 0x42, 0xcf, 0x85, 0x56, 0x0a,
@@ -25,113 +31,64 @@ __device__ static std::uint8_t pt[] = {
     0xaf, 0xd1, 0x20, 0x4c, 0xc8, 0xfa, 0x8b, 0x71,
 };
 
-__device__ static std::uint8_t ct128[] = {
-    0x05, 0x82, 0x59, 0x7a, 0xc7, 0x32, 0xc6, 0xaf, 0x3a, 0x0f, 0xee, 0xe1,
-    0x8d, 0xd1, 0x32, 0xa5, 0x6f, 0x86, 0x9e, 0x2b, 0x33, 0xa4, 0xe7, 0x88,
-    0xc7, 0xbc, 0x40, 0xd4, 0xd7, 0x71, 0x78, 0x18, 0x60, 0x46, 0x5e, 0x44,
-    0x70, 0x86, 0x1e, 0x08, 0x1b, 0xc6, 0xa6, 0x09, 0x25, 0xe9, 0x7c, 0xf3,
-    0xc4, 0x7a, 0x21, 0x79, 0xf4, 0x71, 0x3c, 0xb9, 0xc5, 0x3a, 0xed, 0xf4,
-    0x35, 0x9f, 0x4c, 0x09, 0xc1, 0x45, 0xaa, 0x6d, 0xc0, 0x94, 0x6f, 0xf2,
-    0xee, 0x29, 0xa6, 0xb5, 0xd6, 0xab, 0x6d, 0xf7, 0x46, 0x6c, 0xb9, 0x8d,
-    0x13, 0x1b, 0xeb, 0x81, 0xdd, 0x76, 0xd3, 0x2d, 0xab, 0x39, 0xc4, 0x32,
-    0x71, 0xb8, 0x68, 0xc3, 0x4e, 0x5f, 0x14, 0x3b, 0xad, 0xbe, 0x36, 0x8b,
-    0x0a, 0x11, 0x7d, 0x05, 0x85, 0xe7, 0x6c, 0x00, 0x83, 0xf4, 0x09, 0x90,
-    0x35, 0xf5, 0xf4, 0xce, 0x98, 0xe8, 0x5d, 0x79,
-};
+__device__ std::uint8_t dUserKey[32];
+__device__ std::uint8_t dPlaintext[144];
 
-__global__ void aesTestKernel(int* ret)
-{
-    FastFss::impl::AES128              aes128ctx;
-    FastFss::impl::AES128GlobalContext aesCtx;
-    std::uint8_t                       output_buffer[sizeof(pt)];
-    if (threadIdx.x == 0 && blockIdx.x == 0)
-    {
-        aes128ctx.set_enc_key(user_key, &aesCtx);
-        aes128ctx.enc_blocks(output_buffer, pt, sizeof(pt) / 16, &aesCtx);
-
-        *ret = 0;
-        for (int i = 0; i < sizeof(ct128); i++)
-        {
-            if (output_buffer[i] != ct128[i])
-            {
-                *ret = -1;
-            }
-        }
-    }
-}
-
-__global__ void aesTestKernel2(int* ret)
+__global__ void aesTestKernel(int *ret)
 {
     FastFss::impl::AES128GlobalContext aesCtx;
     FastFss::impl::AES128              aes;
-    std::uint8_t                       output_buffer[sizeof(pt)];
-    if (threadIdx.x == 0 && blockIdx.x == 0)
-    {
-        aes.set_enc_key(user_key, &aesCtx);
-        aes.enc_n_block<sizeof(pt) / 16>(output_buffer, pt, &aesCtx);
+    std::uint8_t                       outputByCount[kPlaintext.size()];
+    std::uint8_t                       outputByTemplate[kPlaintext.size()];
 
-        *ret = 0;
-        for (int i = 0; i < sizeof(ct128); i++)
+    if (threadIdx.x != 0 || blockIdx.x != 0)
+    {
+        return;
+    }
+
+    aes.set_enc_key(dUserKey, &aesCtx);
+    aes.enc_blocks(outputByCount, dPlaintext, kPlaintext.size() / 16, &aesCtx);
+    aes.enc_n_block<9>(outputByTemplate, dPlaintext, &aesCtx);
+
+    *ret = 0;
+    for (int i = 0; i < static_cast<int>(kPlaintext.size()); ++i)
+    {
+        if (outputByCount[i] != outputByTemplate[i])
         {
-            if (output_buffer[i] != ct128[i])
-            {
-                *ret = -1;
-            }
+            *ret = -1;
+            break;
         }
     }
 }
 
-int main()
+#ifdef __CUDACC__
+#pragma nv_diag_suppress 177
+#endif
+TEST(CudaAesTest, BlockApisProduceSameCiphertext)
 {
-    cudaError_t cudaErrorNum = cudaSuccess;
-    int*        deviceRet    = nullptr;
-    int         hostRet      = -1;
+    int *deviceRet = nullptr;
+    int  hostRet   = -1;
 
-    cudaErrorNum = cudaMalloc((void**)&deviceRet, sizeof(int));
-    if (cudaErrorNum != cudaSuccess)
-    {
-        std::printf("[%d] cuda err happened!\n", __LINE__);
-    }
-    // ==================
+    ASSERT_EQ(cudaMemcpyToSymbol(dUserKey, kUserKey.data(), kUserKey.size()),
+              cudaSuccess);
+    ASSERT_EQ(
+        cudaMemcpyToSymbol(dPlaintext, kPlaintext.data(), kPlaintext.size()),
+        cudaSuccess);
+    ASSERT_EQ(cudaMalloc(reinterpret_cast<void **>(&deviceRet), sizeof(int)),
+              cudaSuccess);
+
     aesTestKernel<<<1, 256>>>(deviceRet);
-    cudaErrorNum = cudaGetLastError();
-    if (cudaErrorNum != cudaSuccess)
-    {
-        std::printf("[%d] cuda err happened!\n", __LINE__);
-    }
-    cudaErrorNum =
-        cudaMemcpy(&hostRet, deviceRet, sizeof(int), cudaMemcpyDeviceToHost);
-    if (cudaErrorNum != cudaSuccess)
-    {
-        std::printf("[%d] cuda err happened!\n", __LINE__);
-    }
-    // ==================
-    aesTestKernel2<<<1, 256>>>(deviceRet);
-    cudaErrorNum = cudaGetLastError();
-    if (cudaErrorNum != cudaSuccess)
-    {
-        std::printf("[%d] cuda err happened!\n", __LINE__);
-    }
-    cudaErrorNum =
-        cudaMemcpy(&hostRet, deviceRet, sizeof(int), cudaMemcpyDeviceToHost);
-    if (cudaErrorNum != cudaSuccess)
-    {
-        std::printf("[%d] cuda err happened!\n", __LINE__);
-    }
+    ASSERT_EQ(cudaGetLastError(), cudaSuccess);
+    ASSERT_EQ(cudaDeviceSynchronize(), cudaSuccess);
+    ASSERT_EQ(
+        cudaMemcpy(&hostRet, deviceRet, sizeof(int), cudaMemcpyDeviceToHost),
+        cudaSuccess);
+    ASSERT_EQ(cudaFree(deviceRet), cudaSuccess);
 
-    cudaErrorNum = cudaFree(deviceRet);
-    if (cudaErrorNum != cudaSuccess)
-    {
-        std::printf("[%d] cuda err happened!\n", __LINE__);
-    }
-
-    if (hostRet == 0)
-    {
-        std::puts("cuda aes128 test ok!!");
-    }
-    else
-    {
-        std::printf("cuda aes128 test fail. ret = %d\n", hostRet);
-    }
-    return 0;
+    EXPECT_EQ(hostRet, 0);
 }
+#ifdef __CUDACC__
+#pragma nv_diag_default 177
+#endif
+
+} // namespace

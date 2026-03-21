@@ -44,6 +44,7 @@
         _FAST_FSS_DISPATCH_CASE(std::uint16_t, __VA_ARGS__);              \
         _FAST_FSS_DISPATCH_CASE(std::uint32_t, __VA_ARGS__);              \
         _FAST_FSS_DISPATCH_CASE(std::uint64_t, __VA_ARGS__);              \
-        _FAST_FSS_DISPATCH_CASE(FastFss::impl::uint128_t, __VA_ARGS__);)()
+        _FAST_FSS_DISPATCH_CASE(FastFss::impl::uint128_t, __VA_ARGS__);)  \
+    ()
 
 #endif

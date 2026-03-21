@@ -1,10 +1,7 @@
-#ifndef FAST_FSS_HELPER_ERROR_CODE_H
-#define FAST_FSS_HELPER_ERROR_CODE_H
+#ifndef FAST_FSS_ERRORS_H
+#define FAST_FSS_ERRORS_H
 
-#include <cstddef>
-#include <cstdint>
-
-enum FastFss_ErrorCode
+enum FastFssError
 {
     FAST_FSS_SUCCESS                              = 0,
     FAST_FSS_RUNTIME_ERROR                        = -1,
@@ -25,4 +22,4 @@ enum FastFss_ErrorCode
     FAST_FSS_INVALID_GROUP_SIZE_ERROR             = -16,
 };
 
-#endif // FAST_FSS_HELPER_ERROR_CODE_H
+#endif // FAST_FSS_ERRORS_H

@@ -1,250 +1,122 @@
 // clang-format off
-// nvcc -I include src/cuda/ottt.cu test/cuda/ottt.cu -o cuda_ottt.exe -std=c++17 --expt-relaxed-constexpr
+// nvcc -I include -I third_party/googletest/googletest/include -I third_party/googletest/googletest src/cuda/config.cpp src/cuda/ottt.cu test/cuda/ottt.cu third_party/googletest/googletest/src/gtest-all.cc third_party/googletest/googletest/src/gtest_main.cc -o cuda_ottt.exe -std=c++17 --expt-relaxed-constexpr
 // clang-format on
 #include <FastFss/cuda/ottt.h>
+#include <FastFss/errors.h>
+#include <gtest/gtest.h>
 
-#include <chrono>
-#include <cstdio>
-#include <cstdlib>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
-#include "mt19937.hpp"
 #include "uint128_t.h"
 #include "utils.cuh"
 
-using namespace std::chrono;
+namespace {
 
-MT19937Rng rng;
+using FastFss::cuda::make_unique_gpu_ptr;
+using FastFss::cuda::memcpy_gpu2cpu;
 
-#define LOG(fmt, ...)                                                 \
-    std::fprintf(stderr, "[FastFss] " fmt ". %s:%d\n", ##__VA_ARGS__, \
-                 __FILE__, __LINE__)
-
-#define CHECK(exp)                    \
-    [&] {                             \
-        cudaDeviceSynchronize();      \
-        auto the_ret = exp;           \
-        if (the_ret)                  \
-        {                             \
-            LOG("ret = %d", the_ret); \
-            std::exit(-1);            \
-        }                             \
-    }()
-
-template <typename GroupElement>
-static inline GroupElement mod_bits(GroupElement x, int bitWidth) noexcept
+template <typename T>
+constexpr T modBits(T x, std::size_t bitWidth) noexcept
 {
-    if (bitWidth == sizeof(GroupElement) * 8)
+    if (bitWidth == sizeof(T) * 8)
     {
         return x;
     }
-    else
-    {
-        return x & (((GroupElement)1 << bitWidth) - 1);
-    }
+    return x & ((((T)1) << bitWidth) - 1);
 }
 
-template <typename GroupElement>
-class TestOnehotLutEval
+template <typename T>
+class OtttCudaTypedTest : public ::testing::Test
 {
-public:
-    static void run(std::size_t bitWidthIn,
-                    std::size_t bitWidthOut,
-                    std::size_t elementNum,
-                    bool        testSpeed = false)
-    {
-        std::printf("[TEST CUDA OTTT] bitWidthIn=%3zu, bitWidthOut=%3zu, "
-                    "elementNum=%8zu\n",
-                    bitWidthIn, bitWidthOut, elementNum);
-
-        using namespace FastFss;
-
-        int   ret;
-        void *dKey0 = nullptr;
-        void *dKey1 = nullptr;
-        void *dLut  = nullptr;
-
-        high_resolution_clock::time_point st;
-        high_resolution_clock::time_point et;
-
-        std::size_t keyDataSize;
-        ret = FastFss_cuda_otttGetKeyDataSize(&keyDataSize, bitWidthIn,
-                                              elementNum);
-        CHECK(ret);
-
-        std::size_t xDataSize       = elementNum * sizeof(GroupElement);
-        std::size_t maskedXDataSize = elementNum * sizeof(GroupElement);
-        std::size_t alphaDataSize   = elementNum * sizeof(GroupElement);
-        std::size_t lutDataSize     = (1 << bitWidthIn) * sizeof(GroupElement);
-        std::size_t sharedOutDataSize = elementNum * sizeof(GroupElement);
-
-        std::vector<GroupElement> x(elementNum);
-        std::vector<GroupElement> maskedX(elementNum);
-        std::vector<GroupElement> alpha(elementNum);
-        std::vector<GroupElement> sharedOutE0(elementNum);
-        std::vector<GroupElement> sharedOutE1(elementNum);
-        std::vector<GroupElement> sharedOutT0(elementNum);
-        std::vector<GroupElement> sharedOutT1(elementNum);
-        std::vector<GroupElement> lut(1 << bitWidthIn);
-        std::vector<std::uint8_t> key(keyDataSize);
-
-        rng.gen(x.data(), xDataSize);
-        rng.gen(alpha.data(), alphaDataSize);
-        rng.gen(lut.data(), lutDataSize);
-        rng.gen(key.data(), keyDataSize);
-        for (int i = 0; i < elementNum; i++)
-        {
-            x[i]     = 97;
-            alpha[i] = 113;
-
-            maskedX[i] = x[i] + alpha[i];
-
-            maskedX[i] = mod_bits<GroupElement>(maskedX[i], bitWidthIn);
-            x[i]       = mod_bits<GroupElement>(x[i], bitWidthIn);
-            alpha[i]   = mod_bits<GroupElement>(alpha[i], bitWidthIn);
-        }
-        for (int i = 0; i < lut.size(); i++)
-        {
-            lut[i] = i;
-        }
-
-        dKey0 = cuda::malloc_gpu(keyDataSize);
-        dKey1 = cuda::malloc_gpu(keyDataSize);
-        dLut  = cuda::malloc_gpu(lutDataSize);
-        cuda::memcpy_cpu2gpu(dKey0, key.data(), keyDataSize);
-        cuda::memcpy_cpu2gpu(dKey1, key.data(), keyDataSize);
-        cuda::memcpy_cpu2gpu(dLut, lut.data(), lutDataSize);
-
-        {
-            void *dAlpha = cuda::malloc_gpu(alphaDataSize);
-            cuda::memcpy_cpu2gpu(dAlpha, alpha.data(), alphaDataSize);
-
-            if (testSpeed)
-            {
-                st = high_resolution_clock::now();
-            }
-
-            ret = FastFss_cuda_otttKeyGen(
-                dKey1, keyDataSize, dAlpha, alphaDataSize, bitWidthIn,
-                sizeof(GroupElement), elementNum, nullptr);
-            CHECK(ret);
-
-            if (testSpeed)
-            {
-                et        = high_resolution_clock::now();
-                auto diff = duration_cast<microseconds>(et - st);
-                std::printf("[CUDA ONEHOT KEYGEN] %f ms,  %f us/element\n",
-                            (double)diff.count() / 1e3,
-                            (double)diff.count() / elementNum);
-            }
-
-            cuda::free_gpu(dAlpha);
-        }
-
-        {
-            void *dSharedOutE0 = cuda::malloc_gpu(sharedOutDataSize);
-            void *dSharedOutT0 = cuda::malloc_gpu(sharedOutDataSize);
-            void *dMaskedX     = cuda::malloc_gpu(maskedXDataSize);
-
-            cuda::memcpy_cpu2gpu(dMaskedX, maskedX.data(), maskedXDataSize);
-
-            if (testSpeed)
-            {
-                st = high_resolution_clock::now();
-            }
-
-            ret = FastFss_cuda_otttLutEval(
-                dSharedOutE0, sharedOutDataSize, dSharedOutT0,
-                sharedOutDataSize, dMaskedX, maskedXDataSize, dKey0,
-                keyDataSize, 0, dLut, lutDataSize, bitWidthIn,
-                sizeof(GroupElement), elementNum, nullptr);
-            CHECK(ret);
-
-            if (testSpeed)
-            {
-                et        = high_resolution_clock::now();
-                auto diff = duration_cast<microseconds>(et - st);
-                std::printf("[CUDA ONEHOT   EVAL] %f ms,  %f us/element\n",
-                            (double)diff.count() / 1e3,
-                            (double)diff.count() / elementNum);
-            }
-
-            cuda::memcpy_gpu2cpu(sharedOutE0.data(), dSharedOutE0,
-                                 sharedOutDataSize);
-            cuda::memcpy_gpu2cpu(sharedOutT0.data(), dSharedOutT0,
-                                 sharedOutDataSize);
-
-            cuda::free_gpu(dSharedOutE0);
-            cuda::free_gpu(dSharedOutT0);
-            cuda::free_gpu(dMaskedX);
-        }
-        {
-            void *dSharedOutE1 = cuda::malloc_gpu(sharedOutDataSize);
-            void *dSharedOutT1 = cuda::malloc_gpu(sharedOutDataSize);
-            void *dMaskedX     = cuda::malloc_gpu(maskedXDataSize);
-
-            cuda::memcpy_cpu2gpu(dMaskedX, maskedX.data(), maskedXDataSize);
-
-            ret = FastFss_cuda_otttLutEval(
-                dSharedOutE1, sharedOutDataSize, dSharedOutT1,
-                sharedOutDataSize, dMaskedX, maskedXDataSize, dKey1,
-                keyDataSize, 1, dLut, lutDataSize, bitWidthIn,
-                sizeof(GroupElement), elementNum, nullptr);
-            CHECK(ret);
-
-            cuda::memcpy_gpu2cpu(sharedOutE1.data(), dSharedOutE1,
-                                 sharedOutDataSize);
-            cuda::memcpy_gpu2cpu(sharedOutT1.data(), dSharedOutT1,
-                                 sharedOutDataSize);
-
-            cuda::free_gpu(dSharedOutE1);
-            cuda::free_gpu(dSharedOutT1);
-            cuda::free_gpu(dMaskedX);
-        }
-
-        for (std::size_t i = 0; i < elementNum; i++)
-        {
-            GroupElement outE    = sharedOutE0[i] + sharedOutE1[i];
-            GroupElement outT    = sharedOutT0[i] + sharedOutT1[i];
-            GroupElement needOut = lut[x[i]];
-
-            outE = mod_bits<GroupElement>(outE, 1);
-            outT = mod_bits<GroupElement>(outT, bitWidthOut);
-
-            GroupElement out = (outE == 0) ? outT : (0 - outT);
-            out              = mod_bits<GroupElement>(out, bitWidthOut);
-            if (out != needOut)
-            {
-                std::printf("E = %lld\n", (long long)outE);
-                std::printf("T = %lld\n", (long long)outT);
-                std::printf("X = %lld\n", (long long)x[i]);
-                std::printf("A = %lld\n", (long long)alpha[i]);
-                LOG("error. idx = %zu, out = %lld need = %lld", i,
-                    (long long)out, (long long)needOut);
-                std::exit(-1);
-            }
-        }
-
-        cuda::free_gpu(dKey0);
-        cuda::free_gpu(dKey1);
-        cuda::free_gpu(dLut);
-    }
 };
 
-int main()
+using OtttElementTypes = ::testing::
+    Types<std::uint8_t, std::uint16_t, std::uint32_t, std::uint64_t, uint128_t>;
+
+TYPED_TEST_SUITE(OtttCudaTypedTest, OtttElementTypes);
+
+TYPED_TEST(OtttCudaTypedTest, LutEvalReconstructsLookupValue)
 {
-    rng.reseed(7);
-    TestOnehotLutEval<std::uint8_t>::run(7, 7, 1023);
-    TestOnehotLutEval<std::uint8_t>::run(8, 8, 1023);
-    TestOnehotLutEval<std::uint16_t>::run(9, 16, 1023);
-    TestOnehotLutEval<std::uint32_t>::run(9, 32, 1023);
-    TestOnehotLutEval<std::uint64_t>::run(9, 64, 1023);
+    using T = TypeParam;
+    const std::size_t bitWidthIn =
+        sizeof(T) == 1 ? 7 : (sizeof(T) == 2 ? 9 : 9);
+    const std::size_t bitWidthOut = sizeof(T) == 16 ? 127 : sizeof(T) * 8;
+    const std::size_t elementNum  = 8;
+    std::size_t       keyDataSize = 0;
+    ASSERT_EQ(
+        FastFss_cuda_otttGetKeyDataSize(&keyDataSize, bitWidthIn, elementNum),
+        FAST_FSS_SUCCESS);
 
-    TestOnehotLutEval<std::uint64_t>::run(8, 64, 12 * 128 * 128, true);
-    TestOnehotLutEval<std::uint64_t>::run(9, 64, 12 * 128 * 128, true);
-    TestOnehotLutEval<std::uint64_t>::run(9, 64, 12 * 128, true);
+    std::vector<T> alpha = {T(3), T(5), T(7), T(9), T(11), T(13), T(15), T(17)};
+    std::vector<T> x     = {T(0), T(1), T(2), T(3), T(4), T(5), T(6), T(7)};
+    std::vector<T> maskedX(elementNum);
+    for (std::size_t i = 0; i < elementNum; ++i)
+    {
+        alpha[i]   = modBits<T>(alpha[i], bitWidthIn);
+        x[i]       = modBits<T>(x[i], bitWidthIn);
+        maskedX[i] = modBits<T>(x[i] + alpha[i], bitWidthIn);
+    }
 
-    TestOnehotLutEval<uint128_t>::run(9, 127, 12 * 128, true);
-    TestOnehotLutEval<uint128_t>::run(9, 128, 12 * 128, true);
-    return 0;
+    std::vector<T> lut(1ULL << bitWidthIn);
+    for (std::size_t i = 0; i < lut.size(); ++i)
+    {
+        lut[i] = static_cast<T>(i);
+    }
+
+    std::vector<std::uint8_t> key0(keyDataSize);
+    std::vector<std::uint8_t> key1(keyDataSize);
+    for (std::size_t i = 0; i < key0.size(); ++i)
+    {
+        key0[i] = static_cast<std::uint8_t>((7 * i + 3) & 0xff);
+        key1[i] = key0[i];
+    }
+
+    auto dKey0  = make_unique_gpu_ptr(key0.data(), key0.size());
+    auto dKey1  = make_unique_gpu_ptr(key1.data(), key1.size());
+    auto dAlpha = make_unique_gpu_ptr(alpha.data(), alpha.size() * sizeof(T));
+    auto dMaskedX =
+        make_unique_gpu_ptr(maskedX.data(), maskedX.size() * sizeof(T));
+    auto dLut     = make_unique_gpu_ptr(lut.data(), lut.size() * sizeof(T));
+    auto dShareE0 = make_unique_gpu_ptr(elementNum * sizeof(T));
+    auto dShareE1 = make_unique_gpu_ptr(elementNum * sizeof(T));
+    auto dShareT0 = make_unique_gpu_ptr(elementNum * sizeof(T));
+    auto dShareT1 = make_unique_gpu_ptr(elementNum * sizeof(T));
+
+    ASSERT_EQ(FastFss_cuda_otttKeyGen(dKey1.get(), keyDataSize, dAlpha.get(),
+                                      alpha.size() * sizeof(T), bitWidthIn,
+                                      sizeof(T), elementNum, nullptr),
+              FAST_FSS_SUCCESS);
+    ASSERT_EQ(
+        FastFss_cuda_otttLutEval(
+            dShareE0.get(), elementNum * sizeof(T), dShareT0.get(),
+            elementNum * sizeof(T), dMaskedX.get(), maskedX.size() * sizeof(T),
+            dKey0.get(), keyDataSize, 0, dLut.get(), lut.size() * sizeof(T),
+            bitWidthIn, sizeof(T), elementNum, nullptr),
+        FAST_FSS_SUCCESS);
+    ASSERT_EQ(
+        FastFss_cuda_otttLutEval(
+            dShareE1.get(), elementNum * sizeof(T), dShareT1.get(),
+            elementNum * sizeof(T), dMaskedX.get(), maskedX.size() * sizeof(T),
+            dKey1.get(), keyDataSize, 1, dLut.get(), lut.size() * sizeof(T),
+            bitWidthIn, sizeof(T), elementNum, nullptr),
+        FAST_FSS_SUCCESS);
+
+    std::vector<T> shareE0(elementNum), shareE1(elementNum);
+    std::vector<T> shareT0(elementNum), shareT1(elementNum);
+    memcpy_gpu2cpu(shareE0.data(), dShareE0.get(), shareE0.size() * sizeof(T));
+    memcpy_gpu2cpu(shareE1.data(), dShareE1.get(), shareE1.size() * sizeof(T));
+    memcpy_gpu2cpu(shareT0.data(), dShareT0.get(), shareT0.size() * sizeof(T));
+    memcpy_gpu2cpu(shareT1.data(), dShareT1.get(), shareT1.size() * sizeof(T));
+
+    for (std::size_t i = 0; i < elementNum; ++i)
+    {
+        const T e   = modBits<T>(shareE0[i] + shareE1[i], 1);
+        const T t   = modBits<T>(shareT0[i] + shareT1[i], bitWidthOut);
+        const T out = modBits<T>(e == 0 ? t : (T(0) - t), bitWidthOut);
+        EXPECT_EQ(out, lut[x[i]]);
+    }
 }
+
+} // namespace

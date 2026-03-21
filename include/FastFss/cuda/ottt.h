@@ -37,6 +37,10 @@ int FastFss_cuda_otttGetKeyDataSize(size_t *keyDataSize,
                                     size_t  bitWidthIn,
                                     size_t  elementNum);
 
+int FastFss_cuda_otttGetKeyDataSize(size_t *keyDataSize,
+                                    size_t  bitWidthIn,
+                                    size_t  elementNum);
+
 #ifdef __cplusplus
 }
 #endif

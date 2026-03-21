@@ -62,7 +62,7 @@ int FastFss_cuda_dpfEvalAll(void       *sharedOut,
                             size_t      cacheDataSize,
                             void       *cudaStreamPtr);
 
-int FastFss_cuda_dpfMultiEval(void       *sharedOut,
+int FastFss_cuda_dpfEvalMulti(void       *sharedOut,
                               size_t      sharedOutDataSize,
                               const void *maskedX,
                               size_t      maskedXDataSize,
@@ -82,12 +82,78 @@ int FastFss_cuda_dpfMultiEval(void       *sharedOut,
                               size_t      cacheDataSize,
                               void       *cudaStreamPtr);
 
+int FastFss_cuda_dpfKeyZip(void       *zippedKey,
+                           size_t      zippedKeyDataSize,
+                           const void *key,
+                           size_t      keyDataSize,
+                           size_t      bitWidthIn,
+                           size_t      bitWidthOut,
+                           size_t      groupSize,
+                           size_t      elementSize,
+                           size_t      elementNum);
+
+int FastFss_cuda_dpfKeyUnzip(void       *key,
+                             size_t      keyDataSize,
+                             const void *zippedKey,
+                             size_t      zippedKeyDataSize,
+                             size_t      bitWidthIn,
+                             size_t      bitWidthOut,
+                             size_t      groupSize,
+                             size_t      elementSize,
+                             size_t      elementNum);
+
 int FastFss_cuda_dpfGetKeyDataSize(size_t *keyDataSize,
                                    size_t  bitWidthIn,
                                    size_t  bitWidthOut,
                                    size_t  groupSize,
                                    size_t  elementSize,
                                    size_t  elementNum);
+
+int FastFss_cuda_dpfGetZippedKeyDataSize(size_t *keyDataSize,
+                                         size_t  bitWidthIn,
+                                         size_t  bitWidthOut,
+                                         size_t  groupSize,
+                                         size_t  elementSize,
+                                         size_t  elementNum);
+
+int FastFss_cuda_dpfGetCacheDataSize(size_t *cacheDataSize,
+                                     size_t  bitWidthIn,
+                                     size_t  elementSize,
+                                     size_t  elementNum);
+
+int FastFss_cuda_dpfKeyZip(void       *zippedKey,
+                           size_t      zippedKeyDataSize,
+                           const void *key,
+                           size_t      keyDataSize,
+                           size_t      bitWidthIn,
+                           size_t      bitWidthOut,
+                           size_t      groupSize,
+                           size_t      elementSize,
+                           size_t      elementNum);
+
+int FastFss_cuda_dpfKeyUnzip(void       *key,
+                             size_t      keyDataSize,
+                             const void *zippedKey,
+                             size_t      zippedKeyDataSize,
+                             size_t      bitWidthIn,
+                             size_t      bitWidthOut,
+                             size_t      groupSize,
+                             size_t      elementSize,
+                             size_t      elementNum);
+
+int FastFss_cuda_dpfGetKeyDataSize(size_t *keyDataSize,
+                                   size_t  bitWidthIn,
+                                   size_t  bitWidthOut,
+                                   size_t  groupSize,
+                                   size_t  elementSize,
+                                   size_t  elementNum);
+
+int FastFss_cuda_dpfGetZippedKeyDataSize(size_t *keyDataSize,
+                                         size_t  bitWidthIn,
+                                         size_t  bitWidthOut,
+                                         size_t  groupSize,
+                                         size_t  elementSize,
+                                         size_t  elementNum);
 
 int FastFss_cuda_dpfGetCacheDataSize(size_t *cacheDataSize,
                                      size_t  bitWidthIn,

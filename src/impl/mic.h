@@ -20,8 +20,8 @@ FAST_FSS_DEVICE inline void dcfMICKeyGen(
     GroupElement               alpha,
     const void                *seed0,
     const void                *seed1,
-    const GroupElement        *leftBoundary,
-    const GroupElement        *rightBoundary,
+    const GroupElement        *leftEndpoints,
+    const GroupElement        *rightEndpoints,
     std::size_t                intervalNum,
     std::size_t                bitWidthIn,
     std::size_t                bitWidthOut,
@@ -34,11 +34,11 @@ FAST_FSS_DEVICE inline void dcfMICKeyGen(
     GroupElement MAX = modBits<GroupElement>((GroupElement)(-1), bitWidthIn);
     for (std::size_t i = 0; i < intervalNum; i++)
     {
-        GroupElement qPrime      = rightBoundary[i] + 1;
-        GroupElement alphaP      = leftBoundary[i] + alpha;
-        GroupElement alphaQ      = rightBoundary[i] + alpha;
-        GroupElement alphaQPrime = rightBoundary[i] + 1 + alpha;
-        GroupElement pi          = leftBoundary[i];
+        GroupElement qPrime      = rightEndpoints[i] + 1;
+        GroupElement alphaP      = leftEndpoints[i] + alpha;
+        GroupElement alphaQ      = rightEndpoints[i] + alpha;
+        GroupElement alphaQPrime = rightEndpoints[i] + 1 + alpha;
+        GroupElement pi          = leftEndpoints[i];
 
         qPrime      = modBits<GroupElement>(qPrime, bitWidthIn);
         alphaP      = modBits<GroupElement>(alphaP, bitWidthIn);
@@ -59,8 +59,8 @@ FAST_FSS_DEVICE inline void dcfMICEval(
     const GroupElement         *sharedZ, // intervalNum
     const void                 *seed,
     int                         partyId,
-    const GroupElement         *leftBoundary,
-    const GroupElement         *rightBoundary,
+    const GroupElement         *leftEndpoints,
+    const GroupElement         *rightEndpoints,
     std::size_t                 intervalNum,
     std::size_t                 bitWidthIn,
     std::size_t                 bitWidthOut,
@@ -71,10 +71,10 @@ FAST_FSS_DEVICE inline void dcfMICEval(
 
     GroupElement sp = 0, sq = 0;
     {
-        GroupElement qPrime  = rightBoundary[0] + 1;
-        GroupElement xP      = (maskedX - 1 - leftBoundary[0]);
+        GroupElement qPrime  = rightEndpoints[0] + 1;
+        GroupElement xP      = (maskedX - 1 - leftEndpoints[0]);
         GroupElement xQPrime = (maskedX - 1 - qPrime);
-        GroupElement p0      = leftBoundary[0];
+        GroupElement p0      = leftEndpoints[0];
 
         qPrime  = modBits<GroupElement>(qPrime, bitWidthIn);
         xP      = modBits<GroupElement>(xP, bitWidthIn);
@@ -94,11 +94,11 @@ FAST_FSS_DEVICE inline void dcfMICEval(
     }
     for (std::size_t i = 1; i < intervalNum; i++)
     {
-        GroupElement qPrime    = rightBoundary[i] + 1;
-        GroupElement xP        = (maskedX - 1 - leftBoundary[i]);
+        GroupElement qPrime    = rightEndpoints[i] + 1;
+        GroupElement xP        = (maskedX - 1 - leftEndpoints[i]);
         GroupElement xQPrime   = (maskedX - 1 - qPrime);
-        GroupElement privQAdd1 = rightBoundary[i - 1] + 1;
-        GroupElement pi        = leftBoundary[i];
+        GroupElement privQAdd1 = rightEndpoints[i - 1] + 1;
+        GroupElement pi        = leftEndpoints[i];
 
         privQAdd1 = modBits<GroupElement>(privQAdd1, bitWidthIn);
         qPrime    = modBits<GroupElement>(qPrime, bitWidthIn);
@@ -106,7 +106,7 @@ FAST_FSS_DEVICE inline void dcfMICEval(
         xQPrime   = modBits<GroupElement>(xQPrime, bitWidthIn);
         pi        = modBits<GroupElement>(pi, bitWidthIn);
 
-        if (leftBoundary[i] == privQAdd1)
+        if (leftEndpoints[i] == privQAdd1)
         {
             sp = sq;
         }

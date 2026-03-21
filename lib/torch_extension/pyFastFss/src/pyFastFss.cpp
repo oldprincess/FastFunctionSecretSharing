@@ -236,7 +236,7 @@ Returns:
 
 Raises:
   ValueError:   If the input argument is invalid.
-  RuntimeError: If the FastFss_cpu_dpfMultiEval or FastFss_cuda_dpfMultiEval fail.
+  RuntimeError: If the FastFss_cpu_dpfEvalMulti or FastFss_cuda_dpfEvalMulti fail.
       )");
 
     // ===========================================
@@ -378,7 +378,7 @@ Returns:
 
 Raises:
     ValueError:   If the input argument is invalid.
-    RuntimeError: If the FastFss_cpu_grottoEqMultiEval or FastFss_cuda_grottoEqMultiEval fail.
+    RuntimeError: If the FastFss_cpu_grottoEqEvalMulti or FastFss_cuda_grottoEqEvalMulti fail.
 )");
 
     m.def("grotto_mic_eval",           //
