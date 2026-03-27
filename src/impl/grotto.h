@@ -143,6 +143,8 @@ FAST_FSS_DEVICE inline void grottoKeyGen(
     std::uint64_t sL1tL1sR1tR1[4];
     for (std::size_t i = 0; i < bitWidthIn - 6; i++)
     {
+        const auto bitShift = bitWidthIn - i - 1;
+
         // sL0, tL0, sR0, tR0 <- G(s0)
         // sL1, tL1, sR1, tR1 <- G(s1)
         // bits [127: 1] is seed, bits [1: 0] is tag
@@ -168,9 +170,8 @@ FAST_FSS_DEVICE inline void grottoKeyGen(
         // if alphaI = 0,   keep <- L, lose <- R
         // else             keep <- R, lose <- L
         //                  1 means R, 0 means L
-        int alphaI = (alpha >> (bitWidthIn - i - 1)) & 1;
-        int keep   = alphaI;
-        int lose   = 1 - alphaI;
+        const int keep = static_cast<int>((alpha >> bitShift) & 1);
+        const int lose = 1 - keep;
 
         // sCW[i] = seed0[lose] ^ seed1[lose]
         key.sCW[i][0] = (lose == 0) ? sL0[0] ^ sL1[0] : sR0[0] ^ sR1[0];
@@ -209,7 +210,8 @@ FAST_FSS_DEVICE inline void grottoKeyGen(
                              : ((keep == 0) ? tL1 ^ tLCW : tR1 ^ tRCW);
     }
     // leaf = s0 ^ s1 ^ (1 << alpha_lsb6)
-    key.lastCW[0] = curS0[1] ^ curS1[1] ^ (1ULL << (int)(alpha & 0b111111));
+    key.lastCW[0] =
+        curS0[1] ^ curS1[1] ^ (1ULL << static_cast<int>(alpha & 0b111111));
 }
 
 template <typename GroupElement>
@@ -241,7 +243,7 @@ FAST_FSS_DEVICE inline GroupElement grottoEqEval( //
         idx_from = (idx_from < cache->preTo) ? idx_from : cache->preTo;
         if (0 < idx_from && idx_from <= bitWidthIn - 6)
         {
-            curT    = cache->stCache[idx_from - 1][0] & 1;
+            curT    = cache->stCache[idx_from - 1][0] & 1ULL;
             curS[0] = cache->stCache[idx_from - 1][0] & MASK_MSB63;
             curS[1] = cache->stCache[idx_from - 1][1];
         }
@@ -250,7 +252,10 @@ FAST_FSS_DEVICE inline GroupElement grottoEqEval( //
     std::uint64_t s[2];
     for (std::size_t i = idx_from; i < bitWidthIn - 6; i++)
     {
-        int bitI = (maskedX >> (bitWidthIn - 1 - i)) & 1;
+        const auto shift    = i;
+        const auto bitShift = bitWidthIn - 1 - i;
+
+        const int bitI = static_cast<int>((maskedX >> bitShift) & 1);
         AES128::aes128_enc1_block(s, PLAINTEXT + bitI * 2, curS, aesCtx);
 
         // separate s, t
@@ -271,7 +276,8 @@ FAST_FSS_DEVICE inline GroupElement grottoEqEval( //
         //      =   ti ^ cw_t[bit_i]    if  t == 1
         auto maskedBitI = (GroupElement)(-bitI);
         auto cwT = (key.tLCW[0] & (~maskedBitI)) ^ (key.tRCW[0] & maskedBitI);
-        curT     = ti ^ (((int)(cwT >> i) & 1) & (int)maskCurT);
+        curT     = ti ^ (static_cast<int>((cwT >> shift) & 1) &
+                     static_cast<int>(maskCurT));
 
         if (cache != nullptr)
         {
@@ -285,7 +291,8 @@ FAST_FSS_DEVICE inline GroupElement grottoEqEval( //
     }
     std::uint64_t maskCurT = (std::uint64_t)(-curT);
     std::uint64_t u        = curS[1] ^ (key.lastCW[0] & maskCurT);
-    return (u >> (maskedX & 0b111111)) & 1;
+    return static_cast<GroupElement>(
+        (u >> static_cast<unsigned int>(maskedX & 0b111111)) & 1ULL);
 }
 
 template <typename GroupElement>
@@ -319,7 +326,7 @@ FAST_FSS_DEVICE inline GroupElement grottoEval( //
         idx_from = (idx_from < cache->preTo) ? idx_from : cache->preTo;
         if (0 < idx_from && idx_from <= bitWidthIn - 6)
         {
-            curT    = cache->stCache[idx_from - 1][0] & 1;
+            curT    = cache->stCache[idx_from - 1][0] & 1ULL;
             curS[0] = cache->stCache[idx_from - 1][0] & MASK_MSB63;
             curS[1] = cache->stCache[idx_from - 1][1];
             parity  = cache->parityCache[idx_from - 1];
@@ -329,6 +336,9 @@ FAST_FSS_DEVICE inline GroupElement grottoEval( //
     std::uint64_t s[2];
     for (std::size_t i = idx_from; i < bitWidthIn - 6; i++)
     {
+        const auto shift    = i;
+        const auto bitShift = bitWidthIn - 1 - i;
+
         if (equalBound)
         {
             // early drop
@@ -340,7 +350,7 @@ FAST_FSS_DEVICE inline GroupElement grottoEval( //
             }
         }
 
-        int maskedXI = (maskedX >> (bitWidthIn - 1 - i)) & 1;
+        const int maskedXI = static_cast<int>((maskedX >> bitShift) & 1);
 
         AES128::aes128_enc1_block(s, PLAINTEXT + 2 * maskedXI, curS, aesCtx);
 
@@ -359,8 +369,8 @@ FAST_FSS_DEVICE inline GroupElement grottoEval( //
 
         // path[i+1].t  =   ti                          if path[i].t == 0
         //              =   ti ^ cw[i].t[nxt_dir]       if path[i].t == 1
-        GroupElement cwT  = (maskedXI == 0) ? key.tLCW[0] : key.tRCW[0];
-        int          nxtT = (curT == 0) ? ti : ti ^ ((int)(cwT >> i) & 1);
+        GroupElement cwT = (maskedXI == 0) ? key.tLCW[0] : key.tRCW[0];
+        int nxtT = (curT == 0) ? ti : ti ^ static_cast<int>((cwT >> shift) & 1);
 
         // nxt_parity = parity[i]       if nxt_dir == 0
         //              parity[i] ^ (path[i].t ^ path[i + 1].t)
@@ -482,9 +492,8 @@ FAST_FSS_DEVICE inline void grottoLutEval( //
     std::size_t num      = (std::size_t)1 << bitWidth;
     for (std::size_t i = 0; i < num; i++)
     {
-        int tmp = (int)grottoEqEval<GroupElement>(         //
-            key, i, seed, partyId, bitWidth, cache, aesCtx //
-        );                                                 //
+        int tmp = static_cast<int>(grottoEqEval<GroupElement>(
+            key, i, seed, partyId, bitWidth, cache, aesCtx));
         tmp     = tmp & 1;
         sharedOutE[0] += (GroupElement)tmp;
         for (std::size_t j = 0; j < lutNum; j++)
@@ -506,11 +515,12 @@ FAST_FSS_DEVICE inline void grottoLutEval( //
     if (partyId == 0)
     {
         sharedOutE[0] -= 1;
-        sharedOutE[0] = ((sharedOutE[0] >> 1) + (sharedOutE[0] & 1)) & 1;
+        sharedOutE[0] = modBits<GroupElement>(
+            (sharedOutE[0] >> 1) + (sharedOutE[0] & 1), 1);
     }
     else
     {
-        sharedOutE[0] = (sharedOutE[0] >> 1) & 1;
+        sharedOutE[0] = modBits<GroupElement>(sharedOutE[0] >> 1, 1);
     }
 }
 
@@ -546,9 +556,8 @@ FAST_FSS_DEVICE inline void grottoLutEval_ex( //
     {
         GroupElement v = ((i > lowerPart) ? higherPart1 : higherPart0) | i;
 
-        int tmp = (int)grottoEqEval<GroupElement>(           //
-            key, v, seed, partyId, bitWidthIn, cache, aesCtx //
-        );                                                   //
+        int tmp = static_cast<int>(grottoEqEval<GroupElement>(
+            key, v, seed, partyId, bitWidthIn, cache, aesCtx));
         tmp     = tmp & 1;
         sharedOutE[0] += (GroupElement)tmp;
         for (std::size_t j = 0; j < lutNum; j++)
@@ -570,11 +579,12 @@ FAST_FSS_DEVICE inline void grottoLutEval_ex( //
     if (partyId == 0)
     {
         sharedOutE[0] -= 1;
-        sharedOutE[0] = ((sharedOutE[0] >> 1) + (sharedOutE[0] & 1)) & 1;
+        sharedOutE[0] = modBits<GroupElement>(
+            (sharedOutE[0] >> 1) + (sharedOutE[0] & 1), 1);
     }
     else
     {
-        sharedOutE[0] = (sharedOutE[0] >> 1) & 1;
+        sharedOutE[0] = modBits<GroupElement>(sharedOutE[0] >> 1, 1);
     }
 }
 
@@ -604,9 +614,8 @@ FAST_FSS_DEVICE inline void grottoLutEval_ex2( //
     {
         GroupElement v = maskedX - points[i];
 
-        int tmp = (int)grottoEqEval<GroupElement>(           //
-            key, v, seed, partyId, bitWidthIn, cache, aesCtx //
-        );                                                   //
+        int tmp = static_cast<int>(grottoEqEval<GroupElement>(
+            key, v, seed, partyId, bitWidthIn, cache, aesCtx));
         tmp     = tmp & 1;
         sharedOutE[0] += (GroupElement)tmp;
         for (std::size_t j = 0; j < lutNum; j++)
@@ -628,11 +637,12 @@ FAST_FSS_DEVICE inline void grottoLutEval_ex2( //
     if (partyId == 0)
     {
         sharedOutE[0] -= 1;
-        sharedOutE[0] = ((sharedOutE[0] >> 1) + (sharedOutE[0] & 1)) & 1;
+        sharedOutE[0] = modBits<GroupElement>(
+            (sharedOutE[0] >> 1) + (sharedOutE[0] & 1), 1);
     }
     else
     {
-        sharedOutE[0] = (sharedOutE[0] >> 1) & 1;
+        sharedOutE[0] = modBits<GroupElement>(sharedOutE[0] >> 1, 1);
     }
 }
 
@@ -731,11 +741,12 @@ FAST_FSS_DEVICE inline void grottoIntervalLutEval( //
     if (partyId == 0)
     {
         sharedOutE[0] -= 1;
-        sharedOutE[0] = ((sharedOutE[0] >> 1) + (sharedOutE[0] & 1)) & 1;
+        sharedOutE[0] = modBits<GroupElement>(
+            (sharedOutE[0] >> 1) + (sharedOutE[0] & 1), 1);
     }
     else
     {
-        sharedOutE[0] = (sharedOutE[0] >> 1) & 1;
+        sharedOutE[0] = modBits<GroupElement>(sharedOutE[0] >> 1, 1);
     }
 }
 

@@ -2,13 +2,31 @@
 #ifndef SRC_IMPL_NUMBER_H
 #define SRC_IMPL_NUMBER_H
 
+#include <type_traits>
+
 #include "def.h"
+#include "wideint/bit.hpp"
 
 #if defined(_MSC_VER) && !defined(__CUDACC__)
 #include <intrin.h>
 #endif
 
 namespace FastFss::impl {
+
+template <typename T>
+struct is_wideint : std::false_type
+{
+};
+
+template <std::size_t N, bool Signed>
+struct is_wideint<wideint::detail::basic_int<N, Signed>> : std::true_type
+{
+};
+
+template <typename T>
+inline constexpr bool is_supported_group_element_v =
+    (std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>) ||
+    is_wideint<std::remove_cv_t<T>>::value;
 
 template <typename GroupElement>
 FAST_FSS_DEVICE static inline GroupElement modBits(GroupElement x,
@@ -20,7 +38,8 @@ FAST_FSS_DEVICE static inline GroupElement modBits(GroupElement x,
     }
     else
     {
-        return x & (((GroupElement)1 << bitWidth) - 1);
+        const auto width = static_cast<unsigned int>(bitWidth);
+        return x & ((GroupElement(1) << width) - GroupElement(1));
     }
 }
 
@@ -36,8 +55,8 @@ FAST_FSS_DEVICE static inline int parityU64(std::uint64_t x)
 template <typename GroupElement>
 FAST_FSS_DEVICE static inline int clz(GroupElement x, std::size_t bitWidth)
 {
-    static_assert(sizeof(GroupElement) <= 16,
-                  "clz is not supported for GroupElement larger than 128bit");
+    static_assert(is_supported_group_element_v<GroupElement>,
+                  "clz requires an integer or wideint::basic_int GroupElement");
     if (x == 0)
     {
         return bitWidth;
@@ -54,10 +73,9 @@ FAST_FSS_DEVICE static inline int clz(GroupElement x, std::size_t bitWidth)
     }
     else
     {
-        int zh  = (x.UPPER) ? __clzll(static_cast<std::uint64_t>(x.UPPER)) : 64;
-        int zl  = (x.LOWER) ? __clzll(static_cast<std::uint64_t>(x.LOWER)) : 64;
-        int ret = (zh != 64) ? zh : (64 + zl);
-        return ret - (128 - bitWidth);
+        return static_cast<int>(wideint::countl_zero(x)) -
+               (static_cast<int>(sizeof(GroupElement) * 8) -
+                static_cast<int>(bitWidth));
     }
 #elif defined(_MSC_VER)
     if constexpr (sizeof(GroupElement) <= sizeof(std::uint32_t))
@@ -70,10 +88,9 @@ FAST_FSS_DEVICE static inline int clz(GroupElement x, std::size_t bitWidth)
     }
     else
     {
-        int zh  = (x.UPPER) ? __lzcnt64((std::uint64_t)(x.UPPER)) : 64;
-        int zl  = (x.LOWER) ? __lzcnt64((std::uint64_t)(x.LOWER)) : 64;
-        int ret = (zh != 64) ? zh : (64 + zl);
-        return ret - (128 - bitWidth);
+        return static_cast<int>(wideint::countl_zero(x)) -
+               (static_cast<int>(sizeof(GroupElement) * 8) -
+                static_cast<int>(bitWidth));
     }
 #else
     if constexpr (sizeof(GroupElement) <= sizeof(std::uint32_t))
@@ -86,10 +103,9 @@ FAST_FSS_DEVICE static inline int clz(GroupElement x, std::size_t bitWidth)
     }
     else
     {
-        int zh  = (x.UPPER) ? __builtin_clzll((std::uint64_t)(x.UPPER)) : 64;
-        int zl  = (x.LOWER) ? __builtin_clzll((std::uint64_t)(x.LOWER)) : 64;
-        int ret = (zh != 64) ? zh : (64 + zl);
-        return ret - (128 - bitWidth);
+        return static_cast<int>(wideint::countl_zero(x)) -
+               (static_cast<int>(sizeof(GroupElement) * 8) -
+                static_cast<int>(bitWidth));
     }
 #endif
 }

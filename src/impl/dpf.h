@@ -156,7 +156,7 @@ FAST_FSS_DEVICE static inline void dpfKeySetPtr(DpfKey<GroupElement> &dpfKey,
                                   );
 
     curKeyData  = (const char *)keyData + offsetSCW;
-    dpfKey.sCW  = (std::uint64_t (*)[2])(curKeyData);
+    dpfKey.sCW  = (std::uint64_t(*)[2])(curKeyData);
     curKeyData  = (const char *)keyData + offsetVCW;
     dpfKey.tLCW = (GroupElement *)(curKeyData);
     curKeyData += sizeof(GroupElement);
@@ -175,7 +175,7 @@ FAST_FSS_DEVICE static inline void dpfCacheSetPtr(
 {
     const char *curCacheData = (const char *)cacheData;
     std::size_t offsetSCW    = idx * (16 * bitWidthIn);
-    dpfCache.stCache         = (std::uint64_t (*)[2])(curCacheData + offsetSCW);
+    dpfCache.stCache         = (std::uint64_t(*)[2])(curCacheData + offsetSCW);
     dpfCache.preMaskedX      = 0;
     dpfCache.preTo           = 0;
 }
@@ -213,6 +213,8 @@ FAST_FSS_DEVICE inline void dpfKeyGen(
     std::uint64_t sL1tL1sR1tR1[4];
     for (std::size_t i = 0; i < bitWidthIn; i++)
     {
+        const auto bitShift = bitWidthIn - i - 1;
+
         // sL0, tL0, sR0, tR0 <- G(s0)
         // sL1, tL1, sR1, tR1 <- G(s1)
         AES128::aes128_enc2_block(sL0tL0sR0tR0, PLAINTEXT, curS0, aesCtx);
@@ -237,9 +239,8 @@ FAST_FSS_DEVICE inline void dpfKeyGen(
         // if alphaI = 0,   keep <- L, lose <- R
         // else             keep <- R, lose <- L
         //                  1 means R, 0 means L
-        int alphaI = (alpha >> (bitWidthIn - i - 1)) & 1;
-        int keep   = alphaI;
-        int lose   = 1 - alphaI;
+        const int keep = static_cast<int>((alpha >> bitShift) & 1);
+        const int lose = 1 - keep;
 
         std::uint64_t *sLose0 = nullptr, *sLose1 = nullptr;
         std::uint64_t *sKeep0 = nullptr, *sKeep1 = nullptr;
@@ -260,13 +261,13 @@ FAST_FSS_DEVICE inline void dpfKeyGen(
             sLose0[1] ^ sLose1[1],
         };
 
-        GroupElement tLCW = tL0 ^ tL1 ^ alphaI ^ 1;
-        GroupElement tRCW = tR0 ^ tR1 ^ alphaI;
+        int tLCW = tL0 ^ tL1 ^ keep ^ 1;
+        int tRCW = tR0 ^ tR1 ^ keep;
         // CW(i) <- sCW || tLCW || tRCW
         key.sCW[i][0] = sCW[0];
         key.sCW[i][1] = sCW[1];
-        key.tLCW[0]   = (tLCW << i) | (key.tLCW[0]);
-        key.tRCW[0]   = (tRCW << i) | (key.tRCW[0]);
+        key.tLCW[0]   = (GroupElement(tLCW) << i) | (key.tLCW[0]);
+        key.tRCW[0]   = (GroupElement(tRCW) << i) | (key.tRCW[0]);
 
         // s(b) <- sKeep(b) ^ t(b) * sCW
         // t(b) <- tKeep(b) ^ t(b) * tKeepCW
@@ -295,7 +296,7 @@ FAST_FSS_DEVICE inline void dpfKeyGen(
     dpfConvertCtx.init(curS1, bitWidthOut, groupSize, aesCtx);
     for (std::size_t i = 0; i < groupSize; i++)
     {
-        key.lastCW[i] = ((GroupElement)(-2) * curT1 + 1) *
+        key.lastCW[i] = (curT1 == 0 ? 1 : -1) *
                         (beta[i] - key.lastCW[i] + dpfConvertCtx.getNext());
     }
 }
@@ -331,7 +332,7 @@ FAST_FSS_DEVICE inline void dpfEval(
         idx_from = (idx_from < cache->preTo) ? idx_from : cache->preTo;
         if (0 < idx_from && idx_from <= bitWidthIn)
         {
-            curT    = cache->stCache[idx_from - 1][0] & 1;
+            curT    = cache->stCache[idx_from - 1][0] & 1ULL;
             curS[0] = cache->stCache[idx_from - 1][0] & MASK_MSB63;
             curS[1] = cache->stCache[idx_from - 1][1];
         }
@@ -340,6 +341,9 @@ FAST_FSS_DEVICE inline void dpfEval(
     std::uint64_t sLtLsRtR[4];
     for (std::size_t i = idx_from; i < bitWidthIn; i++)
     {
+        const auto shift    = i;
+        const auto bitShift = bitWidthIn - i - 1;
+
         AES128::aes128_enc2_block(sLtLsRtR, PLAINTEXT, curS, aesCtx);
 
         std::uint64_t *sL = sLtLsRtR + 0;
@@ -354,12 +358,12 @@ FAST_FSS_DEVICE inline void dpfEval(
         if (curT)
         {
             sL[0] ^= key.sCW[i][0], sL[1] ^= key.sCW[i][1];
-            tL ^= (key.tLCW[0] >> i) & 1;
+            tL ^= static_cast<int>((key.tLCW[0] >> shift) & 1);
             sR[0] ^= key.sCW[i][0], sR[1] ^= key.sCW[i][1];
-            tR ^= (key.tRCW[0] >> i) & 1;
+            tR ^= static_cast<int>((key.tRCW[0] >> shift) & 1);
         }
         //
-        int xI = (maskedX >> (bitWidthIn - i - 1)) & 1;
+        auto xI = (maskedX >> bitShift) & 1;
 
         if (xI == 0)
         {
@@ -387,8 +391,9 @@ FAST_FSS_DEVICE inline void dpfEval(
     dpfConvertCtx.init(curS, bitWidthOut, groupSize, aesCtx);
     for (std::size_t i = 0; i < groupSize; i++)
     {
-        out[i] = ((GroupElement)(-2) * partyId + 1) *
-                 (dpfConvertCtx.getNext() + curT * key.lastCW[i]);
+        out[i] =
+            (partyId == 0 ? 1 : -1) *
+            (dpfConvertCtx.getNext() + (curT != 0 ? 1 : 0) * key.lastCW[i]);
     }
 }
 

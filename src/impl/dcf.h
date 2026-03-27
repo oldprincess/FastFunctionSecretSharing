@@ -176,7 +176,7 @@ FAST_FSS_DEVICE static inline void dcfKeySetPtr(DcfKey<GroupElement> &dcfKey,
               );
 
     curKeyData = (const char *)keyData + offsetSCW;
-    dcfKey.sCW = (std::uint64_t (*)[2])(curKeyData);
+    dcfKey.sCW = (std::uint64_t(*)[2])(curKeyData);
     curKeyData = (const char *)keyData + offsetVCW;
     dcfKey.vCW = (GroupElement *)(curKeyData);
     curKeyData += sizeof(GroupElement) * bitWidthIn * groupSize;
@@ -199,7 +199,7 @@ FAST_FSS_DEVICE static inline void dcfCacheSetPtr(
     char       *curCacheData = (char *)cacheData;
     std::size_t offsetSCW    = idx * (16 * bitWidthIn);
     std::size_t offsetV = idx * (sizeof(GroupElement) * bitWidthIn * groupSize);
-    dcfCache.stCache    = (std::uint64_t (*)[2])(curCacheData + offsetSCW);
+    dcfCache.stCache    = (std::uint64_t(*)[2])(curCacheData + offsetSCW);
     curCacheData        = curCacheData + 16 * elementNum * bitWidthIn;
     dcfCache.v          = (GroupElement *)(curCacheData + offsetV);
     dcfCache.preMaskedX = 0;
@@ -247,6 +247,8 @@ FAST_FSS_DEVICE inline void dcfKeyGen(
     DcfConvertCtx<GroupElement> dcfConvertCtx(aes);
     for (std::size_t i = 0; i < bitWidthIn; i++)
     {
+        const auto bitShift = bitWidthIn - i - 1;
+
         // sL0, tL0, vL0, sR0, tR0, vR0 <- G(s0)
         // sL1, tL1, vL1, sR1, tR1, vR1 <- G(s1)
         aes.set_enc_key(curS0, aesCtx);
@@ -277,9 +279,8 @@ FAST_FSS_DEVICE inline void dcfKeyGen(
         // if alphaI = 0,   keep <- L, lose <- R
         // else             keep <- R, lose <- L
         //                  1 means R, 0 means L
-        int alphaI = (alpha >> (bitWidthIn - i - 1)) & 1;
-        int keep   = alphaI;
-        int lose   = 1 - alphaI;
+        const int keep = static_cast<int>((alpha >> bitShift) & 1);
+        const int lose = 1 - keep;
 
         std::uint64_t *sLose0 = nullptr, *sLose1 = nullptr;
         std::uint64_t *sKeep0 = nullptr, *sKeep1 = nullptr;
@@ -318,15 +319,14 @@ FAST_FSS_DEVICE inline void dcfKeyGen(
         }
         for (std::size_t j = 0; j < groupSize; j++)
         {
-            key.vCW[i * groupSize + j] *= ((GroupElement)(-2) * curT1 + 1);
+            key.vCW[i * groupSize + j] *= (curT1 == 0 ? 1 : -1);
         }
         // if Lose = L then vCW <- vCW + (-1)^t1 * beta
         if (lose == 0)
         {
             for (std::size_t j = 0; j < groupSize; j++)
             {
-                key.vCW[i * groupSize + j] +=
-                    ((GroupElement)(-2) * curT1 + 1) * beta[j];
+                key.vCW[i * groupSize + j] += (curT1 == 0 ? 1 : -1) * beta[j];
             }
         }
         // vAlpha += -convert(vKeep1) + convert(vKeep0) + (-1)^t1 * vCW
@@ -342,17 +342,16 @@ FAST_FSS_DEVICE inline void dcfKeyGen(
         }
         for (std::size_t j = 0; j < groupSize; j++)
         {
-            vAlphaPtr[j] +=
-                ((GroupElement)(-2) * curT1 + 1) * key.vCW[i * groupSize + j];
+            vAlphaPtr[j] += (curT1 == 0 ? 1 : -1) * key.vCW[i * groupSize + j];
         }
         //
-        GroupElement tLCW = tL0 ^ tL1 ^ alphaI ^ 1;
-        GroupElement tRCW = tR0 ^ tR1 ^ alphaI;
+        int tLCW = tL0 ^ tL1 ^ keep ^ 1;
+        int tRCW = tR0 ^ tR1 ^ keep;
         // CW(i) <- sCW || vCW || tLCW || tRCW
         key.sCW[i][0] = sCW[0];
         key.sCW[i][1] = sCW[1];
-        key.tLCW[0]   = (tLCW << i) | (key.tLCW[0]);
-        key.tRCW[0]   = (tRCW << i) | (key.tRCW[0]);
+        key.tLCW[0]   = (GroupElement(tLCW) << i) | (key.tLCW[0]);
+        key.tRCW[0]   = (GroupElement(tRCW) << i) | (key.tRCW[0]);
 
         // s(b) <- sKeep(b) ^ t(b) * sCW
         // t(b) <- tKeep(b) ^ t(b) * tKeepCW
@@ -388,7 +387,7 @@ FAST_FSS_DEVICE inline void dcfKeyGen(
     }
     for (std::size_t j = 0; j < groupSize; j++)
     {
-        key.lastCW[j] *= ((GroupElement)(-2) * curT1 + 1);
+        key.lastCW[j] *= (curT1 == 0 ? 1 : -1);
     }
 }
 
@@ -428,7 +427,7 @@ FAST_FSS_DEVICE inline void dcfEval(
 
         if (0 < idx_from && idx_from <= bitWidthIn)
         {
-            curT    = cache->stCache[idx_from - 1][0] & 1;
+            curT    = cache->stCache[idx_from - 1][0] & 1ULL;
             curS[0] = cache->stCache[idx_from - 1][0] & MASK_MSB63;
             curS[1] = cache->stCache[idx_from - 1][1];
             for (std::size_t j = 0; j < groupSize; j++)
@@ -443,6 +442,9 @@ FAST_FSS_DEVICE inline void dcfEval(
     DcfConvertCtx<GroupElement> dcfConvertCtx(aes);
     for (std::size_t i = idx_from; i < bitWidthIn; i++)
     {
+        const auto shift    = i;
+        const auto bitShift = bitWidthIn - i - 1;
+
         // sL || vL || sR || vR <- G(s(i-1))
         aes.set_enc_key(curS, aesCtx);
         aes.enc_n_block<4>(sLvLsRvR, PLAINTEXT, aesCtx);
@@ -462,9 +464,9 @@ FAST_FSS_DEVICE inline void dcfEval(
         if (curT)
         {
             sL[0] ^= key.sCW[i][0], sL[1] ^= key.sCW[i][1];
-            tL ^= (key.tLCW[0] >> i) & 1;
+            tL ^= static_cast<int>((key.tLCW[0] >> shift) & 1);
             sR[0] ^= key.sCW[i][0], sR[1] ^= key.sCW[i][1];
-            tR ^= (key.tRCW[0] >> i) & 1;
+            tR ^= static_cast<int>((key.tRCW[0] >> shift) & 1);
         }
         // if xI = 0
         //  then    V <- V + (-1)^b [Convert(vL) + t(i-1) * vCW]
@@ -472,8 +474,8 @@ FAST_FSS_DEVICE inline void dcfEval(
         // else
         //  then    V <- V + (-1)^b [Convert(vR) + t(i-1) * vCW]
         //          s(i) <- sR, t(i) <- tR
-        int xI      = (maskedX >> (bitWidthIn - i - 1)) & 1;
-        int tmpCurT = curT;
+        auto xI      = (maskedX >> bitShift) & 1;
+        int  tmpCurT = curT;
         if (xI == 0)
         {
             dcfConvertCtx.init(vL, groupSize, bitWidthOut, aesCtx);
@@ -488,9 +490,9 @@ FAST_FSS_DEVICE inline void dcfEval(
         }
         for (std::size_t j = 0; j < groupSize; j++)
         {
-            out[j] += ((GroupElement)(-2) * partyId + 1) *
+            out[j] += (partyId == 0 ? 1 : -1) *
                       (dcfConvertCtx.getNext() +
-                       tmpCurT * key.vCW[i * groupSize + j]);
+                       (tmpCurT != 0 ? 1 : 0) * key.vCW[i * groupSize + j]);
         }
 
         if (cache != nullptr)
@@ -511,8 +513,9 @@ FAST_FSS_DEVICE inline void dcfEval(
     dcfConvertCtx.init(curS, groupSize, bitWidthOut, aesCtx);
     for (std::size_t j = 0; j < groupSize; j++)
     {
-        out[j] += ((GroupElement)(-2) * partyId + 1) *
-                  (dcfConvertCtx.getNext() + curT * key.lastCW[j]);
+        out[j] +=
+            (partyId == 0 ? 1 : -1) *
+            (dcfConvertCtx.getNext() + (curT != 0 ? 1 : 0) * key.lastCW[j]);
     }
 }
 

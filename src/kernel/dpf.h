@@ -276,8 +276,8 @@ struct DpfEvalAllTask
         std::size_t size = (std::size_t)(1ULL << bitWidthIn);
         for (std::size_t j = 0; j < size; ++j)
         {
-            std::size_t k =
-                groupSize * (std::size_t)((maskedXPtr[i] - j) % size);
+            std::size_t idx = static_cast<std::size_t>(maskedXPtr[i]) - j;
+            std::size_t k   = groupSize * (idx % size);
             impl::dpfEval(sharedOutPtr + size * i * groupSize + k, keyObj,
                           (GroupElement)j, seedPtr + 16 * i, partyId,
                           bitWidthIn, bitWidthOut, groupSize, cacheObjPtr);

@@ -2,7 +2,31 @@
 
 ## How to build
 
-### Use Python API(Recommended)
+### CMake
+
+Initialize submodules first:
+
+```shell
+git submodule update --init --recursive
+```
+
+Configure and build the C++ library plus tests:
+
+```shell
+cmake -S . -B build
+cmake --build build --config Debug
+ctest --test-dir build -C Debug --output-on-failure
+```
+
+If CUDA is not available or you only want CPU targets:
+
+```shell
+cmake -S . -B build -DFASTFSS_ENABLE_CUDA=OFF
+cmake --build build --config Debug
+ctest --test-dir build -C Debug --output-on-failure
+```
+
+### Use Python API
 
 make sure you have installed
 
@@ -21,8 +45,8 @@ pip install dist/pyFastFss-<version>.whl
 ### Use C++ API
 
 ```shell
-# Unix
-nvcc -I include/ src/cpu/*.cpp src/cuda/*.cu src/cuda/*.cpp -shared -Xcompiler "-fPIC" -Xcompiler "-maes" -Xcompiler "-fopenmp" -o libFastFss.so -std=c++17 --expt-relaxed-constexpr
+cmake -S . -B build
+cmake --build build --config Release
 ```
 
 ## References

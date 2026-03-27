@@ -1,1 +1,0 @@
-g++ -I include test/cpu/aes.cpp -o cpu_aes.exe -std=c++17 -maes

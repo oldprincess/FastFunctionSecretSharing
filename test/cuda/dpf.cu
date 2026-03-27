@@ -1,5 +1,5 @@
 // clang-format off
-// nvcc -I include -I third_party/googletest/googletest/include -I third_party/googletest/googletest src/cuda/config.cpp src/cuda/dpf.cu test/cuda/dpf.cu third_party/googletest/googletest/src/gtest-all.cc third_party/googletest/googletest/src/gtest_main.cc -o cuda_dpf.exe -std=c++17 --expt-relaxed-constexpr
+// nvcc -I include -I third_party/wideint/include -I third_party/googletest/googletest/include -I third_party/googletest/googletest src/cuda/config.cpp src/cuda/dpf.cu test/cuda/dpf.cu third_party/googletest/googletest/src/gtest-all.cc third_party/googletest/googletest/src/gtest_main.cc -o cuda_dpf.exe -std=c++17 --expt-relaxed-constexpr
 // clang-format on
 #include <FastFss/cuda/config.h>
 #include <FastFss/cuda/dpf.h>
@@ -11,10 +11,12 @@
 #include <cstdint>
 #include <vector>
 
-#include "uint128_t.h"
 #include "utils.cuh"
+#include "wideint/wideint.hpp"
 
 namespace {
+
+using uint128_t = wideint::uint<2>;
 
 using FastFss::cuda::make_unique_gpu_ptr;
 using FastFss::cuda::memcpy_gpu2cpu;
@@ -26,7 +28,7 @@ constexpr T modBits(T x, std::size_t bitWidth) noexcept
     {
         return x;
     }
-    return x & ((((T)1) << bitWidth) - 1);
+    return x & ((T(1) << static_cast<unsigned int>(bitWidth)) - T(1));
 }
 
 template <typename T>

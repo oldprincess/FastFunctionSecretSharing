@@ -9,10 +9,12 @@
 #include <cstdint>
 #include <vector>
 
-#include "uint128_t.h"
 #include "utils.cuh"
+#include "wideint/wideint.hpp"
 
 namespace {
+
+using uint128_t = wideint::uint<2>;
 
 using FastFss::cuda::make_unique_gpu_ptr;
 using FastFss::cuda::memcpy_gpu2cpu;
@@ -24,7 +26,7 @@ constexpr T modBits(T x, std::size_t bitWidth) noexcept
     {
         return x;
     }
-    return x & ((((T)1) << bitWidth) - 1);
+    return x & ((T(1) << static_cast<unsigned int>(bitWidth)) - T(1));
 }
 
 template <typename T>
@@ -115,7 +117,7 @@ TYPED_TEST(OtttCudaTypedTest, LutEvalReconstructsLookupValue)
         const T e   = modBits<T>(shareE0[i] + shareE1[i], 1);
         const T t   = modBits<T>(shareT0[i] + shareT1[i], bitWidthOut);
         const T out = modBits<T>(e == 0 ? t : (T(0) - t), bitWidthOut);
-        EXPECT_EQ(out, lut[x[i]]);
+        EXPECT_EQ(out, lut[static_cast<std::size_t>(x[i])]);
     }
 }
 

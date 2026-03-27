@@ -43,6 +43,7 @@ else:
             *glob.glob("../../src/cuda/*.cu"),
         ],
         include_dirs=[os.path.abspath("../../include")],
+        include_dirs=[os.path.abspath("../../third_party/wideint/include")],
         extra_compile_args={
             "cxx": cxx_flags,
             "nvcc": ["-O3", "-std=c++17"],

@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <cstdio>
 
+#include "wideint/wideint.hpp"
+
 #if defined(__CUDACC__)
 
 #define FAST_FSS_DEVICE        __device__
@@ -18,8 +20,6 @@
 #define CUDA_DEFAULT_BLOCK_DIM
 
 #endif
-
-#include "uint128_t.h"
 
 #define _FAST_FSS_DISPATCH_CASE(ELEMENT_TYPE, ...) \
     case sizeof(ELEMENT_TYPE): {                   \
@@ -44,7 +44,7 @@
         _FAST_FSS_DISPATCH_CASE(std::uint16_t, __VA_ARGS__);              \
         _FAST_FSS_DISPATCH_CASE(std::uint32_t, __VA_ARGS__);              \
         _FAST_FSS_DISPATCH_CASE(std::uint64_t, __VA_ARGS__);              \
-        _FAST_FSS_DISPATCH_CASE(FastFss::impl::uint128_t, __VA_ARGS__);)  \
+        _FAST_FSS_DISPATCH_CASE(wideint::uint<2>, __VA_ARGS__);)          \
     ()
 
 #endif
