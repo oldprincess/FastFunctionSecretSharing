@@ -17,16 +17,6 @@ extern "C" {
  */
 #define FastFss_cuda_onehotLutEval FastFss_cuda_otttLutEval
 
-/**
- * @deprecated Use FastFss_cuda_otttGetKeyDataSize
- */
-#define FastFss_cuda_onehotGetKeyDataSize FastFss_cuda_otttGetKeyDataSize
-
-/**
- * @deprecated Use FastFss_cuda_otttGetKeyDataSize
- */
-#define FastFss_cuda_onehotGetKeyDataSize FastFss_cuda_otttGetKeyDataSize
-
 #ifdef __cplusplus
 }
 #endif

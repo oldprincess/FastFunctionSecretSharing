@@ -6,10 +6,6 @@
 
 namespace pyFastFss {
 
-// ==========================================
-// =================== GROTTO ===============
-// ==========================================
-
 std::size_t grotto_get_key_data_size(std::size_t bitWidthIn,
                                      std::size_t elementSize,
                                      std::size_t elementNum);
@@ -28,15 +24,6 @@ torch::Tensor& grotto_eq_eval(torch::Tensor&       sharedOut,
                               int                  partyId,
                               std::size_t          bitWidthIn,
                               std::size_t          elementNum);
-
-torch::Tensor& grotto_eq_multi_eval(torch::Tensor&       sharedOut,
-                                    const torch::Tensor& maskedX,
-                                    const torch::Tensor& key,
-                                    const torch::Tensor& seed,
-                                    int                  partyId,
-                                    const torch::Tensor& point,
-                                    std::size_t          bitWidthIn,
-                                    std::size_t          elementNum);
 
 torch::Tensor& grotto_eval(torch::Tensor&       sharedOut,
                            const torch::Tensor& maskedX,
@@ -57,41 +44,6 @@ torch::Tensor& grotto_mic_eval(torch::Tensor&       sharedBooleanOut,
                                std::size_t          bitWidthIn,
                                std::size_t          elementNum);
 
-py::tuple grotto_lut_eval(torch::Tensor&       sharedOutE,
-                          torch::Tensor&       sharedOutT,
-                          const torch::Tensor& maskedX,
-                          const torch::Tensor& key,
-                          const torch::Tensor& seed,
-                          int                  partyId,
-                          const torch::Tensor& lookUpTable,
-                          std::size_t          bitWidthIn,
-                          std::size_t          bitWidthOut,
-                          std::size_t          elementNum);
-
-py::tuple grotto_lut_eval_ex(torch::Tensor&       sharedOutE,
-                             torch::Tensor&       sharedOutT,
-                             const torch::Tensor& maskedX,
-                             const torch::Tensor& key,
-                             const torch::Tensor& seed,
-                             int                  partyId,
-                             const torch::Tensor& lookUpTable,
-                             std::size_t          lutBitWidth,
-                             std::size_t          bitWidthIn,
-                             std::size_t          bitWidthOut,
-                             std::size_t          elementNum);
-
-py::tuple grotto_lut_eval_ex2(torch::Tensor&       sharedOutE,
-                              torch::Tensor&       sharedOutT,
-                              const torch::Tensor& maskedX,
-                              const torch::Tensor& key,
-                              const torch::Tensor& seed,
-                              int                  partyId,
-                              const torch::Tensor& points,
-                              const torch::Tensor& lookUpTable,
-                              std::size_t          bitWidthIn,
-                              std::size_t          bitWidthOut,
-                              std::size_t          elementNum);
-
 py::tuple grotto_interval_lut_eval(torch::Tensor&       sharedOutE,
                                    torch::Tensor&       sharedOutT,
                                    const torch::Tensor& maskedX,
@@ -105,6 +57,6 @@ py::tuple grotto_interval_lut_eval(torch::Tensor&       sharedOutE,
                                    std::size_t          bitWidthOut,
                                    std::size_t          elementNum);
 
-}; // namespace pyFastFss
+} // namespace pyFastFss
 
 #endif

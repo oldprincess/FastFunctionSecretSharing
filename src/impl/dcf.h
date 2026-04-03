@@ -1,11 +1,3 @@
-/**
- * @cite https://eprint.iacr.org/2020/1392.pdf
- *
- * Function Secret Sharing for Mixed-Mode and Fixed-Point Secure Computation
- *
- * Fig.1: Optimized FSS scheme for the class of comparison functions.
- * outputting beta for 0 <= x < alpha and 0 for x >= alpha
- */
 #pragma once
 #ifndef SRC_IMPL_DCF_H
 #define SRC_IMPL_DCF_H
@@ -19,8 +11,7 @@
 
 namespace FastFss::impl {
 
-// Distributed Comparison Function,
-// Function secret sharing for mixed-mode and fixed-point secure computation
+// Distributed Comparison Function
 template <typename GroupElement>
 struct DcfKey
 {
@@ -72,8 +63,7 @@ static inline std::size_t dcfGetCacheDataSize(std::size_t bitWidthIn,
                                               std::size_t groupSize,
                                               std::size_t elementNum) noexcept
 {
-    return elementNum * (16 * bitWidthIn) +
-           elementNum * sizeof(GroupElement) * bitWidthIn * groupSize;
+    return elementNum * (16 * bitWidthIn) + elementNum * sizeof(GroupElement) * bitWidthIn * groupSize;
 }
 
 template <typename GroupElement>
@@ -84,22 +74,14 @@ public:
     {
     }
 
-    FAST_FSS_DEVICE DcfConvertCtx(AES128                    &aesCtx,
-                                  const void                *seed,
-                                  std::size_t                groupSize,
-                                  std::size_t                bitWidth,
-                                  const AES128GlobalContext *aesGlobalCtx)
+    FAST_FSS_DEVICE DcfConvertCtx(AES128 &aesCtx, const void *seed, std::size_t groupSize, std::size_t bitWidth)
         : aesCtx_(aesCtx)
     {
-        this->init(seed, groupSize, bitWidth, aesGlobalCtx);
+        this->init(seed, groupSize, bitWidth);
     }
 
-    FAST_FSS_DEVICE void init(const void                *seed,
-                              std::size_t                groupSize,
-                              std::size_t                bitWidth,
-                              const AES128GlobalContext *aesGlobalCtx) noexcept
+    FAST_FSS_DEVICE void init(const void *seed, std::size_t groupSize, std::size_t bitWidth) noexcept
     {
-        aesGlobalCtx_     = aesGlobalCtx;
         groupSize_        = (int)groupSize;
         groupElementSize_ = (int)((bitWidth + 7) / 8);
         if (groupElementSize_ * groupSize_ <= 16)
@@ -111,7 +93,7 @@ public:
         }
         else
         {
-            aesCtx_.set_enc_key(seed, aesGlobalCtx_);
+            aesCtx_.set_enc_key(seed);
         }
         groupOffset_ = 0;
     }
@@ -137,7 +119,7 @@ public:
                 {
                     ((std::uint64_t *)buffer_)[0] = 0;
                     ((std::uint64_t *)buffer_)[1] = (std::uint64_t)groupOffset_;
-                    aesCtx_.enc_n_block<1>(buffer_, buffer_, aesGlobalCtx_);
+                    aesCtx_.enc_n_block<1>(buffer_, buffer_);
                 }
                 ret |= (GroupElement)buffer_[idx] << (i * 8);
             }
@@ -147,33 +129,30 @@ public:
     }
 
 private:
-    AES128                    &aesCtx_;
-    const AES128GlobalContext *aesGlobalCtx_;
-    std::uint8_t               buffer_[16];
-    int                        groupOffset_;
-    int                        groupElementSize_;
-    int                        groupSize_;
+    AES128      &aesCtx_;
+    std::uint8_t buffer_[16];
+    int          groupOffset_;
+    int          groupElementSize_;
+    int          groupSize_;
 };
 
 template <typename GroupElement>
 FAST_FSS_DEVICE static inline void dcfKeySetPtr(DcfKey<GroupElement> &dcfKey,
                                                 const void           *keyData,
-                                                std::size_t bitWidthIn,
-                                                std::size_t bitWidthOut,
-                                                std::size_t groupSize,
-                                                std::size_t idx,
-                                                std::size_t elementNum) noexcept
+                                                std::size_t           bitWidthIn,
+                                                std::size_t           bitWidthOut,
+                                                std::size_t           groupSize,
+                                                std::size_t           idx,
+                                                std::size_t           elementNum) noexcept
 {
     const char *curKeyData = nullptr;
 
     std::size_t offsetSCW = idx * (16 * bitWidthIn);
-    std::size_t offsetVCW =
-        elementNum * (16 * bitWidthIn) +
-        idx * (sizeof(GroupElement) * bitWidthIn * groupSize + //
-               sizeof(GroupElement) +                          //
-               sizeof(GroupElement) +                          //
-               sizeof(GroupElement) * groupSize                //
-              );
+    std::size_t offsetVCW = elementNum * (16 * bitWidthIn) + idx * (sizeof(GroupElement) * bitWidthIn * groupSize + //
+                                                                    sizeof(GroupElement) +                          //
+                                                                    sizeof(GroupElement) +                          //
+                                                                    sizeof(GroupElement) * groupSize                //
+                                                                   );
 
     curKeyData = (const char *)keyData + offsetSCW;
     dcfKey.sCW = (std::uint64_t(*)[2])(curKeyData);
@@ -188,35 +167,32 @@ FAST_FSS_DEVICE static inline void dcfKeySetPtr(DcfKey<GroupElement> &dcfKey,
 }
 
 template <typename GroupElement>
-FAST_FSS_DEVICE static inline void dcfCacheSetPtr(
-    DcfCache<GroupElement> &dcfCache,
-    void                   *cacheData,
-    std::size_t             bitWidthIn,
-    std::size_t             groupSize,
-    std::size_t             idx,
-    std::size_t             elementNum) noexcept
+FAST_FSS_DEVICE static inline void dcfCacheSetPtr(DcfCache<GroupElement> &dcfCache,
+                                                  void                   *cacheData,
+                                                  std::size_t             bitWidthIn,
+                                                  std::size_t             groupSize,
+                                                  std::size_t             idx,
+                                                  std::size_t             elementNum) noexcept
 {
     char       *curCacheData = (char *)cacheData;
     std::size_t offsetSCW    = idx * (16 * bitWidthIn);
-    std::size_t offsetV = idx * (sizeof(GroupElement) * bitWidthIn * groupSize);
-    dcfCache.stCache    = (std::uint64_t(*)[2])(curCacheData + offsetSCW);
-    curCacheData        = curCacheData + 16 * elementNum * bitWidthIn;
-    dcfCache.v          = (GroupElement *)(curCacheData + offsetV);
-    dcfCache.preMaskedX = 0;
-    dcfCache.preTo      = 0;
+    std::size_t offsetV      = idx * (sizeof(GroupElement) * bitWidthIn * groupSize);
+    dcfCache.stCache         = (std::uint64_t(*)[2])(curCacheData + offsetSCW);
+    curCacheData             = curCacheData + 16 * elementNum * bitWidthIn;
+    dcfCache.v               = (GroupElement *)(curCacheData + offsetV);
+    dcfCache.preMaskedX      = 0;
+    dcfCache.preTo           = 0;
 }
 
 template <typename GroupElement>
-FAST_FSS_DEVICE inline void dcfKeyGen(
-    DcfKey<GroupElement>      &key,
-    GroupElement               alpha,
-    const GroupElement        *beta,
-    const void                *seed0,
-    const void                *seed1,
-    std::size_t                bitWidthIn,
-    std::size_t                bitWidthOut,
-    std::size_t                groupSize,
-    const AES128GlobalContext *aesCtx = nullptr) noexcept
+FAST_FSS_DEVICE inline void dcfKeyGen(DcfKey<GroupElement> &key,
+                                      GroupElement          alpha,
+                                      const GroupElement   *beta,
+                                      const void           *seed0,
+                                      const void           *seed1,
+                                      std::size_t           bitWidthIn,
+                                      std::size_t           bitWidthOut,
+                                      std::size_t           groupSize) noexcept
 {
     constexpr std::uint64_t    MASK_MSB63   = 0xFFFF'FFFF'FFFF'FFFEULL;
     static const std::uint64_t PLAINTEXT[8] = {0, 1, 2, 3, 4, 5, 6, 7};
@@ -251,10 +227,10 @@ FAST_FSS_DEVICE inline void dcfKeyGen(
 
         // sL0, tL0, vL0, sR0, tR0, vR0 <- G(s0)
         // sL1, tL1, vL1, sR1, tR1, vR1 <- G(s1)
-        aes.set_enc_key(curS0, aesCtx);
-        aes.enc_n_block<4>(sL0vL0sR0vR0, PLAINTEXT, aesCtx);
-        aes.set_enc_key(curS1, aesCtx);
-        aes.enc_n_block<4>(sL1vL1sR1vR1, PLAINTEXT, aesCtx);
+        aes.set_enc_key(curS0);
+        aes.enc_n_block<4>(sL0vL0sR0vR0, PLAINTEXT);
+        aes.set_enc_key(curS1);
+        aes.enc_n_block<4>(sL1vL1sR1vR1, PLAINTEXT);
 
         std::uint64_t *sL0 = sL0vL0sR0vR0 + 0;
         std::uint64_t *vL0 = sL0vL0sR0vR0 + 2;
@@ -303,12 +279,12 @@ FAST_FSS_DEVICE inline void dcfKeyGen(
             sLose0[1] ^ sLose1[1],
         };
         // vCW <- (-1)^t1 * ( convert(vLose1) - convert(vLose0) - vAlpha)
-        dcfConvertCtx.init(vLose1, groupSize, bitWidthOut, aesCtx);
+        dcfConvertCtx.init(vLose1, groupSize, bitWidthOut);
         for (std::size_t j = 0; j < groupSize; j++)
         {
             key.vCW[i * groupSize + j] = dcfConvertCtx.getNext();
         }
-        dcfConvertCtx.init(vLose0, groupSize, bitWidthOut, aesCtx);
+        dcfConvertCtx.init(vLose0, groupSize, bitWidthOut);
         for (std::size_t j = 0; j < groupSize; j++)
         {
             key.vCW[i * groupSize + j] -= dcfConvertCtx.getNext();
@@ -330,12 +306,12 @@ FAST_FSS_DEVICE inline void dcfKeyGen(
             }
         }
         // vAlpha += -convert(vKeep1) + convert(vKeep0) + (-1)^t1 * vCW
-        dcfConvertCtx.init(vKeep1, groupSize, bitWidthOut, aesCtx);
+        dcfConvertCtx.init(vKeep1, groupSize, bitWidthOut);
         for (std::size_t j = 0; j < groupSize; j++)
         {
             vAlphaPtr[j] -= dcfConvertCtx.getNext();
         }
-        dcfConvertCtx.init(vKeep0, groupSize, bitWidthOut, aesCtx);
+        dcfConvertCtx.init(vKeep0, groupSize, bitWidthOut);
         for (std::size_t j = 0; j < groupSize; j++)
         {
             vAlphaPtr[j] += dcfConvertCtx.getNext();
@@ -375,12 +351,12 @@ FAST_FSS_DEVICE inline void dcfKeyGen(
     {
         key.lastCW[j] = (GroupElement)(-vAlphaPtr[j]);
     }
-    dcfConvertCtx.init(curS1, groupSize, bitWidthOut, aesCtx);
+    dcfConvertCtx.init(curS1, groupSize, bitWidthOut);
     for (std::size_t j = 0; j < groupSize; j++)
     {
         key.lastCW[j] += dcfConvertCtx.getNext();
     }
-    dcfConvertCtx.init(curS0, groupSize, bitWidthOut, aesCtx);
+    dcfConvertCtx.init(curS0, groupSize, bitWidthOut);
     for (std::size_t j = 0; j < groupSize; j++)
     {
         key.lastCW[j] -= dcfConvertCtx.getNext();
@@ -392,17 +368,15 @@ FAST_FSS_DEVICE inline void dcfKeyGen(
 }
 
 template <typename GroupElement>
-FAST_FSS_DEVICE inline void dcfEval(
-    GroupElement               *out,
-    const DcfKey<GroupElement> &key,
-    GroupElement                maskedX,
-    const void                 *seed,
-    int                         partyId,
-    std::size_t                 bitWidthIn,
-    std::size_t                 bitWidthOut,
-    std::size_t                 groupSize,
-    DcfCache<GroupElement>     *cache  = nullptr,
-    const AES128GlobalContext  *aesCtx = nullptr) noexcept
+FAST_FSS_DEVICE inline void dcfEval(GroupElement               *out,
+                                    const DcfKey<GroupElement> &key,
+                                    GroupElement                maskedX,
+                                    const void                 *seed,
+                                    int                         partyId,
+                                    std::size_t                 bitWidthIn,
+                                    std::size_t                 bitWidthOut,
+                                    std::size_t                 groupSize,
+                                    DcfCache<GroupElement>     *cache = nullptr) noexcept
 {
     constexpr std::uint64_t    MASK_MSB63   = 0xFFFF'FFFF'FFFF'FFFEULL;
     static const std::uint64_t PLAINTEXT[8] = {0, 1, 2, 3, 4, 5, 6, 7};
@@ -446,8 +420,8 @@ FAST_FSS_DEVICE inline void dcfEval(
         const auto bitShift = bitWidthIn - i - 1;
 
         // sL || vL || sR || vR <- G(s(i-1))
-        aes.set_enc_key(curS, aesCtx);
-        aes.enc_n_block<4>(sLvLsRvR, PLAINTEXT, aesCtx);
+        aes.set_enc_key(curS);
+        aes.enc_n_block<4>(sLvLsRvR, PLAINTEXT);
 
         std::uint64_t *sL = sLvLsRvR + 0;
         std::uint64_t *vL = sLvLsRvR + 2;
@@ -478,21 +452,20 @@ FAST_FSS_DEVICE inline void dcfEval(
         int  tmpCurT = curT;
         if (xI == 0)
         {
-            dcfConvertCtx.init(vL, groupSize, bitWidthOut, aesCtx);
+            dcfConvertCtx.init(vL, groupSize, bitWidthOut);
             curS[0] = sL[0], curS[1] = sL[1];
             curT = tL;
         }
         else
         {
-            dcfConvertCtx.init(vR, groupSize, bitWidthOut, aesCtx);
+            dcfConvertCtx.init(vR, groupSize, bitWidthOut);
             curS[0] = sR[0], curS[1] = sR[1];
             curT = tR;
         }
         for (std::size_t j = 0; j < groupSize; j++)
         {
             out[j] += (partyId == 0 ? 1 : -1) *
-                      (dcfConvertCtx.getNext() +
-                       (tmpCurT != 0 ? 1 : 0) * key.vCW[i * groupSize + j]);
+                      (dcfConvertCtx.getNext() + (tmpCurT != 0 ? 1 : 0) * key.vCW[i * groupSize + j]);
         }
 
         if (cache != nullptr)
@@ -510,12 +483,10 @@ FAST_FSS_DEVICE inline void dcfEval(
         }
     }
     // V <- V + (-1)^b [Convert(s(n)) + t(n) * lastCW]
-    dcfConvertCtx.init(curS, groupSize, bitWidthOut, aesCtx);
+    dcfConvertCtx.init(curS, groupSize, bitWidthOut);
     for (std::size_t j = 0; j < groupSize; j++)
     {
-        out[j] +=
-            (partyId == 0 ? 1 : -1) *
-            (dcfConvertCtx.getNext() + (curT != 0 ? 1 : 0) * key.lastCW[j]);
+        out[j] += (partyId == 0 ? 1 : -1) * (dcfConvertCtx.getNext() + (curT != 0 ? 1 : 0) * key.lastCW[j]);
     }
 }
 

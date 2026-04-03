@@ -17,11 +17,6 @@ extern "C" {
  */
 #define FastFss_cpu_onehotLutEval FastFss_cpu_otttLutEval
 
-/**
- * @deprecated Use FastFss_cpu_otttGetKeyDataSize
- */
-#define FastFss_cpu_onehotGetKeyDataSize FastFss_cpu_otttGetKeyDataSize
-
 #ifdef __cplusplus
 }
 #endif

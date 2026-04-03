@@ -4,6 +4,7 @@
 #include <FastFss/cpu/mic.h>
 #include <FastFss/cuda/dcf.h>
 #include <FastFss/cuda/mic.h>
+#include <FastFss/dcf.h>
 #ifndef NO_CUDA
 #include <c10/cuda/CUDAStream.h>
 #endif
@@ -39,9 +40,9 @@ std::size_t dcf_get_key_data_size(std::size_t bitWidthIn,
                                   std::size_t elementNum)
 {
     std::size_t dataSize;
-    int ret = FastFss_cpu_dcfGetKeyDataSize(&dataSize, bitWidthIn, bitWidthOut,
-                                            1, elementSize, elementNum);
-    CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfGetKeyDataSize");
+    int ret = FastFss_dcfGetKeyDataSize(&dataSize, bitWidthIn, bitWidthOut, 1,
+                                        elementSize, elementNum);
+    CHECK_ERROR_CODE(ret, "FastFss_dcfGetKeyDataSize");
     return dataSize;
 }
 

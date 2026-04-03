@@ -3,9 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
-
-#include "wideint/wideint.hpp"
+#include <wideint/wideint.hpp>
 
 #if defined(__CUDACC__)
 
@@ -37,14 +35,13 @@
         }                                                          \
     }
 
-#define FAST_FSS_DISPATCH_INTEGRAL_TYPES(ELEMENT_SIZE, DEFAULT_CASE, ...) \
-    _FAST_FSS_DISPATCH_SWITCH(                                            \
-        ELEMENT_SIZE, DEFAULT_CASE,                                       \
-        _FAST_FSS_DISPATCH_CASE(std::uint8_t, __VA_ARGS__);               \
-        _FAST_FSS_DISPATCH_CASE(std::uint16_t, __VA_ARGS__);              \
-        _FAST_FSS_DISPATCH_CASE(std::uint32_t, __VA_ARGS__);              \
-        _FAST_FSS_DISPATCH_CASE(std::uint64_t, __VA_ARGS__);              \
-        _FAST_FSS_DISPATCH_CASE(wideint::uint<2>, __VA_ARGS__);)          \
+#define FAST_FSS_DISPATCH_INTEGRAL_TYPES(ELEMENT_SIZE, DEFAULT_CASE, ...)                                            \
+    _FAST_FSS_DISPATCH_SWITCH(                                                                                       \
+        ELEMENT_SIZE, DEFAULT_CASE, _FAST_FSS_DISPATCH_CASE(std::uint8_t, __VA_ARGS__);                              \
+        _FAST_FSS_DISPATCH_CASE(std::uint16_t, __VA_ARGS__); _FAST_FSS_DISPATCH_CASE(std::uint32_t, __VA_ARGS__);    \
+        _FAST_FSS_DISPATCH_CASE(std::uint64_t, __VA_ARGS__); _FAST_FSS_DISPATCH_CASE(wideint::uint<2>, __VA_ARGS__); \
+        _FAST_FSS_DISPATCH_CASE(wideint::uint<3>, __VA_ARGS__);                                                      \
+        _FAST_FSS_DISPATCH_CASE(wideint::uint<4>, __VA_ARGS__);)                                                     \
     ()
 
 #endif

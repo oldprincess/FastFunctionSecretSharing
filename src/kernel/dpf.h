@@ -1,8 +1,9 @@
 #ifndef SRC_KERNEL_DPF_H
 #define SRC_KERNEL_DPF_H
 
+#include <FastFss/errors.h>
+
 #include "../impl/dpf.h"
-#include "parallel_execute.h"
 
 namespace FastFss::kernel {
 
@@ -43,8 +44,7 @@ struct DpfKeyGenTask
             return FAST_FSS_INVALID_GROUP_SIZE_ERROR;
         }
 
-        needKeyDataSize = impl::dpfGetKeyDataSize<GroupElement>(
-            bitWidthIn, bitWidthOut, groupSize, elementNum);
+        needKeyDataSize = impl::dpfGetKeyDataSize<GroupElement>(bitWidthIn, bitWidthOut, groupSize, elementNum);
         if (keyDataSize != needKeyDataSize)
         {
             return FAST_FSS_INVALID_KEY_DATA_SIZE_ERROR;
@@ -64,8 +64,7 @@ struct DpfKeyGenTask
         {
             return FAST_FSS_INVALID_BETA_DATA_SIZE_ERROR;
         }
-        if (seedDataSize0 != elementNum * 16 ||
-            seedDataSize1 != elementNum * 16)
+        if (seedDataSize0 != elementNum * 16 || seedDataSize1 != elementNum * 16)
         {
             return FAST_FSS_INVALID_SEED_DATA_SIZE_ERROR;
         }
@@ -82,12 +81,11 @@ struct DpfKeyGenTask
         const std::uint8_t *seed1Ptr = (const std::uint8_t *)seed1;
 
         impl::DpfKey<GroupElement> keyObj;
-        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i,
-                           elementNum);
+        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum);
         const GroupElement *ptr = &ONE;
         if (betaPtr != nullptr) ptr = betaPtr + groupSize * i;
-        impl::dpfKeyGen(keyObj, alphaPtr[i], ptr, seed0Ptr + 16 * i,
-                        seed1Ptr + 16 * i, bitWidthIn, bitWidthOut, groupSize);
+        impl::dpfKeyGen(keyObj, alphaPtr[i], ptr, seed0Ptr + 16 * i, seed1Ptr + 16 * i, bitWidthIn, bitWidthOut,
+                        groupSize);
     }
 };
 
@@ -134,10 +132,8 @@ struct DpfEvalTask
             return FAST_FSS_INVALID_PARTY_ID_ERROR;
         }
 
-        needKeyDataSize = impl::dpfGetKeyDataSize<GroupElement>(
-            bitWidthIn, bitWidthOut, groupSize, elementNum);
-        needCacheDataSize =
-            impl::dpfGetCacheDataSize<GroupElement>(bitWidthIn, elementNum);
+        needKeyDataSize   = impl::dpfGetKeyDataSize<GroupElement>(bitWidthIn, bitWidthOut, groupSize, elementNum);
+        needCacheDataSize = impl::dpfGetCacheDataSize<GroupElement>(bitWidthIn, elementNum);
         if (keyDataSize != needKeyDataSize)
         {
             return FAST_FSS_INVALID_KEY_DATA_SIZE_ERROR;
@@ -170,16 +166,14 @@ struct DpfEvalTask
         impl::DpfKey<GroupElement>    keyObj;
         impl::DpfCache<GroupElement>  cacheObj;
         impl::DpfCache<GroupElement> *cacheObjPtr = nullptr;
-        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i,
-                           elementNum);
+        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum);
         if (cache != nullptr)
         {
             impl::dpfCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
             cacheObjPtr = &cacheObj;
         }
-        impl::dpfEval(sharedOutPtr + i * groupSize, keyObj, maskedXPtr[i],
-                      seedPtr + 16 * i, partyId, bitWidthIn, bitWidthOut,
-                      groupSize, cacheObjPtr);
+        impl::dpfEval(sharedOutPtr + i * groupSize, keyObj, maskedXPtr[i], seedPtr + 16 * i, partyId, bitWidthIn,
+                      bitWidthOut, groupSize, cacheObjPtr);
     }
 };
 
@@ -226,14 +220,12 @@ struct DpfEvalAllTask
             return FAST_FSS_INVALID_PARTY_ID_ERROR;
         }
 
-        needKeyDataSize = impl::dpfGetKeyDataSize<GroupElement>(
-            bitWidthIn, bitWidthOut, groupSize, elementNum);
+        needKeyDataSize = impl::dpfGetKeyDataSize<GroupElement>(bitWidthIn, bitWidthOut, groupSize, elementNum);
         if (keyDataSize != needKeyDataSize)
         {
             return FAST_FSS_INVALID_KEY_DATA_SIZE_ERROR;
         }
-        if (sharedOutDataSize !=
-            elementNum * elementSize * (1ULL << bitWidthIn) * groupSize)
+        if (sharedOutDataSize != elementNum * elementSize * (1ULL << bitWidthIn) * groupSize)
         {
             return FAST_FSS_INVALID_SHARED_OUT_DATA_SIZE_ERROR;
         }
@@ -247,8 +239,7 @@ struct DpfEvalAllTask
         }
         if (cacheDataSize != 0)
         {
-            needCacheDataSize =
-                impl::dpfGetCacheDataSize<GroupElement>(bitWidthIn, elementNum);
+            needCacheDataSize = impl::dpfGetCacheDataSize<GroupElement>(bitWidthIn, elementNum);
             if (cacheDataSize != needCacheDataSize)
             {
                 return FAST_FSS_INVALID_CACHE_DATA_SIZE_ERROR;
@@ -266,8 +257,7 @@ struct DpfEvalAllTask
         impl::DpfKey<GroupElement>    keyObj;
         impl::DpfCache<GroupElement>  cacheObj;
         impl::DpfCache<GroupElement> *cacheObjPtr = nullptr;
-        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i,
-                           elementNum);
+        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum);
         if (cache != nullptr)
         {
             impl::dpfCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
@@ -278,8 +268,7 @@ struct DpfEvalAllTask
         {
             std::size_t idx = static_cast<std::size_t>(maskedXPtr[i]) - j;
             std::size_t k   = groupSize * (idx % size);
-            impl::dpfEval(sharedOutPtr + size * i * groupSize + k, keyObj,
-                          (GroupElement)j, seedPtr + 16 * i, partyId,
+            impl::dpfEval(sharedOutPtr + size * i * groupSize + k, keyObj, (GroupElement)j, seedPtr + 16 * i, partyId,
                           bitWidthIn, bitWidthOut, groupSize, cacheObjPtr);
         }
     }
@@ -334,14 +323,12 @@ struct DpfEvalMultiTask
             return FAST_FSS_INVALID_POINT_DATA_SIZE_ERROR;
         }
 
-        needKeyDataSize = impl::dpfGetKeyDataSize<GroupElement>(
-            bitWidthIn, bitWidthOut, groupSize, elementNum);
+        needKeyDataSize = impl::dpfGetKeyDataSize<GroupElement>(bitWidthIn, bitWidthOut, groupSize, elementNum);
         if (keyDataSize != needKeyDataSize)
         {
             return FAST_FSS_INVALID_KEY_DATA_SIZE_ERROR;
         }
-        if (sharedOutDataSize != elementNum * elementSize *
-                                     (pointDataSize / elementSize) * groupSize)
+        if (sharedOutDataSize != elementNum * elementSize * (pointDataSize / elementSize) * groupSize)
         {
             return FAST_FSS_INVALID_SHARED_OUT_DATA_SIZE_ERROR;
         }
@@ -355,8 +342,7 @@ struct DpfEvalMultiTask
         }
         if (cacheDataSize != 0)
         {
-            needCacheDataSize =
-                impl::dpfGetCacheDataSize<GroupElement>(bitWidthIn, elementNum);
+            needCacheDataSize = impl::dpfGetCacheDataSize<GroupElement>(bitWidthIn, elementNum);
             if (cacheDataSize != needCacheDataSize)
             {
                 return FAST_FSS_INVALID_CACHE_DATA_SIZE_ERROR;
@@ -377,8 +363,7 @@ struct DpfEvalMultiTask
         impl::DpfKey<GroupElement>    keyObj;
         impl::DpfCache<GroupElement>  cacheObj;
         impl::DpfCache<GroupElement> *cacheObjPtr = nullptr;
-        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i,
-                           elementNum);
+        impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum);
         if (cache != nullptr)
         {
             impl::dpfCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
@@ -387,10 +372,8 @@ struct DpfEvalMultiTask
         for (std::size_t j = 0; j < pointNum; ++j)
         {
             GroupElement tmp = maskedXPtr[i] - pointPtr[j];
-            impl::dpfEval(
-                sharedOutPtr + pointNum * i * groupSize + j * groupSize, keyObj,
-                tmp, seedPtr + 16 * i, partyId, bitWidthIn, bitWidthOut,
-                groupSize, cacheObjPtr);
+            impl::dpfEval(sharedOutPtr + pointNum * i * groupSize + j * groupSize, keyObj, tmp, seedPtr + 16 * i,
+                          partyId, bitWidthIn, bitWidthOut, groupSize, cacheObjPtr);
         }
     }
 };

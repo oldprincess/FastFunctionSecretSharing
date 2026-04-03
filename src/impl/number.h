@@ -25,12 +25,10 @@ struct is_wideint<wideint::detail::basic_int<N, Signed>> : std::true_type
 
 template <typename T>
 inline constexpr bool is_supported_group_element_v =
-    (std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>) ||
-    is_wideint<std::remove_cv_t<T>>::value;
+    (std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>) || is_wideint<std::remove_cv_t<T>>::value;
 
 template <typename GroupElement>
-FAST_FSS_DEVICE static inline GroupElement modBits(GroupElement x,
-                                                   int bitWidth) noexcept
+FAST_FSS_DEVICE static inline GroupElement modBits(GroupElement x, int bitWidth) noexcept
 {
     if (bitWidth == sizeof(GroupElement) * 8)
     {
@@ -74,8 +72,7 @@ FAST_FSS_DEVICE static inline int clz(GroupElement x, std::size_t bitWidth)
     else
     {
         return static_cast<int>(wideint::countl_zero(x)) -
-               (static_cast<int>(sizeof(GroupElement) * 8) -
-                static_cast<int>(bitWidth));
+               (static_cast<int>(sizeof(GroupElement) * 8) - static_cast<int>(bitWidth));
     }
 #elif defined(_MSC_VER)
     if constexpr (sizeof(GroupElement) <= sizeof(std::uint32_t))
@@ -89,8 +86,7 @@ FAST_FSS_DEVICE static inline int clz(GroupElement x, std::size_t bitWidth)
     else
     {
         return static_cast<int>(wideint::countl_zero(x)) -
-               (static_cast<int>(sizeof(GroupElement) * 8) -
-                static_cast<int>(bitWidth));
+               (static_cast<int>(sizeof(GroupElement) * 8) - static_cast<int>(bitWidth));
     }
 #else
     if constexpr (sizeof(GroupElement) <= sizeof(std::uint32_t))
@@ -104,8 +100,7 @@ FAST_FSS_DEVICE static inline int clz(GroupElement x, std::size_t bitWidth)
     else
     {
         return static_cast<int>(wideint::countl_zero(x)) -
-               (static_cast<int>(sizeof(GroupElement) * 8) -
-                static_cast<int>(bitWidth));
+               (static_cast<int>(sizeof(GroupElement) * 8) - static_cast<int>(bitWidth));
     }
 #endif
 }

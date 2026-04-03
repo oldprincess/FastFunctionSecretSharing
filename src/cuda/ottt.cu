@@ -1,8 +1,8 @@
 #include <FastFss/cuda/ottt.h>
-#include <FastFss/errors.h>
 
 #include "../impl/ottt.h"
 #include "../kernel/ottt.h"
+#include "../kernel/parallel_execute.h"
 
 using namespace FastFss;
 
@@ -19,8 +19,14 @@ int FastFss_cuda_otttKeyGen(void       *key,
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             kernel::OtttKeyGenTask<scalar_t> task{
-                key,        keyDataSize, alpha,      alphaDataSize,
-                bitWidthIn, elementSize, elementNum, cudaStreamPtr,
+                .key           = key,
+                .keyDataSize   = keyDataSize,
+                .alpha         = alpha,
+                .alphaDataSize = alphaDataSize,
+                .bitWidthIn    = bitWidthIn,
+                .elementSize   = elementSize,
+                .elementNum    = elementNum,
+                .cudaStreamPtr = cudaStreamPtr,
             };
             return kernel::parallel_execute(task);
         });
@@ -46,29 +52,27 @@ int FastFss_cuda_otttLutEval(void       *sharedOutE,
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             kernel::OtttLutEvalTask<scalar_t> task{
-                sharedOutE,
-                sharedOutEDataSize,
-                sharedOutT,
-                sharedOutTDataSize,
-                maskedX,
-                maskedXDataSize,
-                key,
-                keyDataSize,
-                partyId,
-                lookUpTable,
-                lookUpTableDataSize,
-                bitWidthIn,
-                elementSize,
-                elementNum,
-                cudaStreamPtr,
+                .sharedOutE          = sharedOutE,
+                .sharedOutEDataSize  = sharedOutEDataSize,
+                .sharedOutT          = sharedOutT,
+                .sharedOutTDataSize  = sharedOutTDataSize,
+                .maskedX             = maskedX,
+                .maskedXDataSize     = maskedXDataSize,
+                .key                 = key,
+                .keyDataSize         = keyDataSize,
+                .partyId             = partyId,
+                .lookUpTable         = lookUpTable,
+                .lookUpTableDataSize = lookUpTableDataSize,
+                .bitWidthIn          = bitWidthIn,
+                .elementSize         = elementSize,
+                .elementNum          = elementNum,
+                .cudaStreamPtr       = cudaStreamPtr,
             };
             return kernel::parallel_execute(task);
         });
 }
 
-int FastFss_cuda_otttGetKeyDataSize(size_t *keyDataSize,
-                                    size_t  bitWidthIn,
-                                    size_t  elementNum)
+int FastFss_cuda_otttGetKeyDataSize(size_t *keyDataSize, size_t bitWidthIn, size_t elementNum)
 {
     if (!(3 <= bitWidthIn))
     {

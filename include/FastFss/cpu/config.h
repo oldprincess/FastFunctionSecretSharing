@@ -1,6 +1,8 @@
 #ifndef FAST_FSS_CPU_CONFIG
 #define FAST_FSS_CPU_CONFIG
 
+#include <FastFss/api.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -13,7 +15,7 @@ extern "C" {
  * @retval          -1  runtime error
  * @retval          -2  invalid parameter
  */
-int FastFss_cpu_setNumThreads(int num);
+FAST_FSS_API int FastFss_cpu_setNumThreads(int num);
 
 /**
  * @brief   get the number of threads
@@ -21,7 +23,7 @@ int FastFss_cpu_setNumThreads(int num);
  * @retval  >0  number of threads
  * @retval  -1  runtime error
  */
-int FastFss_cpu_getNumThreads();
+FAST_FSS_API int FastFss_cpu_getNumThreads();
 
 #ifdef __cplusplus
 }

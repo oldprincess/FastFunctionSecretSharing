@@ -1,8 +1,9 @@
 #ifndef SRC_KERNEL_DCF_H
 #define SRC_KERNEL_DCF_H
 
+#include <FastFss/errors.h>
+
 #include "../impl/dcf.h"
-#include "parallel_execute.h"
 
 namespace FastFss::kernel {
 
@@ -38,8 +39,7 @@ struct DcfKeyGenTask
         {
             return FAST_FSS_INVALID_BITWIDTH_ERROR;
         }
-        needKeyDataSize = impl::dcfGetKeyDataSize<GroupElement>(
-            bitWidthIn, bitWidthOut, groupSize, elementNum);
+        needKeyDataSize = impl::dcfGetKeyDataSize<GroupElement>(bitWidthIn, bitWidthOut, groupSize, elementNum);
 
         if (keyDataSize != needKeyDataSize)
         {
@@ -62,8 +62,7 @@ struct DcfKeyGenTask
             }
         }
 
-        if (seedDataSize0 != elementNum * 16 ||
-            seedDataSize1 != elementNum * 16)
+        if (seedDataSize0 != elementNum * 16 || seedDataSize1 != elementNum * 16)
         {
             return FAST_FSS_INVALID_SEED_DATA_SIZE_ERROR;
         }
@@ -81,16 +80,14 @@ struct DcfKeyGenTask
         const std::uint8_t *seed1Ptr = (const std::uint8_t *)seed1;
 
         impl::DcfKey<GroupElement> keyObj;
-        impl::dcfKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut,
-                                         groupSize, i, elementNum);
+        impl::dcfKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum);
         const GroupElement *ptr = &ONE;
         if (betaPtr != nullptr)
         {
             ptr = betaPtr + groupSize * i;
         }
-        impl::dcfKeyGen<GroupElement>(keyObj, alphaPtr[i], ptr,
-                                      seed0Ptr + 16 * i, seed1Ptr + 16 * i,
-                                      bitWidthIn, bitWidthOut, groupSize);
+        impl::dcfKeyGen<GroupElement>(keyObj, alphaPtr[i], ptr, seed0Ptr + 16 * i, seed1Ptr + 16 * i, bitWidthIn,
+                                      bitWidthOut, groupSize);
     }
 };
 
@@ -138,10 +135,8 @@ struct DcfEvalTask
             return FAST_FSS_INVALID_GROUP_SIZE_ERROR;
         }
 
-        needKeyDataSize = impl::dcfGetKeyDataSize<GroupElement>(
-            bitWidthIn, bitWidthOut, groupSize, elementNum);
-        needCacheDataSize = impl::dcfGetCacheDataSize<GroupElement>(
-            bitWidthIn, groupSize, elementNum);
+        needKeyDataSize   = impl::dcfGetKeyDataSize<GroupElement>(bitWidthIn, bitWidthOut, groupSize, elementNum);
+        needCacheDataSize = impl::dcfGetCacheDataSize<GroupElement>(bitWidthIn, groupSize, elementNum);
 
         if (keyDataSize != needKeyDataSize)
         {
@@ -178,12 +173,10 @@ struct DcfEvalTask
         impl::DcfKey<GroupElement>    keyObj;
         if (cache != nullptr)
         {
-            impl::dcfCacheSetPtr<GroupElement>(cacheObj, cache, bitWidthIn,
-                                               groupSize, i, elementNum);
+            impl::dcfCacheSetPtr<GroupElement>(cacheObj, cache, bitWidthIn, groupSize, i, elementNum);
             cachePtr = &cacheObj;
         }
-        impl::dcfKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut,
-                                         groupSize, i, elementNum);
+        impl::dcfKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum);
         impl::dcfEval<GroupElement>(      //
             sharedOutPtr + i * groupSize, //
             keyObj,                       //

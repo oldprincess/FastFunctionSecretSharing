@@ -55,8 +55,7 @@ inline std::size_t dpfGetZippedKeyDataSize(std::size_t bitWidthIn,
 }
 
 template <typename GroupElement>
-static inline std::size_t dpfGetCacheDataSize(std::size_t bitWidthIn,
-                                              std::size_t elementNum) noexcept
+static inline std::size_t dpfGetCacheDataSize(std::size_t bitWidthIn, std::size_t elementNum) noexcept
 {
     return elementNum * (16 * bitWidthIn);
 }
@@ -67,21 +66,13 @@ class DpfConvertCtx
 public:
     DpfConvertCtx() = default;
 
-    FAST_FSS_DEVICE DpfConvertCtx(
-        const void                *seed,
-        std::size_t                groupSize,
-        std::size_t                bitWidth,
-        const AES128GlobalContext *aesGlobalCtx) noexcept
+    FAST_FSS_DEVICE DpfConvertCtx(const void *seed, std::size_t groupSize, std::size_t bitWidth) noexcept
     {
-        this->init(seed, groupSize, bitWidth, aesGlobalCtx);
+        this->init(seed, groupSize, bitWidth);
     }
 
-    FAST_FSS_DEVICE void init(const void                *seed,
-                              std::size_t                groupSize,
-                              std::size_t                bitWidth,
-                              const AES128GlobalContext *aesGlobalCtx) noexcept
+    FAST_FSS_DEVICE void init(const void *seed, std::size_t groupSize, std::size_t bitWidth) noexcept
     {
-        aesGlobalCtx_     = aesGlobalCtx;
         groupSize_        = (int)groupSize;
         groupElementSize_ = (int)((bitWidth + 7) / 8);
         if (groupElementSize_ * groupSize_ <= 16)
@@ -93,7 +84,7 @@ public:
         }
         else
         {
-            aesCtx_.set_enc_key(seed, aesGlobalCtx_);
+            aesCtx_.set_enc_key(seed);
         }
         groupOffset_ = 0;
     }
@@ -119,7 +110,7 @@ public:
                 {
                     ((std::uint64_t *)buffer_)[0] = 0;
                     ((std::uint64_t *)buffer_)[1] = (std::uint64_t)groupOffset_;
-                    aesCtx_.enc_n_block<1>(buffer_, buffer_, aesGlobalCtx_);
+                    aesCtx_.enc_n_block<1>(buffer_, buffer_);
                 }
                 ret |= (GroupElement)buffer_[idx] << (i * 8);
             }
@@ -129,22 +120,21 @@ public:
     }
 
 private:
-    AES128                     aesCtx_;
-    const AES128GlobalContext *aesGlobalCtx_;
-    std::uint8_t               buffer_[16];
-    int                        groupOffset_;
-    int                        groupElementSize_;
-    int                        groupSize_;
+    AES128       aesCtx_;
+    std::uint8_t buffer_[16];
+    int          groupOffset_;
+    int          groupElementSize_;
+    int          groupSize_;
 };
 
 template <typename GroupElement>
 FAST_FSS_DEVICE static inline void dpfKeySetPtr(DpfKey<GroupElement> &dpfKey,
                                                 const void           *keyData,
-                                                std::size_t bitWidthIn,
-                                                std::size_t bitWidthOut,
-                                                std::size_t groupSize,
-                                                std::size_t idx,
-                                                std::size_t elementNum) noexcept
+                                                std::size_t           bitWidthIn,
+                                                std::size_t           bitWidthOut,
+                                                std::size_t           groupSize,
+                                                std::size_t           idx,
+                                                std::size_t           elementNum) noexcept
 {
     const char *curKeyData = nullptr;
 
@@ -166,12 +156,11 @@ FAST_FSS_DEVICE static inline void dpfKeySetPtr(DpfKey<GroupElement> &dpfKey,
 }
 
 template <typename GroupElement>
-FAST_FSS_DEVICE static inline void dpfCacheSetPtr(
-    DpfCache<GroupElement> &dpfCache,
-    const void             *cacheData,
-    std::size_t             bitWidthIn,
-    std::size_t             idx,
-    std::size_t             elementNum) noexcept
+FAST_FSS_DEVICE static inline void dpfCacheSetPtr(DpfCache<GroupElement> &dpfCache,
+                                                  const void             *cacheData,
+                                                  std::size_t             bitWidthIn,
+                                                  std::size_t             idx,
+                                                  std::size_t             elementNum) noexcept
 {
     const char *curCacheData = (const char *)cacheData;
     std::size_t offsetSCW    = idx * (16 * bitWidthIn);
@@ -181,16 +170,14 @@ FAST_FSS_DEVICE static inline void dpfCacheSetPtr(
 }
 
 template <typename GroupElement>
-FAST_FSS_DEVICE inline void dpfKeyGen(
-    DpfKey<GroupElement>      &key,
-    GroupElement               alpha,
-    const GroupElement        *beta,
-    const void                *seed0,
-    const void                *seed1,
-    std::size_t                bitWidthIn,
-    std::size_t                bitWidthOut,
-    std::size_t                groupSize,
-    const AES128GlobalContext *aesCtx = nullptr) noexcept
+FAST_FSS_DEVICE inline void dpfKeyGen(DpfKey<GroupElement> &key,
+                                      GroupElement          alpha,
+                                      const GroupElement   *beta,
+                                      const void           *seed0,
+                                      const void           *seed1,
+                                      std::size_t           bitWidthIn,
+                                      std::size_t           bitWidthOut,
+                                      std::size_t           groupSize) noexcept
 {
     constexpr std::uint64_t    MASK_MSB63   = 0xFFFF'FFFF'FFFF'FFFEULL;
     static const std::uint64_t PLAINTEXT[4] = {0, 1, 2, 3};
@@ -217,8 +204,8 @@ FAST_FSS_DEVICE inline void dpfKeyGen(
 
         // sL0, tL0, sR0, tR0 <- G(s0)
         // sL1, tL1, sR1, tR1 <- G(s1)
-        AES128::aes128_enc2_block(sL0tL0sR0tR0, PLAINTEXT, curS0, aesCtx);
-        AES128::aes128_enc2_block(sL1tL1sR1tR1, PLAINTEXT, curS1, aesCtx);
+        AES128::aes128_enc2_block(sL0tL0sR0tR0, PLAINTEXT, curS0);
+        AES128::aes128_enc2_block(sL1tL1sR1tR1, PLAINTEXT, curS1);
 
         std::uint64_t *sL0 = sL0tL0sR0tR0 + 0;
         std::uint64_t *sR0 = sL0tL0sR0tR0 + 2;
@@ -288,31 +275,28 @@ FAST_FSS_DEVICE inline void dpfKeyGen(
     }
     // CW(n+1) <- (-1)^t1 * (beta - convert(s0) + convert(s1))
     DpfConvertCtx<GroupElement> dpfConvertCtx;
-    dpfConvertCtx.init(curS0, bitWidthOut, groupSize, aesCtx);
+    dpfConvertCtx.init(curS0, bitWidthOut, groupSize);
     for (std::size_t i = 0; i < groupSize; i++)
     {
         key.lastCW[i] = dpfConvertCtx.getNext();
     }
-    dpfConvertCtx.init(curS1, bitWidthOut, groupSize, aesCtx);
+    dpfConvertCtx.init(curS1, bitWidthOut, groupSize);
     for (std::size_t i = 0; i < groupSize; i++)
     {
-        key.lastCW[i] = (curT1 == 0 ? 1 : -1) *
-                        (beta[i] - key.lastCW[i] + dpfConvertCtx.getNext());
+        key.lastCW[i] = (curT1 == 0 ? 1 : -1) * (beta[i] - key.lastCW[i] + dpfConvertCtx.getNext());
     }
 }
 
 template <typename GroupElement>
-FAST_FSS_DEVICE inline void dpfEval(
-    GroupElement               *out,
-    const DpfKey<GroupElement> &key,
-    GroupElement                maskedX,
-    const void                 *seed,
-    int                         partyId,
-    std::size_t                 bitWidthIn,
-    std::size_t                 bitWidthOut,
-    std::size_t                 groupSize,
-    DpfCache<GroupElement>     *cache  = nullptr,
-    const AES128GlobalContext  *aesCtx = nullptr) noexcept
+FAST_FSS_DEVICE inline void dpfEval(GroupElement               *out,
+                                    const DpfKey<GroupElement> &key,
+                                    GroupElement                maskedX,
+                                    const void                 *seed,
+                                    int                         partyId,
+                                    std::size_t                 bitWidthIn,
+                                    std::size_t                 bitWidthOut,
+                                    std::size_t                 groupSize,
+                                    DpfCache<GroupElement>     *cache = nullptr) noexcept
 {
     constexpr std::uint64_t    MASK_MSB63   = 0xFFFF'FFFF'FFFF'FFFEULL;
     static const std::uint64_t PLAINTEXT[8] = {0, 1, 2, 3, 4, 5, 6, 7};
@@ -344,7 +328,7 @@ FAST_FSS_DEVICE inline void dpfEval(
         const auto shift    = i;
         const auto bitShift = bitWidthIn - i - 1;
 
-        AES128::aes128_enc2_block(sLtLsRtR, PLAINTEXT, curS, aesCtx);
+        AES128::aes128_enc2_block(sLtLsRtR, PLAINTEXT, curS);
 
         std::uint64_t *sL = sLtLsRtR + 0;
         std::uint64_t *sR = sLtLsRtR + 2;
@@ -388,12 +372,10 @@ FAST_FSS_DEVICE inline void dpfEval(
     }
 
     DpfConvertCtx<GroupElement> dpfConvertCtx;
-    dpfConvertCtx.init(curS, bitWidthOut, groupSize, aesCtx);
+    dpfConvertCtx.init(curS, bitWidthOut, groupSize);
     for (std::size_t i = 0; i < groupSize; i++)
     {
-        out[i] =
-            (partyId == 0 ? 1 : -1) *
-            (dpfConvertCtx.getNext() + (curT != 0 ? 1 : 0) * key.lastCW[i]);
+        out[i] = (partyId == 0 ? 1 : -1) * (dpfConvertCtx.getNext() + (curT != 0 ? 1 : 0) * key.lastCW[i]);
     }
 }
 

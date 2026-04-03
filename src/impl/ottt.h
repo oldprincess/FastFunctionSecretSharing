@@ -7,22 +7,19 @@
 namespace FastFss::impl {
 
 // bitWidthIn >= 3
-static inline std::size_t otttGetKeyDataSize(std::size_t bitWidthIn,
-                                             std::size_t elementNum) noexcept
+static inline std::size_t otttGetKeyDataSize(std::size_t bitWidthIn, std::size_t elementNum) noexcept
 {
-    return elementNum * (1ULL << bitWidthIn)  / 8;
+    return elementNum * (1ULL << bitWidthIn) / 8;
 }
 
 // bitWidthIn >= 3
 template <typename GroupElement>
-FAST_FSS_DEVICE static void otttKeyGen(void        *key,
-                                       GroupElement alpha,
-                                       std::size_t  bitWidthIn) noexcept
+FAST_FSS_DEVICE static void otttKeyGen(void *key, GroupElement alpha, std::size_t bitWidthIn) noexcept
 {
-    alpha = modBits<GroupElement>(alpha, bitWidthIn);
-    const auto alphaIndex = static_cast<std::size_t>(alpha);
-    std::size_t idx    = alphaIndex / 8;
-    std::size_t offset = alphaIndex % 8;
+    alpha                  = modBits<GroupElement>(alpha, bitWidthIn);
+    const auto  alphaIndex = static_cast<std::size_t>(alpha);
+    std::size_t idx        = alphaIndex / 8;
+    std::size_t offset     = alphaIndex % 8;
     ((std::uint8_t *)key)[idx] ^= (1 << offset);
 }
 
@@ -36,11 +33,11 @@ FAST_FSS_DEVICE static void otttLutEval(GroupElement       *sharedOutE,
                                         int                 partyId,
                                         std::size_t         bitWidthIn) noexcept
 {
-    std::size_t  totalNum = (1ULL << bitWidthIn);
-    std::size_t  mask     = totalNum - 1;
-    std::size_t  num      = totalNum;
-    std::size_t  i        = 0;
-    const auto maskedXIndex = static_cast<std::size_t>(maskedX);
+    std::size_t totalNum     = (1ULL << bitWidthIn);
+    std::size_t mask         = totalNum - 1;
+    std::size_t num          = totalNum;
+    std::size_t i            = 0;
+    const auto  maskedXIndex = static_cast<std::size_t>(maskedX);
 
     sharedOutE[0] = 0;
     sharedOutT[0] = 0;
@@ -157,8 +154,7 @@ FAST_FSS_DEVICE static void otttLutEval(GroupElement       *sharedOutE,
     if (partyId == 0)
     {
         sharedOutE[0] -= 1;
-        sharedOutE[0] = modBits<GroupElement>(
-            (sharedOutE[0] >> 1) + (sharedOutE[0] & 1), 1);
+        sharedOutE[0] = modBits<GroupElement>((sharedOutE[0] >> 1) + (sharedOutE[0] & 1), 1);
     }
     else
     {

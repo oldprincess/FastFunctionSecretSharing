@@ -1,8 +1,7 @@
-// Distributed Comparison Function,
-// Function secret sharing for mixed-mode and fixed-point secure computation
 #ifndef FAST_FSS_CUDA_DCF_H
 #define FAST_FSS_CUDA_DCF_H
 
+#include <FastFss/api.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -83,22 +82,22 @@ extern "C" {
  * @return
  *     Returns 0 on success; non-zero value indicates an error.
  */
-int FastFss_cuda_dcfKeyGen(void       *key,
-                           size_t      keyDataSize,
-                           const void *alpha,
-                           size_t      alphaDataSize,
-                           const void *beta,
-                           size_t      betaDataSize,
-                           const void *seed0,
-                           size_t      seedDataSize0,
-                           const void *seed1,
-                           size_t      seedDataSize1,
-                           size_t      bitWidthIn,
-                           size_t      bitWidthOut,
-                           size_t      groupSize,
-                           size_t      elementSize,
-                           size_t      elementNum,
-                           void       *cudaStreamPtr);
+FAST_FSS_API int FastFss_cuda_dcfKeyGen(void       *key,
+                                        size_t      keyDataSize,
+                                        const void *alpha,
+                                        size_t      alphaDataSize,
+                                        const void *beta,
+                                        size_t      betaDataSize,
+                                        const void *seed0,
+                                        size_t      seedDataSize0,
+                                        const void *seed1,
+                                        size_t      seedDataSize1,
+                                        size_t      bitWidthIn,
+                                        size_t      bitWidthOut,
+                                        size_t      groupSize,
+                                        size_t      elementSize,
+                                        size_t      elementNum,
+                                        void       *cudaStreamPtr);
 
 /**
  * @brief Evaluate DCF keys using CUDA acceleration.
@@ -165,105 +164,23 @@ int FastFss_cuda_dcfKeyGen(void       *key,
  * @return
  *     Returns 0 on success; non-zero value indicates an error.
  */
-int FastFss_cuda_dcfEval(void       *sharedOut,
-                         size_t      sharedOutSize,
-                         const void *maskedX,
-                         size_t      maskedXDataSize,
-                         const void *key,
-                         size_t      keyDataSize,
-                         const void *seed,
-                         size_t      seedDataSize,
-                         int         partyId,
-                         size_t      bitWidthIn,
-                         size_t      bitWidthOut,
-                         size_t      groupSize,
-                         size_t      elementSize,
-                         size_t      elementNum,
-                         void       *cache,
-                         size_t      cacheDataSize,
-                         void       *cudaStreamPtr);
-
-int FastFss_cuda_dcfKeyZip(void       *zippedKey,
-                           size_t      zippedKeyDataSize,
-                           const void *key,
-                           size_t      keyDataSize,
-                           size_t      bitWidthIn,
-                           size_t      bitWidthOut,
-                           size_t      groupSize,
-                           size_t      elementSize,
-                           size_t      elementNum);
-
-int FastFss_cuda_dcfKeyUnzip(void       *key,
-                             size_t      keyDataSize,
-                             const void *zippedKey,
-                             size_t      zippedKeyDataSize,
-                             size_t      bitWidthIn,
-                             size_t      bitWidthOut,
-                             size_t      groupSize,
-                             size_t      elementSize,
-                             size_t      elementNum);
-
-int FastFss_cuda_dcfGetKeyDataSize(size_t *keyDataSize,
-                                   size_t  bitWidthIn,
-                                   size_t  bitWidthOut,
-                                   size_t  groupSize,
-                                   size_t  elementSize,
-                                   size_t  elementNum);
-
-int FastFss_cuda_dcfGetZippedKeyDataSize(size_t *keyDataSize,
-                                         size_t  bitWidthIn,
-                                         size_t  bitWidthOut,
-                                         size_t  groupSize,
-                                         size_t  elementSize,
-                                         size_t  elementNum);
-
-int FastFss_cuda_dcfGetCacheDataSize(size_t *cacheDataSize,
-                                     size_t  bitWidthIn,
-                                     size_t  bitWidthOut,
-                                     size_t  groupSize,
-                                     size_t  elementSize,
-                                     size_t  elementNum);
-
-int FastFss_cuda_dcfKeyZip(void       *zippedKey,
-                           size_t      zippedKeyDataSize,
-                           const void *key,
-                           size_t      keyDataSize,
-                           size_t      bitWidthIn,
-                           size_t      bitWidthOut,
-                           size_t      groupSize,
-                           size_t      elementSize,
-                           size_t      elementNum);
-
-int FastFss_cuda_dcfKeyUnzip(void       *key,
-                             size_t      keyDataSize,
-                             const void *zippedKey,
-                             size_t      zippedKeyDataSize,
-                             size_t      bitWidthIn,
-                             size_t      bitWidthOut,
-                             size_t      groupSize,
-                             size_t      elementSize,
-                             size_t      elementNum);
-
-int FastFss_cuda_dcfGetKeyDataSize(size_t *keyDataSize,
-                                   size_t  bitWidthIn,
-                                   size_t  bitWidthOut,
-                                   size_t  groupSize,
-                                   size_t  elementSize,
-                                   size_t  elementNum);
-
-int FastFss_cuda_dcfGetZippedKeyDataSize(size_t *keyDataSize,
-                                         size_t  bitWidthIn,
-                                         size_t  bitWidthOut,
-                                         size_t  groupSize,
-                                         size_t  elementSize,
-                                         size_t  elementNum);
-
-int FastFss_cuda_dcfGetCacheDataSize(size_t *cacheDataSize,
-                                     size_t  bitWidthIn,
-                                     size_t  bitWidthOut,
-                                     size_t  groupSize,
-                                     size_t  elementSize,
-                                     size_t  elementNum);
+FAST_FSS_API int FastFss_cuda_dcfEval(void       *sharedOut,
+                                      size_t      sharedOutSize,
+                                      const void *maskedX,
+                                      size_t      maskedXDataSize,
+                                      const void *key,
+                                      size_t      keyDataSize,
+                                      const void *seed,
+                                      size_t      seedDataSize,
+                                      int         partyId,
+                                      size_t      bitWidthIn,
+                                      size_t      bitWidthOut,
+                                      size_t      groupSize,
+                                      size_t      elementSize,
+                                      size_t      elementNum,
+                                      void       *cache,
+                                      size_t      cacheDataSize,
+                                      void       *cudaStreamPtr);
 
 #ifdef __cplusplus
 }

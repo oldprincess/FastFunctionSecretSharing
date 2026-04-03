@@ -172,53 +172,33 @@ torch::Device Prng::device() const
 
 Prng &Prng::to_(torch::Device device)
 {
-    // early check
-    if (device.type() == torch::kCPU)
+    if (device.type() == device_.type())
     {
-        if (device_.type() == torch::kCPU)
-        {
-            return *this;
-        }
+        return *this;
     }
+
+    if (device.type() != torch::kCPU
 #ifndef NO_CUDA
-    else if (device.type() == torch::kCUDA)
-    {
-        if (device_.type() == torch::kCUDA)
-        {
-            return *this;
-        }
-    }
+        && device.type() != torch::kCUDA
 #endif
-    else
+    )
     {
         ERR_LOG("Unsupported device type");
         throw std::invalid_argument("Unsupported device type");
     }
-    //
+
     std::uint8_t seed128bit[16];
     std::uint8_t counter128bit[16];
+    int          ret = 0;
+
     if (device_.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_prngGetCurrentSeed( //
-            ctx_, seed128bit, counter128bit       //
-        );
-        if (ret != 0)
-        {
-            ERR_LOG("FastFss_cpu_prngGetCurrentSeed failed ret = %d", ret);
-            throw std::runtime_error("FastFss_cpu_prngGetCurrentSeed failed");
-        }
+        ret = FastFss_cpu_prngGetCurrentSeed(ctx_, seed128bit, counter128bit);
     }
 #ifndef NO_CUDA
-    if (device_.type() == torch::kCUDA)
+    else if (device_.type() == torch::kCUDA)
     {
-        int ret = FastFss_cuda_prngGetCurrentSeed( //
-            ctx_, seed128bit, counter128bit        //
-        );
-        if (ret != 0)
-        {
-            ERR_LOG("FastFss_cuda_prngGetCurrentSeed failed ret = %d", ret);
-            throw std::runtime_error("FastFss_cuda_prngGetCurrentSeed failed");
-        }
+        ret = FastFss_cuda_prngGetCurrentSeed(ctx_, seed128bit, counter128bit);
     }
 #endif
     else
@@ -227,8 +207,12 @@ Prng &Prng::to_(torch::Device device)
         throw std::invalid_argument("Unsupported device type");
     }
 
-    //
-    int   ret    = 0;
+    if (ret != 0)
+    {
+        ERR_LOG("FastFss_prngGetCurrentSeed failed ret = %d", ret);
+        throw std::runtime_error("FastFss_prngGetCurrentSeed failed");
+    }
+
     void *newCtx = nullptr;
     if (device.type() == torch::kCPU)
     {
@@ -240,6 +224,7 @@ Prng &Prng::to_(torch::Device device)
         newCtx = FastFss_cuda_prngInit();
     }
 #endif
+
     if (newCtx == nullptr)
     {
         throw std::runtime_error("FastFss_prngInit failed");
@@ -250,30 +235,40 @@ Prng &Prng::to_(torch::Device device)
         ret = FastFss_cpu_prngSetCurrentSeed(newCtx, seed128bit, counter128bit);
     }
 #ifndef NO_CUDA
-    else if (device.type() == torch::kCUDA)
+    else
     {
-        ret =
-            FastFss_cuda_prngSetCurrentSeed(newCtx, seed128bit, counter128bit);
+        ret = FastFss_cuda_prngSetCurrentSeed(newCtx, seed128bit, counter128bit);
     }
 #endif
+
     if (ret != 0)
     {
+        if (device.type() == torch::kCPU)
+        {
+            FastFss_cpu_prngRelease(newCtx);
+        }
+#ifndef NO_CUDA
+        else
+        {
+            FastFss_cuda_prngRelease(newCtx);
+        }
+#endif
         throw std::runtime_error("FastFss_prngSetCurrentSeed failed");
     }
-    // copy
+
     if (device_.type() == torch::kCPU)
     {
         FastFss_cpu_prngRelease(ctx_);
     }
 #ifndef NO_CUDA
-    if (device_.type() == torch::kCUDA)
+    else
     {
         FastFss_cuda_prngRelease(ctx_);
     }
 #endif
+
     ctx_    = newCtx;
     device_ = device;
-
     return *this;
 }
 

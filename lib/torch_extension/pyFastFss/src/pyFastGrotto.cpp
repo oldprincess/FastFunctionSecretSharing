@@ -2,6 +2,7 @@
 
 #include <FastFss/cpu/grotto.h>
 #include <FastFss/cuda/grotto.h>
+#include <FastFss/grotto.h>
 #ifndef NO_CUDA
 #include <c10/cuda/CUDAStream.h>
 #endif
@@ -31,14 +32,36 @@
 
 namespace pyFastFss {
 
+namespace {
+
+std::size_t grotto_get_cache_data_size(std::size_t bitWidthIn,
+                                       std::size_t elementSize,
+                                       std::size_t elementNum)
+{
+    std::size_t cacheSize = 0;
+    int         ret = FastFss_grottoGetCacheDataSize(&cacheSize, bitWidthIn,
+                                                     elementSize, elementNum);
+    CHECK_ERROR_CODE(ret, "FastFss_grottoGetCacheDataSize");
+    return cacheSize;
+}
+
+torch::Tensor make_u8_cache(const torch::Device &device, std::size_t size)
+{
+    torch::TensorOptions options;
+    options = options.dtype(torch::kUInt8).device(device.type());
+    return torch::empty({(std::int64_t)size}, options);
+}
+
+} // namespace
+
 std::size_t grotto_get_key_data_size(std::size_t bitWidthIn,
                                      std::size_t elementSize,
                                      std::size_t elementNum)
 {
     std::size_t keyDataSize = 0;
-    int result = FastFss_cpu_grottoGetKeyDataSize(&keyDataSize, bitWidthIn,
-                                                  elementSize, elementNum);
-    CHECK_ERROR_CODE(result, "FastFss_cpu_grottoGetKeyDataSize");
+    int         result = FastFss_grottoGetKeyDataSize(&keyDataSize, bitWidthIn,
+                                                      elementSize, elementNum);
+    CHECK_ERROR_CODE(result, "FastFss_grottoGetKeyDataSize");
     return keyDataSize;
 }
 
@@ -49,41 +72,27 @@ torch::Tensor &grotto_key_gen(torch::Tensor       &keyOut,
                               std::size_t          bitWidthIn,
                               std::size_t          elementNum)
 {
-    // =====================================================
-    // ===================== Check Input ===================
-    // =====================================================
-
     ARG_ASSERT(keyOut.is_contiguous());
     ARG_ASSERT(alpha.is_contiguous());
     ARG_ASSERT(seed0.is_contiguous());
     ARG_ASSERT(seed1.is_contiguous());
-
     ARG_ASSERT((std::size_t)alpha.numel() == elementNum);
     ARG_ASSERT((std::size_t)seed0.numel() == 16 * elementNum);
     ARG_ASSERT((std::size_t)seed1.numel() == 16 * elementNum);
-
     ARG_ASSERT(keyOut.dtype() == torch::kUInt8);
     ARG_ASSERT(seed0.dtype() == torch::kUInt8);
     ARG_ASSERT(seed1.dtype() == torch::kUInt8);
 
     std::size_t elementSize = alpha.element_size();
-
     ARG_ASSERT(bitWidthIn <= elementSize * 8);
 
     auto device = alpha.device();
-
     ARG_ASSERT(keyOut.device() == device);
     ARG_ASSERT(seed0.device() == device);
     ARG_ASSERT(seed1.device() == device);
 
-    // =====================================================
-    // ===================== FastFss =======================
-    // =====================================================
-
-    std::size_t grottoKeyDataSize = grotto_get_key_data_size( //
-        bitWidthIn, elementSize, elementNum                   //
-    );                                                        //
-    keyOut.resize_({(std::int64_t)grottoKeyDataSize});
+    keyOut.resize_({(std::int64_t)grotto_get_key_data_size(bitWidthIn, elementSize,
+                                                           elementNum)});
 
     if (device.type() == torch::kCPU)
     {
@@ -106,7 +115,6 @@ torch::Tensor &grotto_key_gen(torch::Tensor       &keyOut,
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
-
         int ret = FastFss_cuda_grottoKeyGen(
             keyOut.mutable_data_ptr(),                //
             (std::size_t)keyOut.numel(),              //
@@ -139,40 +147,30 @@ torch::Tensor &grotto_eq_eval(torch::Tensor       &sharedOut,
                               std::size_t          bitWidthIn,
                               std::size_t          elementNum)
 {
-    // =====================================================
-    // ===================== Check Input ===================
-    // =====================================================
-
     ARG_ASSERT(sharedOut.is_contiguous());
     ARG_ASSERT(maskedX.is_contiguous());
     ARG_ASSERT(key.is_contiguous());
     ARG_ASSERT(seed.is_contiguous());
-
     ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
     ARG_ASSERT((std::size_t)seed.numel() == 16 * elementNum);
-
     ARG_ASSERT(key.dtype() == torch::kUInt8);
     ARG_ASSERT(seed.dtype() == torch::kUInt8);
     ARG_ASSERT(sharedOut.dtype() == maskedX.dtype());
 
     std::size_t elementSize = maskedX.element_size();
-
     ARG_ASSERT(bitWidthIn <= elementSize * 8);
 
     auto device = maskedX.device();
-
     ARG_ASSERT(sharedOut.device() == device);
     ARG_ASSERT(key.device() == device);
     ARG_ASSERT(seed.device() == device);
-
     ARG_ASSERT((std::size_t)key.numel() ==
                grotto_get_key_data_size(bitWidthIn, elementSize, elementNum));
 
-    // =====================================================
-    // ===================== FastFss =======================
-    // =====================================================
-
     sharedOut.resize_({maskedX.numel()});
+    torch::Tensor cache =
+        make_u8_cache(device, grotto_get_cache_data_size(bitWidthIn, elementSize,
+                                                         elementNum));
 
     if (device.type() == torch::kCPU)
     {
@@ -189,8 +187,8 @@ torch::Tensor &grotto_eq_eval(torch::Tensor       &sharedOut,
             bitWidthIn,                                   //
             elementSize,                                  //
             elementNum,                                   //
-            nullptr,                                      //
-            0                                             //
+            cache.mutable_data_ptr(),                     //
+            (std::size_t)cache.numel()                    //
         );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEqEval");
     }
@@ -198,7 +196,6 @@ torch::Tensor &grotto_eq_eval(torch::Tensor       &sharedOut,
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
-
         int ret = FastFss_cuda_grottoEqEval(
             sharedOut.mutable_data_ptr(),                 //
             (std::size_t)sharedOut.numel() * elementSize, //
@@ -212,120 +209,11 @@ torch::Tensor &grotto_eq_eval(torch::Tensor       &sharedOut,
             bitWidthIn,                                   //
             elementSize,                                  //
             elementNum,                                   //
-            nullptr,                                      //
-            0,                                            //
+            cache.mutable_data_ptr(),                     //
+            (std::size_t)cache.numel(),                   //
             &stream                                       //
         );
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoEqEval");
-    }
-#endif
-    else
-    {
-        throw std::invalid_argument("device must be CPU or CUDA");
-    }
-    return sharedOut;
-}
-
-torch::Tensor &grotto_eq_multi_eval(torch::Tensor       &sharedOut,
-                                    const torch::Tensor &maskedX,
-                                    const torch::Tensor &key,
-                                    const torch::Tensor &seed,
-                                    int                  partyId,
-                                    const torch::Tensor &point,
-                                    std::size_t          bitWidthIn,
-                                    std::size_t          elementNum)
-{
-    // =====================================================
-    // ===================== Check Input ===================
-    // =====================================================
-
-    ARG_ASSERT(sharedOut.is_contiguous());
-    ARG_ASSERT(maskedX.is_contiguous());
-    ARG_ASSERT(key.is_contiguous());
-    ARG_ASSERT(seed.is_contiguous());
-    ARG_ASSERT(point.is_contiguous());
-
-    ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
-    ARG_ASSERT((std::size_t)seed.numel() == 16 * elementNum);
-
-    ARG_ASSERT(sharedOut.dtype() == maskedX.dtype());
-    ARG_ASSERT(key.dtype() == torch::kUInt8);
-    ARG_ASSERT(seed.dtype() == torch::kUInt8);
-    ARG_ASSERT(point.dtype() == maskedX.dtype());
-
-    std::size_t elementSize = maskedX.element_size();
-
-    ARG_ASSERT(bitWidthIn <= elementSize * 8);
-
-    auto device = maskedX.device();
-
-    ARG_ASSERT(sharedOut.device() == device);
-    ARG_ASSERT(key.device() == device);
-    ARG_ASSERT(seed.device() == device);
-    ARG_ASSERT(point.device() == device);
-
-    ARG_ASSERT((std::size_t)key.numel() ==
-               grotto_get_key_data_size(bitWidthIn, elementSize, elementNum));
-
-    // =====================================================
-    // ===================== FastFss =======================
-    // =====================================================
-
-    std::size_t pointsNum = (std::size_t)point.numel();
-    sharedOut.resize_({(std::int64_t)(pointsNum * elementNum)});
-
-    std::size_t cacheSize;
-    {
-        int ret = FastFss_cpu_grottoGetCacheDataSize(&cacheSize, bitWidthIn,
-                                                     elementSize, elementNum);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoGetCacheDataSize");
-    }
-    torch::TensorOptions options;
-    options             = options.dtype(torch::kUInt8).device(device.type());
-    torch::Tensor cache = torch::empty({(std::int64_t)(cacheSize)}, options);
-
-    if (device.type() == torch::kCPU)
-    {
-        int ret = FastFss_cpu_grottoEqEvalMulti(          //
-            sharedOut.mutable_data_ptr(),                 //
-            (std::size_t)sharedOut.numel() * elementSize, //
-            maskedX.const_data_ptr(),                     //
-            (std::size_t)maskedX.numel() * elementSize,   //
-            key.const_data_ptr(),                         //
-            (std::size_t)key.numel(),                     //
-            seed.const_data_ptr(),                        //
-            (std::size_t)seed.numel(),                    //
-            partyId,                                      //
-            point.const_data_ptr(),                       //
-            (std::size_t)point.numel() * elementSize,     //
-            bitWidthIn,                                   //
-            elementSize,                                  //
-            elementNum,                                   //
-            cache.mutable_data_ptr(), cacheSize);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEqEvalMulti");
-    }
-#ifndef NO_CUDA
-    else if (device.type() == torch::kCUDA)
-    {
-        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
-
-        int ret = FastFss_cuda_grottoEqEvalMulti(         //
-            sharedOut.mutable_data_ptr(),                 //
-            (std::size_t)sharedOut.numel() * elementSize, //
-            maskedX.const_data_ptr(),                     //
-            (std::size_t)maskedX.numel() * elementSize,   //
-            key.const_data_ptr(),                         //
-            (std::size_t)key.numel(),                     //
-            seed.const_data_ptr(),                        //
-            (std::size_t)seed.numel(),                    //
-            partyId,                                      //
-            point.const_data_ptr(),                       //
-            (std::size_t)point.numel() * elementSize,     //
-            bitWidthIn,                                   //
-            elementSize,                                  //
-            elementNum,                                   //
-            cache.mutable_data_ptr(), cacheSize, &stream);
-        CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoEqEvalMulti");
     }
 #endif
     else
@@ -344,15 +232,10 @@ torch::Tensor &grotto_eval(torch::Tensor       &sharedOut,
                            std::size_t          bitWidthIn,
                            std::size_t          elementNum)
 {
-    // =====================================================
-    // ===================== Check Input ===================
-    // =====================================================
-
     ARG_ASSERT(sharedOut.is_contiguous());
     ARG_ASSERT(maskedX.is_contiguous());
     ARG_ASSERT(key.is_contiguous());
     ARG_ASSERT(seed.is_contiguous());
-
     ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
     ARG_ASSERT((std::size_t)seed.numel() == 16 * elementNum);
     ARG_ASSERT(key.dtype() == torch::kUInt8);
@@ -369,11 +252,10 @@ torch::Tensor &grotto_eval(torch::Tensor       &sharedOut,
     ARG_ASSERT((std::size_t)key.numel() ==
                grotto_get_key_data_size(bitWidthIn, elementSize, elementNum));
 
-    // =====================================================
-    // ===================== FastFss =======================
-    // =====================================================
-
     sharedOut.resize_({maskedX.numel()});
+    torch::Tensor cache =
+        make_u8_cache(device, grotto_get_cache_data_size(bitWidthIn, elementSize,
+                                                         elementNum));
 
     if (device.type() == torch::kCPU)
     {
@@ -391,15 +273,15 @@ torch::Tensor &grotto_eval(torch::Tensor       &sharedOut,
             bitWidthIn,                                   //
             elementSize,                                  //
             elementNum,                                   //
-            nullptr,                                      //
-            0);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEqEval");
+            cache.mutable_data_ptr(),                     //
+            (std::size_t)cache.numel()                    //
+        );
+        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoEval");
     }
 #ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
-
         int ret = FastFss_cuda_grottoEval(
             sharedOut.mutable_data_ptr(),                 //
             (std::size_t)sharedOut.numel() * elementSize, //
@@ -414,8 +296,8 @@ torch::Tensor &grotto_eval(torch::Tensor       &sharedOut,
             bitWidthIn,                                   //
             elementSize,                                  //
             elementNum,                                   //
-            nullptr,                                      //
-            0,                                            //
+            cache.mutable_data_ptr(),                     //
+            (std::size_t)cache.numel(),                   //
             &stream                                       //
         );
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoEval");
@@ -438,16 +320,12 @@ torch::Tensor &grotto_mic_eval(torch::Tensor       &sharedBooleanOut,
                                std::size_t          bitWidthIn,
                                std::size_t          elementNum)
 {
-    // =====================================================
-    // ===================== Check Input ===================
-    // =====================================================
     ARG_ASSERT(sharedBooleanOut.is_contiguous());
     ARG_ASSERT(maskedX.is_contiguous());
     ARG_ASSERT(key.is_contiguous());
     ARG_ASSERT(seed.is_contiguous());
     ARG_ASSERT(leftBoundary.is_contiguous());
     ARG_ASSERT(rightBoundary.is_contiguous());
-
     ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
     ARG_ASSERT((std::size_t)seed.numel() == 16 * elementNum);
     ARG_ASSERT(key.dtype() == torch::kUInt8);
@@ -466,73 +344,62 @@ torch::Tensor &grotto_mic_eval(torch::Tensor       &sharedBooleanOut,
     ARG_ASSERT(leftBoundary.device() == device);
     ARG_ASSERT(rightBoundary.device() == device);
     ARG_ASSERT(leftBoundary.numel() == rightBoundary.numel());
-
-    std::size_t intervalNum = (std::size_t)leftBoundary.numel();
     ARG_ASSERT((std::size_t)key.numel() ==
                grotto_get_key_data_size(bitWidthIn, elementSize, elementNum));
 
-    // =====================================================
-    // ===================== FastFss =======================
-    // =====================================================
-
-    sharedBooleanOut.resize_({(std::int64_t)(intervalNum * elementNum)});
-
-    std::size_t cacheSize;
-    {
-        int ret = FastFss_cpu_grottoGetCacheDataSize(&cacheSize, bitWidthIn,
-                                                     elementSize, elementNum);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoGetCacheDataSize");
-    }
-    torch::TensorOptions options;
-    options             = options.dtype(torch::kUInt8).device(device.type());
-    torch::Tensor cache = torch::empty({(std::int64_t)(cacheSize)}, options);
+    sharedBooleanOut.resize_({(std::int64_t)(leftBoundary.numel() * elementNum)});
+    torch::Tensor cache =
+        make_u8_cache(device, grotto_get_cache_data_size(bitWidthIn, elementSize,
+                                                         elementNum));
 
     if (device.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_grottoMICEval(                     //
-            sharedBooleanOut.mutable_data_ptr(),                 //
-            (std::size_t)sharedBooleanOut.numel() * elementSize, //
-            maskedX.const_data_ptr(),                            //
-            (std::size_t)maskedX.numel() * elementSize,          //
-            key.const_data_ptr(),                                //
-            (std::size_t)key.numel(),                            //
-            seed.const_data_ptr(),                               //
-            (std::size_t)seed.numel(),                           //
-            partyId,                                             //
-            leftBoundary.const_data_ptr(),                       //
-            (std::size_t)leftBoundary.numel() * elementSize,     //
-            rightBoundary.const_data_ptr(),                      //
-            (std::size_t)rightBoundary.numel() * elementSize,    //
-            bitWidthIn,                                          //
-            elementSize,                                         //
-            elementNum,                                          //
-            cache.mutable_data_ptr(), cacheSize);
+        int ret = FastFss_cpu_grottoMICEval(
+            sharedBooleanOut.mutable_data_ptr(),              //
+            (std::size_t)sharedBooleanOut.numel() * elementSize,
+            maskedX.const_data_ptr(),                         //
+            (std::size_t)maskedX.numel() * elementSize,       //
+            key.const_data_ptr(),                             //
+            (std::size_t)key.numel(),                         //
+            seed.const_data_ptr(),                            //
+            (std::size_t)seed.numel(),                        //
+            partyId,                                          //
+            leftBoundary.const_data_ptr(),                    //
+            (std::size_t)leftBoundary.numel() * elementSize,  //
+            rightBoundary.const_data_ptr(),                   //
+            (std::size_t)rightBoundary.numel() * elementSize, //
+            bitWidthIn,                                       //
+            elementSize,                                      //
+            elementNum,                                       //
+            cache.mutable_data_ptr(),                         //
+            (std::size_t)cache.numel()                        //
+        );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoMICEval");
     }
 #ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
-
-        int ret = FastFss_cuda_grottoMICEval(                    //
-            sharedBooleanOut.mutable_data_ptr(),                 //
-            (std::size_t)sharedBooleanOut.numel() * elementSize, //
-            maskedX.const_data_ptr(),                            //
-            (std::size_t)maskedX.numel() * elementSize,          //
-            key.const_data_ptr(),                                //
-            (std::size_t)key.numel(),                            //
-            seed.const_data_ptr(),                               //
-            (std::size_t)seed.numel(),                           //
-            partyId,                                             //
-            leftBoundary.const_data_ptr(),                       //
-            (std::size_t)leftBoundary.numel() * elementSize,     //
-            rightBoundary.const_data_ptr(),                      //
-            (std::size_t)rightBoundary.numel() * elementSize,    //
-            bitWidthIn,                                          //
-            elementSize,                                         //
-            elementNum,                                          //
-            cache.mutable_data_ptr(), cacheSize,                 //
-            &stream                                              //
+        int ret = FastFss_cuda_grottoMICEval(
+            sharedBooleanOut.mutable_data_ptr(),              //
+            (std::size_t)sharedBooleanOut.numel() * elementSize,
+            maskedX.const_data_ptr(),                         //
+            (std::size_t)maskedX.numel() * elementSize,       //
+            key.const_data_ptr(),                             //
+            (std::size_t)key.numel(),                         //
+            seed.const_data_ptr(),                            //
+            (std::size_t)seed.numel(),                        //
+            partyId,                                          //
+            leftBoundary.const_data_ptr(),                    //
+            (std::size_t)leftBoundary.numel() * elementSize,  //
+            rightBoundary.const_data_ptr(),                   //
+            (std::size_t)rightBoundary.numel() * elementSize, //
+            bitWidthIn,                                       //
+            elementSize,                                      //
+            elementNum,                                       //
+            cache.mutable_data_ptr(),                         //
+            (std::size_t)cache.numel(),                       //
+            &stream                                           //
         );
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoMICEval");
     }
@@ -542,382 +409,6 @@ torch::Tensor &grotto_mic_eval(torch::Tensor       &sharedBooleanOut,
         throw std::invalid_argument("device must be CPU or CUDA");
     }
     return sharedBooleanOut;
-}
-
-py::tuple grotto_lut_eval(torch::Tensor       &sharedOutE,
-                          torch::Tensor       &sharedOutT,
-                          const torch::Tensor &maskedX,
-                          const torch::Tensor &key,
-                          const torch::Tensor &seed,
-                          int                  partyId,
-                          const torch::Tensor &lookUpTable,
-                          std::size_t          bitWidthIn,
-                          std::size_t          bitWidthOut,
-                          std::size_t          elementNum)
-{
-    // =====================================================
-    // ===================== Check Input ===================
-    // =====================================================
-    ARG_ASSERT(sharedOutE.is_contiguous());
-    ARG_ASSERT(sharedOutT.is_contiguous());
-    ARG_ASSERT(maskedX.is_contiguous());
-    ARG_ASSERT(key.is_contiguous());
-    ARG_ASSERT(seed.is_contiguous());
-    ARG_ASSERT(lookUpTable.is_contiguous());
-
-    ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
-    ARG_ASSERT((std::size_t)seed.numel() == 16 * elementNum);
-    ARG_ASSERT(key.dtype() == torch::kUInt8);
-    ARG_ASSERT(seed.dtype() == torch::kUInt8);
-
-    auto dtype = maskedX.dtype();
-    ARG_ASSERT(sharedOutE.dtype() == dtype);
-    ARG_ASSERT(sharedOutT.dtype() == dtype);
-    ARG_ASSERT(lookUpTable.dtype() == dtype);
-
-    std::size_t elementSize = maskedX.element_size();
-    ARG_ASSERT(bitWidthIn <= elementSize * 8);
-
-    auto device = maskedX.device();
-    ARG_ASSERT(sharedOutT.device() == device);
-    ARG_ASSERT(sharedOutE.device() == device);
-    ARG_ASSERT(key.device() == device);
-    ARG_ASSERT(seed.device() == device);
-    ARG_ASSERT(lookUpTable.device() == device);
-
-    ARG_ASSERT((std::size_t)key.numel() ==
-               grotto_get_key_data_size(bitWidthIn, elementSize, elementNum));
-
-    auto lutNum = lookUpTable.numel() / (1LL << bitWidthIn);
-    ARG_ASSERT(lookUpTable.numel() == lutNum * (1LL << bitWidthIn));
-
-    // =====================================================
-    // ===================== FastFss =======================
-    // =====================================================
-
-    sharedOutE.resize_({(std::int64_t)(elementNum)});
-    sharedOutT.resize_({(std::int64_t)(elementNum)*lutNum});
-
-    std::size_t cacheSize;
-    {
-        int ret = FastFss_cpu_grottoGetCacheDataSize(&cacheSize, bitWidthIn,
-                                                     elementSize, elementNum);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoGetCacheDataSize");
-    }
-    torch::TensorOptions options;
-    options             = options.dtype(torch::kUInt8).device(device.type());
-    torch::Tensor cache = torch::empty({(std::int64_t)(cacheSize)}, options);
-
-    if (device.type() == torch::kCPU)
-    {
-        int ret = FastFss_cpu_grottoLutEval(                //
-            sharedOutE.mutable_data_ptr(),                  //
-            (std::size_t)sharedOutE.numel() * elementSize,  //
-            sharedOutT.mutable_data_ptr(),                  //
-            (std::size_t)sharedOutT.numel() * elementSize,  //
-            maskedX.const_data_ptr(),                       //
-            (std::size_t)maskedX.numel() * elementSize,     //
-            key.const_data_ptr(),                           //
-            (std::size_t)key.numel(),                       //
-            seed.const_data_ptr(),                          //
-            (std::size_t)seed.numel(),                      //
-            partyId,                                        //
-            lookUpTable.const_data_ptr(),                   //
-            (std::size_t)lookUpTable.numel() * elementSize, //
-            bitWidthIn,                                     //
-            bitWidthOut,                                    //
-            elementSize,                                    //
-            elementNum, cache.mutable_data_ptr(), cacheSize);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoLutEval");
-    }
-#ifndef NO_CUDA
-    else if (device.type() == torch::kCUDA)
-    {
-        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
-
-        int ret = FastFss_cuda_grottoLutEval(               //
-            sharedOutE.mutable_data_ptr(),                  //
-            (std::size_t)sharedOutE.numel() * elementSize,  //
-            sharedOutT.mutable_data_ptr(),                  //
-            (std::size_t)sharedOutT.numel() * elementSize,  //
-            maskedX.const_data_ptr(),                       //
-            (std::size_t)maskedX.numel() * elementSize,     //
-            key.const_data_ptr(),                           //
-            (std::size_t)key.numel(),                       //
-            seed.const_data_ptr(),                          //
-            (std::size_t)seed.numel(),                      //
-            partyId,                                        //
-            lookUpTable.const_data_ptr(),                   //
-            (std::size_t)lookUpTable.numel() * elementSize, //
-            bitWidthIn,                                     //
-            bitWidthOut,                                    //
-            elementSize,                                    //
-            elementNum, cache.mutable_data_ptr(), cacheSize, &stream);
-        CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoLutEval");
-    }
-#endif
-    else
-    {
-        throw std::invalid_argument("device must be CPU or CUDA");
-    }
-    return py::make_tuple(sharedOutE, sharedOutT);
-}
-
-py::tuple grotto_lut_eval_ex(torch::Tensor       &sharedOutE,
-                             torch::Tensor       &sharedOutT,
-                             const torch::Tensor &maskedX,
-                             const torch::Tensor &key,
-                             const torch::Tensor &seed,
-                             int                  partyId,
-                             const torch::Tensor &lookUpTable,
-                             std::size_t          lutBitWidth,
-                             std::size_t          bitWidthIn,
-                             std::size_t          bitWidthOut,
-                             std::size_t          elementNum)
-{
-    // =====================================================
-    // ===================== Check Input ===================
-    // =====================================================
-    ARG_ASSERT(sharedOutE.is_contiguous());
-    ARG_ASSERT(sharedOutT.is_contiguous());
-    ARG_ASSERT(maskedX.is_contiguous());
-    ARG_ASSERT(key.is_contiguous());
-    ARG_ASSERT(seed.is_contiguous());
-    ARG_ASSERT(lookUpTable.is_contiguous());
-
-    ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
-    ARG_ASSERT((std::size_t)seed.numel() == 16 * elementNum);
-    ARG_ASSERT(key.dtype() == torch::kUInt8);
-    ARG_ASSERT(seed.dtype() == torch::kUInt8);
-
-    auto dtype = maskedX.dtype();
-    ARG_ASSERT(sharedOutE.dtype() == dtype);
-    ARG_ASSERT(sharedOutT.dtype() == dtype);
-    ARG_ASSERT(lookUpTable.dtype() == dtype);
-
-    std::size_t elementSize = maskedX.element_size();
-    ARG_ASSERT(bitWidthIn <= elementSize * 8);
-
-    auto device = maskedX.device();
-    ARG_ASSERT(sharedOutT.device() == device);
-    ARG_ASSERT(sharedOutE.device() == device);
-    ARG_ASSERT(key.device() == device);
-    ARG_ASSERT(seed.device() == device);
-    ARG_ASSERT(lookUpTable.device() == device);
-
-    ARG_ASSERT((std::size_t)key.numel() ==
-               grotto_get_key_data_size(bitWidthIn, elementSize, elementNum));
-
-    ARG_ASSERT(lutBitWidth <= bitWidthIn);
-    auto lutNum = lookUpTable.numel() / (1LL << lutBitWidth);
-    ARG_ASSERT(lookUpTable.numel() == lutNum * (1LL << lutBitWidth));
-
-    // =====================================================
-    // ===================== FastFss =======================
-    // =====================================================
-
-    sharedOutE.resize_({(std::int64_t)(elementNum)});
-    sharedOutT.resize_({(std::int64_t)(elementNum)*lutNum});
-
-    std::size_t cacheSize;
-    {
-        int ret = FastFss_cpu_grottoGetCacheDataSize(&cacheSize, bitWidthIn,
-                                                     elementSize, elementNum);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoGetCacheDataSize");
-    }
-    torch::TensorOptions options;
-    options              = options.dtype(torch::kUInt8).device(device.type());
-    torch::Tensor cache0 = torch::empty({(std::int64_t)(cacheSize)}, options);
-
-    if (device.type() == torch::kCPU)
-    {
-        int ret = FastFss_cpu_grottoLutEval_ex(             //
-            sharedOutE.mutable_data_ptr(),                  //
-            (std::size_t)sharedOutE.numel() * elementSize,  //
-            sharedOutT.mutable_data_ptr(),                  //
-            (std::size_t)sharedOutT.numel() * elementSize,  //
-            maskedX.const_data_ptr(),                       //
-            (std::size_t)maskedX.numel() * elementSize,     //
-            key.const_data_ptr(),                           //
-            (std::size_t)key.numel(),                       //
-            seed.const_data_ptr(),                          //
-            (std::size_t)seed.numel(),                      //
-            partyId,                                        //
-            lookUpTable.const_data_ptr(),                   //
-            (std::size_t)lookUpTable.numel() * elementSize, //
-            lutBitWidth,                                    //
-            bitWidthIn,                                     //
-            bitWidthOut,                                    //
-            elementSize,                                    //
-            elementNum,                                     //
-            cache0.mutable_data_ptr(), cacheSize);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoLutEval_ex");
-    }
-#ifndef NO_CUDA
-    else if (device.type() == torch::kCUDA)
-    {
-        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
-
-        int ret = FastFss_cuda_grottoLutEval_ex(            //
-            sharedOutE.mutable_data_ptr(),                  //
-            (std::size_t)sharedOutE.numel() * elementSize,  //
-            sharedOutT.mutable_data_ptr(),                  //
-            (std::size_t)sharedOutT.numel() * elementSize,  //
-            maskedX.const_data_ptr(),                       //
-            (std::size_t)maskedX.numel() * elementSize,     //
-            key.const_data_ptr(),                           //
-            (std::size_t)key.numel(),                       //
-            seed.const_data_ptr(),                          //
-            (std::size_t)seed.numel(),                      //
-            partyId,                                        //
-            lookUpTable.const_data_ptr(),                   //
-            (std::size_t)lookUpTable.numel() * elementSize, //
-            lutBitWidth,                                    //
-            bitWidthIn,                                     //
-            bitWidthOut,                                    //
-            elementSize,                                    //
-            elementNum,                                     //
-            cache0.mutable_data_ptr(), cacheSize, &stream);
-        CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoLutEval_ex");
-    }
-#endif
-    else
-    {
-        throw std::invalid_argument("device must be CPU or CUDA");
-    }
-    return py::make_tuple(sharedOutE, sharedOutT);
-}
-
-py::tuple grotto_lut_eval_ex2(torch::Tensor       &sharedOutE,
-                              torch::Tensor       &sharedOutT,
-                              const torch::Tensor &maskedX,
-                              const torch::Tensor &key,
-                              const torch::Tensor &seed,
-                              int                  partyId,
-                              const torch::Tensor &points,
-                              const torch::Tensor &lookUpTable,
-                              std::size_t          bitWidthIn,
-                              std::size_t          bitWidthOut,
-                              std::size_t          elementNum)
-{
-    // =====================================================
-    // ===================== Check Input ===================
-    // =====================================================
-    ARG_ASSERT(sharedOutE.is_contiguous());
-    ARG_ASSERT(sharedOutT.is_contiguous());
-    ARG_ASSERT(maskedX.is_contiguous());
-    ARG_ASSERT(key.is_contiguous());
-    ARG_ASSERT(seed.is_contiguous());
-    ARG_ASSERT(points.is_contiguous());
-    ARG_ASSERT(lookUpTable.is_contiguous());
-
-    ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
-    ARG_ASSERT((std::size_t)seed.numel() == 16 * elementNum);
-    ARG_ASSERT(key.dtype() == torch::kUInt8);
-    ARG_ASSERT(seed.dtype() == torch::kUInt8);
-
-    auto dtype = maskedX.dtype();
-    ARG_ASSERT(sharedOutE.dtype() == dtype);
-    ARG_ASSERT(sharedOutT.dtype() == dtype);
-    ARG_ASSERT(points.dtype() == dtype);
-    ARG_ASSERT(lookUpTable.dtype() == dtype);
-
-    std::size_t elementSize = maskedX.element_size();
-    ARG_ASSERT(bitWidthIn <= elementSize * 8);
-
-    auto device = maskedX.device();
-    ARG_ASSERT(sharedOutT.device() == device);
-    ARG_ASSERT(sharedOutE.device() == device);
-    ARG_ASSERT(key.device() == device);
-    ARG_ASSERT(seed.device() == device);
-    ARG_ASSERT(points.device() == device);
-    ARG_ASSERT(lookUpTable.device() == device);
-
-    ARG_ASSERT((std::size_t)key.numel() ==
-               grotto_get_key_data_size(bitWidthIn, elementSize, elementNum));
-
-    auto lutNum = lookUpTable.numel() / points.numel();
-    ARG_ASSERT(lookUpTable.numel() == lutNum * points.numel());
-
-    // =====================================================
-    // ===================== FastFss =======================
-    // =====================================================
-
-    sharedOutE.resize_({(std::int64_t)(elementNum)});
-    sharedOutT.resize_({(std::int64_t)(elementNum)*lutNum});
-
-    std::size_t cacheSize;
-    {
-        int ret = FastFss_cpu_grottoGetCacheDataSize(&cacheSize, bitWidthIn,
-                                                     elementSize, elementNum);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoGetCacheDataSize");
-    }
-    torch::TensorOptions options;
-    options             = options.dtype(torch::kUInt8).device(device.type());
-    torch::Tensor cache = torch::empty({(std::int64_t)(cacheSize)}, options);
-
-    if (device.type() == torch::kCPU)
-    {
-        int ret = FastFss_cpu_grottoLutEval_ex2(            //
-            sharedOutE.mutable_data_ptr(),                  //
-            (std::size_t)sharedOutE.numel() * elementSize,  //
-            sharedOutT.mutable_data_ptr(),                  //
-            (std::size_t)sharedOutT.numel() * elementSize,  //
-            maskedX.const_data_ptr(),                       //
-            (std::size_t)maskedX.numel() * elementSize,     //
-            key.const_data_ptr(),                           //
-            (std::size_t)key.numel(),                       //
-            seed.const_data_ptr(),                          //
-            (std::size_t)seed.numel(),                      //
-            partyId,                                        //
-            points.const_data_ptr(),                        //
-            (std::size_t)points.numel() * elementSize,      //
-            lookUpTable.const_data_ptr(),                   //
-            (std::size_t)lookUpTable.numel() * elementSize, //
-            bitWidthIn,                                     //
-            bitWidthOut,                                    //
-            elementSize,                                    //
-            elementNum,                                     //
-            cache.mutable_data_ptr(),                       //
-            cacheSize);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoLutEval_ex2");
-    }
-#ifndef NO_CUDA
-    else if (device.type() == torch::kCUDA)
-    {
-        cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
-
-        int ret = FastFss_cuda_grottoLutEval_ex2(           //
-            sharedOutE.mutable_data_ptr(),                  //
-            (std::size_t)sharedOutE.numel() * elementSize,  //
-            sharedOutT.mutable_data_ptr(),                  //
-            (std::size_t)sharedOutT.numel() * elementSize,  //
-            maskedX.const_data_ptr(),                       //
-            (std::size_t)maskedX.numel() * elementSize,     //
-            key.const_data_ptr(),                           //
-            (std::size_t)key.numel(),                       //
-            seed.const_data_ptr(),                          //
-            (std::size_t)seed.numel(),                      //
-            partyId,                                        //
-            points.const_data_ptr(),                        //
-            (std::size_t)points.numel() * elementSize,      //
-            lookUpTable.const_data_ptr(),                   //
-            (std::size_t)lookUpTable.numel() * elementSize, //
-            bitWidthIn,                                     //
-            bitWidthOut,                                    //
-            elementSize,                                    //
-            elementNum,                                     //
-            cache.mutable_data_ptr(),                       //
-            cacheSize,                                      //
-            &stream);
-        CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoLutEval_ex2");
-    }
-#endif
-    else
-    {
-        throw std::invalid_argument("device must be CPU or CUDA");
-    }
-    return py::make_tuple(sharedOutE, sharedOutT);
 }
 
 py::tuple grotto_interval_lut_eval(torch::Tensor       &sharedOutE,
@@ -933,9 +424,6 @@ py::tuple grotto_interval_lut_eval(torch::Tensor       &sharedOutE,
                                    std::size_t          bitWidthOut,
                                    std::size_t          elementNum)
 {
-    // =====================================================
-    // ===================== Check Input ===================
-    // =====================================================
     ARG_ASSERT(sharedOutE.is_contiguous());
     ARG_ASSERT(sharedOutT.is_contiguous());
     ARG_ASSERT(maskedX.is_contiguous());
@@ -944,7 +432,6 @@ py::tuple grotto_interval_lut_eval(torch::Tensor       &sharedOutE,
     ARG_ASSERT(leftBoundary.is_contiguous());
     ARG_ASSERT(rightBoundary.is_contiguous());
     ARG_ASSERT(lookUpTable.is_contiguous());
-
     ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
     ARG_ASSERT((std::size_t)seed.numel() == 16 * elementNum);
     ARG_ASSERT(key.dtype() == torch::kUInt8);
@@ -959,94 +446,88 @@ py::tuple grotto_interval_lut_eval(torch::Tensor       &sharedOutE,
 
     std::size_t elementSize = maskedX.element_size();
     ARG_ASSERT(bitWidthIn <= elementSize * 8);
+    ARG_ASSERT(bitWidthOut <= elementSize * 8);
 
     auto device = maskedX.device();
-    ARG_ASSERT(sharedOutT.device() == device);
     ARG_ASSERT(sharedOutE.device() == device);
+    ARG_ASSERT(sharedOutT.device() == device);
     ARG_ASSERT(key.device() == device);
     ARG_ASSERT(seed.device() == device);
     ARG_ASSERT(leftBoundary.device() == device);
     ARG_ASSERT(rightBoundary.device() == device);
     ARG_ASSERT(lookUpTable.device() == device);
-
     ARG_ASSERT(leftBoundary.numel() == rightBoundary.numel());
-
     ARG_ASSERT((std::size_t)key.numel() ==
                grotto_get_key_data_size(bitWidthIn, elementSize, elementNum));
 
     auto lutNum = lookUpTable.numel() / leftBoundary.numel();
     ARG_ASSERT(lookUpTable.numel() == lutNum * leftBoundary.numel());
 
-    // =====================================================
-    // ===================== FastFss =======================
-    // =====================================================
-
-    sharedOutE.resize_({(std::int64_t)(elementNum)});
-    sharedOutT.resize_({(std::int64_t)(elementNum)*lutNum});
-
-    std::size_t cacheSize;
-    {
-        int ret = FastFss_cpu_grottoGetCacheDataSize(&cacheSize, bitWidthIn,
-                                                     elementSize, elementNum);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoGetCacheDataSize");
-    }
-    torch::TensorOptions options;
-    options             = options.dtype(torch::kUInt8).device(device.type());
-    torch::Tensor cache = torch::empty({(std::int64_t)(cacheSize)}, options);
+    sharedOutE.resize_({(std::int64_t)elementNum});
+    sharedOutT.resize_({(std::int64_t)(elementNum * lutNum)});
+    torch::Tensor cache =
+        make_u8_cache(device, grotto_get_cache_data_size(bitWidthIn, elementSize,
+                                                         elementNum));
 
     if (device.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_grottoIntervalLutEval( //
-            sharedOutE.mutable_data_ptr(),           //
-            (std::size_t)sharedOutE.numel() * elementSize,
-            sharedOutT.mutable_data_ptr(),                    //
-            (std::size_t)sharedOutT.numel() * elementSize,    //
-            maskedX.const_data_ptr(),                         //
-            (std::size_t)maskedX.numel() * elementSize,       //
-            key.const_data_ptr(),                             //
-            (std::size_t)key.numel(),                         //
-            seed.const_data_ptr(),                            //
-            (std::size_t)seed.numel(),                        //
-            partyId,                                          //
-            leftBoundary.const_data_ptr(),                    //
-            (std::size_t)leftBoundary.numel() * elementSize,  //
-            rightBoundary.const_data_ptr(),                   //
-            (std::size_t)rightBoundary.numel() * elementSize, //
-            lookUpTable.const_data_ptr(),                     //
-            (std::size_t)lookUpTable.numel() * elementSize,   //
-            bitWidthIn,                                       //
-            bitWidthOut,                                      //
-            elementSize,                                      //
-            elementNum, cache.mutable_data_ptr(), cacheSize);
+        int ret = FastFss_cpu_grottoIntervalLutEval(
+            sharedOutE.mutable_data_ptr(),                   //
+            (std::size_t)sharedOutE.numel() * elementSize,   //
+            sharedOutT.mutable_data_ptr(),                   //
+            (std::size_t)sharedOutT.numel() * elementSize,   //
+            maskedX.const_data_ptr(),                        //
+            (std::size_t)maskedX.numel() * elementSize,      //
+            key.const_data_ptr(),                            //
+            (std::size_t)key.numel(),                        //
+            seed.const_data_ptr(),                           //
+            (std::size_t)seed.numel(),                       //
+            partyId,                                         //
+            leftBoundary.const_data_ptr(),                   //
+            (std::size_t)leftBoundary.numel() * elementSize, //
+            rightBoundary.const_data_ptr(),                  //
+            (std::size_t)rightBoundary.numel() * elementSize,
+            lookUpTable.const_data_ptr(),                    //
+            (std::size_t)lookUpTable.numel() * elementSize,  //
+            bitWidthIn,                                      //
+            bitWidthOut,                                     //
+            elementSize,                                     //
+            elementNum,                                      //
+            cache.mutable_data_ptr(),                        //
+            (std::size_t)cache.numel()                       //
+        );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_grottoIntervalLutEval");
     }
 #ifndef NO_CUDA
     else if (device.type() == torch::kCUDA)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
-
-        int ret = FastFss_cuda_grottoIntervalLutEval( //
-            sharedOutE.mutable_data_ptr(),            //
-            (std::size_t)sharedOutE.numel() * elementSize,
-            sharedOutT.mutable_data_ptr(),                    //
-            (std::size_t)sharedOutT.numel() * elementSize,    //
-            maskedX.const_data_ptr(),                         //
-            (std::size_t)maskedX.numel() * elementSize,       //
-            key.const_data_ptr(),                             //
-            (std::size_t)key.numel(),                         //
-            seed.const_data_ptr(),                            //
-            (std::size_t)seed.numel(),                        //
-            partyId,                                          //
-            leftBoundary.const_data_ptr(),                    //
-            (std::size_t)leftBoundary.numel() * elementSize,  //
-            rightBoundary.const_data_ptr(),                   //
-            (std::size_t)rightBoundary.numel() * elementSize, //
-            lookUpTable.const_data_ptr(),                     //
-            (std::size_t)lookUpTable.numel() * elementSize,   //
-            bitWidthIn,                                       //
-            bitWidthOut,                                      //
-            elementSize,                                      //
-            elementNum, cache.mutable_data_ptr(), cacheSize, &stream);
+        int ret = FastFss_cuda_grottoIntervalLutEval(
+            sharedOutE.mutable_data_ptr(),                   //
+            (std::size_t)sharedOutE.numel() * elementSize,   //
+            sharedOutT.mutable_data_ptr(),                   //
+            (std::size_t)sharedOutT.numel() * elementSize,   //
+            maskedX.const_data_ptr(),                        //
+            (std::size_t)maskedX.numel() * elementSize,      //
+            key.const_data_ptr(),                            //
+            (std::size_t)key.numel(),                        //
+            seed.const_data_ptr(),                           //
+            (std::size_t)seed.numel(),                       //
+            partyId,                                         //
+            leftBoundary.const_data_ptr(),                   //
+            (std::size_t)leftBoundary.numel() * elementSize, //
+            rightBoundary.const_data_ptr(),                  //
+            (std::size_t)rightBoundary.numel() * elementSize,
+            lookUpTable.const_data_ptr(),                    //
+            (std::size_t)lookUpTable.numel() * elementSize,  //
+            bitWidthIn,                                      //
+            bitWidthOut,                                     //
+            elementSize,                                     //
+            elementNum,                                      //
+            cache.mutable_data_ptr(),                        //
+            (std::size_t)cache.numel(),                      //
+            &stream                                          //
+        );
         CHECK_ERROR_CODE(ret, "FastFss_cuda_grottoIntervalLutEval");
     }
 #endif

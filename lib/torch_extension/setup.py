@@ -8,9 +8,9 @@ import torch
 
 cxx_flags = []
 if sys.platform == "linux":
-    cxx_flags = ["-maes", "-std=c++17", "-O3", "-fopenmp", "-fvisibility=hidden"]
+    cxx_flags = ["-maes", "-std=c++20", "-O3", "-fopenmp", "-fvisibility=hidden"]
 else:
-    cxx_flags = ["/std:c++17", "/O2", "/openmp"]
+    cxx_flags = ["/std:c++20", "/O2", "/openmp"]
 
 if not torch.cuda.is_available():
     if sys.platform == "linux":
@@ -22,10 +22,15 @@ if not torch.cuda.is_available():
         sources=[
             # python
             *glob.glob("pyFastFss/src/*.cpp"),
+            # public api
+            *glob.glob("../../src/*.cpp"),
             # cpu
             *glob.glob("../../src/cpu/*.cpp"),
         ],
-        include_dirs=[os.path.abspath("../../include")],
+        include_dirs=[
+            os.path.abspath("../../include"),
+            os.path.abspath("../../third_party/wideint/include"),
+        ],
         extra_compile_args={
             "cxx": cxx_flags,
         },
@@ -36,17 +41,21 @@ else:
         sources=[
             # python
             *glob.glob("pyFastFss/src/*.cpp"),
+            # public api
+            *glob.glob("../../src/*.cpp"),
             # cpu
             *glob.glob("../../src/cpu/*.cpp"),
             # cuda
             *glob.glob("../../src/cuda/*.cpp"),
             *glob.glob("../../src/cuda/*.cu"),
         ],
-        include_dirs=[os.path.abspath("../../include")],
-        include_dirs=[os.path.abspath("../../third_party/wideint/include")],
+        include_dirs=[
+            os.path.abspath("../../include"),
+            os.path.abspath("../../third_party/wideint/include"),
+        ],
         extra_compile_args={
             "cxx": cxx_flags,
-            "nvcc": ["-O3", "-std=c++17"],
+            "nvcc": ["-O3", "-std=c++20"],
         },
     )
 

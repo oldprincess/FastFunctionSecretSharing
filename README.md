@@ -10,10 +10,18 @@ Initialize submodules first:
 git submodule update --init --recursive
 ```
 
-Configure and build the C++ library plus tests:
+Configure and build the C++ library.
+If a CUDA toolchain is available, CUDA sources are enabled automatically:
 
 ```shell
 cmake -S . -B build
+cmake --build build --config Debug
+```
+
+Build and run tests explicitly:
+
+```shell
+cmake -S . -B build -DFAST_FSS_BUILD_TESTS=ON
 cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```
@@ -21,7 +29,14 @@ ctest --test-dir build -C Debug --output-on-failure
 If CUDA is not available or you only want CPU targets:
 
 ```shell
-cmake -S . -B build -DFASTFSS_ENABLE_CUDA=OFF
+cmake -S . -B build -DFAST_FSS_ENABLE_CUDA=OFF
+cmake --build build --config Debug
+```
+
+Build CPU-only targets and tests:
+
+```shell
+cmake -S . -B build -DFAST_FSS_ENABLE_CUDA=OFF -DFAST_FSS_BUILD_TESTS=ON
 cmake --build build --config Debug
 ctest --test-dir build -C Debug --output-on-failure
 ```

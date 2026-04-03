@@ -4,27 +4,26 @@
 #include "def.cuh"
 
 template <typename GroupElement>
-__global__ static void grottoEqMultiEvalParallelAllKernel(void*       out,
-                                                          const void* maskedX,
-                                                          const void* key,
-                                                          const void* seed,
+__global__ static void grottoEqMultiEvalParallelAllKernel(void       *out,
+                                                          const void *maskedX,
+                                                          const void *key,
+                                                          const void *seed,
                                                           int         partyId,
-                                                          const void* points,
+                                                          const void *points,
                                                           size_t      pointsNum,
-                                                          size_t bitWidthIn,
-                                                          size_t elementNum)
+                                                          size_t      bitWidthIn,
+                                                          size_t      elementNum)
 {
     using namespace FastFss;
 
     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
     std::size_t stride = blockDim.x * gridDim.x;
 
-    const GroupElement* maskedXPtr = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr    = (const std::uint8_t*)seed;
-    GroupElement*       outPtr     = (GroupElement*)out;
-    const GroupElement* pointsPtr  = (const GroupElement*)points;
+    const GroupElement *maskedXPtr = (const GroupElement *)maskedX;
+    const std::uint8_t *seedPtr    = (const std::uint8_t *)seed;
+    GroupElement       *outPtr     = (GroupElement *)out;
+    const GroupElement *pointsPtr  = (const GroupElement *)points;
 
-    impl::AES128GlobalContext     aesCtx;
     impl::GrottoKey<GroupElement> keyObj;
     for (std::size_t i = idx; i < elementNum * pointsNum; i += stride)
     {
@@ -40,8 +39,8 @@ __global__ static void grottoEqMultiEvalParallelAllKernel(void*       out,
                                                      seedPtr + 16 * xIdx, //
                                                      partyId,             //
                                                      bitWidthIn,          //
-                                                     nullptr,             //
-                                                     &aesCtx              //
+                                                     nullptr              //
+
         );
     }
 }

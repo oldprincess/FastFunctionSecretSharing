@@ -4,13 +4,13 @@
 #include "def.cuh"
 
 template <typename GroupElement>
-__global__ static void grottoMICEvalParallelAllKernel(void*       out,
-                                                      const void* maskedX,
-                                                      const void* key,
-                                                      const void* seed,
+__global__ static void grottoMICEvalParallelAllKernel(void       *out,
+                                                      const void *maskedX,
+                                                      const void *key,
+                                                      const void *seed,
                                                       int         partyId,
-                                                      const void* leftEndpoints,
-                                                      const void* rightEndpoints,
+                                                      const void *leftEndpoints,
+                                                      const void *rightEndpoints,
                                                       size_t      intervalNum,
                                                       size_t      bitWidthIn,
                                                       size_t      elementNum)
@@ -20,13 +20,12 @@ __global__ static void grottoMICEvalParallelAllKernel(void*       out,
     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
     std::size_t stride = blockDim.x * gridDim.x;
 
-    const GroupElement* maskedXPtr       = (const GroupElement*)maskedX;
-    const std::uint8_t* seedPtr          = (const std::uint8_t*)seed;
-    GroupElement*       outPtr           = (GroupElement*)out;
-    const GroupElement* leftEndpointsPtr  = (const GroupElement*)leftEndpoints;
-    const GroupElement* rightEndpointsPtr = (const GroupElement*)rightEndpoints;
+    const GroupElement *maskedXPtr        = (const GroupElement *)maskedX;
+    const std::uint8_t *seedPtr           = (const std::uint8_t *)seed;
+    GroupElement       *outPtr            = (GroupElement *)out;
+    const GroupElement *leftEndpointsPtr  = (const GroupElement *)leftEndpoints;
+    const GroupElement *rightEndpointsPtr = (const GroupElement *)rightEndpoints;
 
-    impl::AES128GlobalContext     aesCtx;
     impl::GrottoKey<GroupElement> keyObj;
     for (std::size_t i = idx; i < elementNum * intervalNum; i += stride)
     {
@@ -41,11 +40,9 @@ __global__ static void grottoMICEvalParallelAllKernel(void*       out,
         xQ = impl::modBits<GroupElement>(xQ, bitWidthIn);
 
         GroupElement sp = impl::grottoEval<GroupElement>( //
-            keyObj, xP, seedPtr + xIdx * 16, partyId, bitWidthIn, true, nullptr,
-            &aesCtx);
+            keyObj, xP, seedPtr + xIdx * 16, partyId, bitWidthIn, true, nullptr);
         GroupElement sq = impl::grottoEval<GroupElement>( //
-            keyObj, xQ, seedPtr + xIdx * 16, partyId, bitWidthIn, true, nullptr,
-            &aesCtx);
+            keyObj, xQ, seedPtr + xIdx * 16, partyId, bitWidthIn, true, nullptr);
 
         outPtr[i] = (sp ^ sq) ^ ((xQ > xP) ? partyId : 0);
     }

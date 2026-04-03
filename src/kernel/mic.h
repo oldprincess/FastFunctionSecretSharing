@@ -1,8 +1,9 @@
 #ifndef SRC_KERNEL_MIC_H
 #define SRC_KERNEL_MIC_H
 
+#include <FastFss/errors.h>
+
 #include "../impl/mic.h"
-#include "parallel_execute.h"
 
 namespace FastFss::kernel {
 
@@ -33,8 +34,7 @@ struct DcfMICKeyGenTask
     {
         const std::size_t intervalNum = leftEndpointsDataSize / elementSize;
         const std::size_t needKeyDataSize =
-            impl::dcfGetKeyDataSize<GroupElement>(bitWidthIn, bitWidthOut, 1,
-                                                  elementNum);
+            impl::dcfGetKeyDataSize<GroupElement>(bitWidthIn, bitWidthOut, 1, elementNum);
 
         if (!(0 < bitWidthIn && bitWidthIn <= elementSize * 8))
         {
@@ -60,8 +60,7 @@ struct DcfMICKeyGenTask
         {
             return FAST_FSS_INVALID_SEED_DATA_SIZE_ERROR;
         }
-        if (leftEndpointsDataSize != intervalNum * elementSize ||
-            rightEndpointsDataSize != intervalNum * elementSize)
+        if (leftEndpointsDataSize != intervalNum * elementSize || rightEndpointsDataSize != intervalNum * elementSize)
         {
             return FAST_FSS_INVALID_BOUNDARY_DATA_SIZE_ERROR;
         }
@@ -70,21 +69,19 @@ struct DcfMICKeyGenTask
 
     FAST_FSS_DEVICE void operator()(std::size_t i) const noexcept
     {
-        const std::size_t  intervalNum       = leftEndpointsDataSize / elementSize;
-        GroupElement      *zPtr              = (GroupElement *)z;
-        const GroupElement *alphaPtr         = (const GroupElement *)alpha;
-        const std::uint8_t *seed0Ptr         = (const std::uint8_t *)seed0;
-        const std::uint8_t *seed1Ptr         = (const std::uint8_t *)seed1;
+        const std::size_t   intervalNum       = leftEndpointsDataSize / elementSize;
+        GroupElement       *zPtr              = (GroupElement *)z;
+        const GroupElement *alphaPtr          = (const GroupElement *)alpha;
+        const std::uint8_t *seed0Ptr          = (const std::uint8_t *)seed0;
+        const std::uint8_t *seed1Ptr          = (const std::uint8_t *)seed1;
         const GroupElement *leftEndpointsPtr  = (const GroupElement *)leftEndpoints;
         const GroupElement *rightEndpointsPtr = (const GroupElement *)rightEndpoints;
 
         impl::DcfKey<GroupElement> keyObj;
-        impl::dcfKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut, 1, i,
-                                         elementNum);
-        impl::dcfMICKeyGen<GroupElement>(
-            keyObj, zPtr + intervalNum * i, alphaPtr[i], seed0Ptr + 16 * i,
-            seed1Ptr + 16 * i, leftEndpointsPtr, rightEndpointsPtr, intervalNum,
-            bitWidthIn, bitWidthOut);
+        impl::dcfKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut, 1, i, elementNum);
+        impl::dcfMICKeyGen<GroupElement>(keyObj, zPtr + intervalNum * i, alphaPtr[i], seed0Ptr + 16 * i,
+                                         seed1Ptr + 16 * i, leftEndpointsPtr, rightEndpointsPtr, intervalNum,
+                                         bitWidthIn, bitWidthOut);
     }
 };
 
@@ -118,10 +115,8 @@ struct DcfMICEvalTask
     {
         const std::size_t intervalNum = leftEndpointsDataSize / elementSize;
         const std::size_t needKeyDataSize =
-            impl::dcfGetKeyDataSize<GroupElement>(bitWidthIn, bitWidthOut, 1,
-                                                  elementNum);
-        const std::size_t needCacheDataSize =
-            impl::dcfGetCacheDataSize<GroupElement>(bitWidthIn, 1, elementNum);
+            impl::dcfGetKeyDataSize<GroupElement>(bitWidthIn, bitWidthOut, 1, elementNum);
+        const std::size_t needCacheDataSize = impl::dcfGetCacheDataSize<GroupElement>(bitWidthIn, 1, elementNum);
 
         if (!(0 < bitWidthIn && bitWidthIn <= elementSize * 8))
         {
@@ -155,8 +150,7 @@ struct DcfMICEvalTask
         {
             return FAST_FSS_INVALID_SEED_DATA_SIZE_ERROR;
         }
-        if (leftEndpointsDataSize != intervalNum * elementSize ||
-            rightEndpointsDataSize != intervalNum * elementSize)
+        if (leftEndpointsDataSize != intervalNum * elementSize || rightEndpointsDataSize != intervalNum * elementSize)
         {
             return FAST_FSS_INVALID_BOUNDARY_DATA_SIZE_ERROR;
         }
@@ -169,11 +163,11 @@ struct DcfMICEvalTask
 
     FAST_FSS_DEVICE void operator()(std::size_t i) const noexcept
     {
-        const std::size_t  intervalNum       = leftEndpointsDataSize / elementSize;
-        GroupElement      *sharedOutPtr      = (GroupElement *)sharedOut;
-        const GroupElement *maskedXPtr       = (const GroupElement *)maskedX;
-        const GroupElement *sharedZPtr       = (const GroupElement *)sharedZ;
-        const std::uint8_t *seedPtr          = (const std::uint8_t *)seed;
+        const std::size_t   intervalNum       = leftEndpointsDataSize / elementSize;
+        GroupElement       *sharedOutPtr      = (GroupElement *)sharedOut;
+        const GroupElement *maskedXPtr        = (const GroupElement *)maskedX;
+        const GroupElement *sharedZPtr        = (const GroupElement *)sharedZ;
+        const std::uint8_t *seedPtr           = (const std::uint8_t *)seed;
         const GroupElement *leftEndpointsPtr  = (const GroupElement *)leftEndpoints;
         const GroupElement *rightEndpointsPtr = (const GroupElement *)rightEndpoints;
 
@@ -181,18 +175,15 @@ struct DcfMICEvalTask
         impl::DcfCache<GroupElement>  cacheObj;
         impl::DcfCache<GroupElement> *cachePtr = nullptr;
 
-        impl::dcfKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut, 1, i,
-                                         elementNum);
+        impl::dcfKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut, 1, i, elementNum);
         if (cache != nullptr)
         {
-            impl::dcfCacheSetPtr<GroupElement>(cacheObj, cache, bitWidthIn, 1, i,
-                                               elementNum);
+            impl::dcfCacheSetPtr<GroupElement>(cacheObj, cache, bitWidthIn, 1, i, elementNum);
             cachePtr = &cacheObj;
         }
-        impl::dcfMICEval<GroupElement>(
-            sharedOutPtr + intervalNum * i, maskedXPtr[i], keyObj,
-            sharedZPtr + intervalNum * i, seedPtr + 16 * i, partyId, leftEndpointsPtr,
-            rightEndpointsPtr, intervalNum, bitWidthIn, bitWidthOut, cachePtr);
+        impl::dcfMICEval<GroupElement>(sharedOutPtr + intervalNum * i, maskedXPtr[i], keyObj,
+                                       sharedZPtr + intervalNum * i, seedPtr + 16 * i, partyId, leftEndpointsPtr,
+                                       rightEndpointsPtr, intervalNum, bitWidthIn, bitWidthOut, cachePtr);
     }
 };
 

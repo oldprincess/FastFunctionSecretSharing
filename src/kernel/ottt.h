@@ -1,8 +1,9 @@
 #ifndef SRC_KERNEL_OTTT_H
 #define SRC_KERNEL_OTTT_H
 
+#include <FastFss/errors.h>
+
 #include "../impl/ottt.h"
-#include "parallel_execute.h"
 
 namespace FastFss::kernel {
 
@@ -37,8 +38,8 @@ struct OtttKeyGenTask
 
     FAST_FSS_DEVICE void operator()(std::size_t i) const noexcept
     {
-        const auto *alphaPtr = (const GroupElement *)alpha;
-        auto       *keyPtr   = (std::uint8_t *)key;
+        const auto *alphaPtr  = (const GroupElement *)alpha;
+        auto       *keyPtr    = (std::uint8_t *)key;
         const auto  keyOffset = i * (1ULL << bitWidthIn) / 8;
         impl::otttKeyGen<GroupElement>(keyPtr + keyOffset, alphaPtr[i], bitWidthIn);
     }
@@ -108,8 +109,7 @@ struct OtttLutEvalTask
         auto       *sharedOutTPtr = (GroupElement *)sharedOutT;
         const auto  keyOffset     = i * (1ULL << bitWidthIn) / 8;
 
-        impl::otttLutEval<GroupElement>(sharedOutEPtr + i, sharedOutTPtr + i,
-                                        maskedXPtr[i], keyPtr + keyOffset, lutPtr,
+        impl::otttLutEval<GroupElement>(sharedOutEPtr + i, sharedOutTPtr + i, maskedXPtr[i], keyPtr + keyOffset, lutPtr,
                                         partyId, bitWidthIn);
     }
 };

@@ -1,7 +1,7 @@
 #include <FastFss/cpu/prng.h>
+#include <FastFss/errors.h>
 
 #include <cstring>
-#include <vector>
 
 #if !defined(AES_IMPL)
 #include "../impl/aesni.h"
@@ -17,10 +17,7 @@ public:
     std::uint8_t counter[16];
 };
 
-static void aes128_ctr(const void *seed,
-                       void       *counter,
-                       void       *dst,
-                       size_t      bytesNum) noexcept
+static void aes128_ctr(const void *seed, void *counter, void *dst, size_t bytesNum) noexcept
 {
     impl::AES128 aes128ctx;
     aes128ctx.set_enc_key(seed);
@@ -80,16 +77,6 @@ static void aes128_ctr(const void *seed,
 
 } // namespace FastFss::cpu
 
-enum PRNG_ERROR_CODE
-{
-    PRNG_SUCCESS                      = 0,
-    PRNG_RUNTIME_ERROR                = -1,
-    PRNG_INPUT_INVALID_ARGUMENT       = -2,
-    PRNG_INVALID_BIT_WIDTH            = -3,
-    PRNG_INVALID_ELEMENT_SIZE         = -4,
-    PRNG_RANDOM_BUFFER_SIZE_TOO_SMALL = -5,
-};
-
 void *FastFss_cpu_prngInit()
 {
     void *prng = nullptr;
@@ -112,13 +99,11 @@ void FastFss_cpu_prngRelease(void *prng)
     delete (FastFss::cpu::Prng *)prng;
 }
 
-int FastFss_cpu_prngSetCurrentSeed(void       *prng,
-                                   const void *seed128bit,
-                                   const void *counter128bit)
+int FastFss_cpu_prngSetCurrentSeed(void *prng, const void *seed128bit, const void *counter128bit)
 {
     if (prng == nullptr || seed128bit == nullptr)
     {
-        return PRNG_INPUT_INVALID_ARGUMENT;
+        return FAST_FSS_PRNG_INPUT_INVALID_ARGUMENT;
     }
     FastFss::cpu::Prng *prngObj = (FastFss::cpu::Prng *)prng;
     std::memcpy(prngObj->seed, seed128bit, 16);
@@ -130,41 +115,34 @@ int FastFss_cpu_prngSetCurrentSeed(void       *prng,
     {
         std::memset(prngObj->counter, 0, 16);
     }
-    return PRNG_SUCCESS;
+    return FAST_FSS_SUCCESS;
 }
 
-int FastFss_cpu_prngGetCurrentSeed(const void *prng,
-                                   void       *seed128bit,
-                                   void       *counter128bit)
+int FastFss_cpu_prngGetCurrentSeed(const void *prng, void *seed128bit, void *counter128bit)
 {
     if (prng == nullptr || seed128bit == nullptr)
     {
-        return PRNG_INPUT_INVALID_ARGUMENT;
+        return FAST_FSS_PRNG_INPUT_INVALID_ARGUMENT;
     }
     std::memcpy(seed128bit, ((FastFss::cpu::Prng *)prng)->seed, 16);
     if (counter128bit != nullptr)
     {
         std::memcpy(counter128bit, ((FastFss::cpu::Prng *)prng)->counter, 16);
     }
-    return PRNG_SUCCESS;
+    return FAST_FSS_SUCCESS;
 }
 
-int FastFss_cpu_prngGen(void  *prng,
-                        void  *dst,
-                        size_t bitWidth,
-                        size_t elementSize,
-                        size_t elementNum)
+int FastFss_cpu_prngGen(void *prng, void *dst, size_t bitWidth, size_t elementSize, size_t elementNum)
 {
     if (prng == nullptr || dst == nullptr)
     {
-        return PRNG_INPUT_INVALID_ARGUMENT;
+        return FAST_FSS_PRNG_INPUT_INVALID_ARGUMENT;
     }
     if (bitWidth == 0 || bitWidth > elementSize * 8)
     {
-        return PRNG_INVALID_BIT_WIDTH;
+        return FAST_FSS_PRNG_INVALID_BIT_WIDTH;
     }
     FastFss::cpu::Prng *prngObj = (FastFss::cpu::Prng *)prng;
-    FastFss::cpu::aes128_ctr(prngObj->seed, prngObj->counter, dst,
-                             elementSize * elementNum);
-    return PRNG_SUCCESS;
+    FastFss::cpu::aes128_ctr(prngObj->seed, prngObj->counter, dst, elementSize * elementNum);
+    return FAST_FSS_SUCCESS;
 }

@@ -1,6 +1,8 @@
 #ifndef FAST_FSS_CUDA_CONFIG
 #define FAST_FSS_CUDA_CONFIG
 
+#include <FastFss/api.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -13,7 +15,7 @@ extern "C" {
  * @retval          -1  runtime error
  * @retval          -2  invalid parameter
  */
-int FastFss_cuda_setGridDim(int dim);
+FAST_FSS_API int FastFss_cuda_setGridDim(int dim);
 
 /**
  * @brief   get the number of cuda grid dim
@@ -21,7 +23,7 @@ int FastFss_cuda_setGridDim(int dim);
  * @retval  >0  number of cuda grid dim
  * @retval  -1  runtime error
  */
-int FastFss_cuda_getGridDim();
+FAST_FSS_API int FastFss_cuda_getGridDim();
 
 #ifdef __cplusplus
 }

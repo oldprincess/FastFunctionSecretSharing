@@ -3,6 +3,7 @@
 #include <FastFss/cpu/ottt.h>
 
 #include "../kernel/ottt.h"
+#include "../kernel/parallel_execute.h"
 
 using namespace FastFss;
 
@@ -18,8 +19,13 @@ int FastFss_cpu_otttKeyGen(void       *key,
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             kernel::OtttKeyGenTask<scalar_t> task{
-                key,        keyDataSize, alpha,      alphaDataSize,
-                bitWidthIn, elementSize, elementNum,
+                .key           = key,
+                .keyDataSize   = keyDataSize,
+                .alpha         = alpha,
+                .alphaDataSize = alphaDataSize,
+                .bitWidthIn    = bitWidthIn,
+                .elementSize   = elementSize,
+                .elementNum    = elementNum,
             };
             return kernel::parallel_execute(task);
         });
@@ -44,33 +50,21 @@ int FastFss_cpu_otttLutEval(void       *sharedOutE,
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             kernel::OtttLutEvalTask<scalar_t> task{
-                sharedOutE,
-                sharedOutEDataSize,
-                sharedOutT,
-                sharedOutTDataSize,
-                maskedX,
-                maskedXDataSize,
-                key,
-                keyDataSize,
-                partyId,
-                lookUpTable,
-                lookUpTableDataSize,
-                bitWidthIn,
-                elementSize,
-                elementNum,
+                .sharedOutE          = sharedOutE,
+                .sharedOutEDataSize  = sharedOutEDataSize,
+                .sharedOutT          = sharedOutT,
+                .sharedOutTDataSize  = sharedOutTDataSize,
+                .maskedX             = maskedX,
+                .maskedXDataSize     = maskedXDataSize,
+                .key                 = key,
+                .keyDataSize         = keyDataSize,
+                .partyId             = partyId,
+                .lookUpTable         = lookUpTable,
+                .lookUpTableDataSize = lookUpTableDataSize,
+                .bitWidthIn          = bitWidthIn,
+                .elementSize         = elementSize,
+                .elementNum          = elementNum,
             };
             return kernel::parallel_execute(task);
         });
-}
-
-int FastFss_cpu_otttGetKeyDataSize(size_t *keyDataSize,
-                                   size_t  bitWidthIn,
-                                   size_t  elementNum)
-{
-    if (!(3 <= bitWidthIn))
-    {
-        return FAST_FSS_INVALID_BITWIDTH_ERROR;
-    }
-    *keyDataSize = impl::otttGetKeyDataSize(bitWidthIn, elementNum);
-    return FAST_FSS_SUCCESS;
 }

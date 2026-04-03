@@ -4,6 +4,7 @@
 #include <FastFss/cpu/mic.h>
 #include <FastFss/cuda/dpf.h>
 #include <FastFss/cuda/mic.h>
+#include <FastFss/dpf.h>
 #ifndef NO_CUDA
 #include <c10/cuda/CUDAStream.h>
 #endif
@@ -13,9 +14,7 @@
 #include <cstdint>
 #include <cstdio>
 
-#define ERR_LOG(fmt, ...)                                                 \
-    std::fprintf(stderr, "[FastFss DPF] " fmt ". %s:%d\n", ##__VA_ARGS__, \
-                 __FILE__, __LINE__)
+#define ERR_LOG(fmt, ...) std::fprintf(stderr, "[FastFss DPF] " fmt ". %s:%d\n", ##__VA_ARGS__, __FILE__, __LINE__)
 
 #define ARG_ASSERT(exp)                                    \
     if (!(exp))                                            \
@@ -39,9 +38,8 @@ std::size_t dpf_get_key_data_size(std::size_t bitWidthIn,
                                   std::size_t elementNum)
 {
     std::size_t dataSize;
-    int ret = FastFss_cpu_dpfGetKeyDataSize(&dataSize, bitWidthIn, bitWidthOut,
-                                            1, elementSize, elementNum);
-    CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfGetKeyDataSize");
+    int         ret = FastFss_dpfGetKeyDataSize(&dataSize, bitWidthIn, bitWidthOut, 1, elementSize, elementNum);
+    CHECK_ERROR_CODE(ret, "FastFss_dpfGetKeyDataSize");
     return dataSize;
 }
 
@@ -187,9 +185,7 @@ torch::Tensor &dpf_eval(torch::Tensor       &sharedOut,
     ARG_ASSERT(key.device() == device);
     ARG_ASSERT(seed.device() == device);
 
-    ARG_ASSERT((std::size_t)key.numel() ==
-               dpf_get_key_data_size(bitWidthIn, bitWidthOut, elementSize,
-                                     elementNum));
+    ARG_ASSERT((std::size_t)key.numel() == dpf_get_key_data_size(bitWidthIn, bitWidthOut, elementSize, elementNum));
 
     // =====================================================
     // ===================== FastFss =======================
@@ -283,9 +279,7 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
     ARG_ASSERT(key.device() == device);
     ARG_ASSERT(seed.device() == device);
 
-    ARG_ASSERT((std::size_t)key.numel() ==
-               dpf_get_key_data_size(bitWidthIn, bitWidthOut, elementSize,
-                                     elementNum));
+    ARG_ASSERT((std::size_t)key.numel() == dpf_get_key_data_size(bitWidthIn, bitWidthOut, elementSize, elementNum));
 
     // =====================================================
     // ===================== FastFss =======================
@@ -293,9 +287,8 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
 
     std::size_t cacheSize;
     {
-        int ret = FastFss_cpu_dpfGetCacheDataSize(&cacheSize, bitWidthIn,
-                                                  elementSize, elementNum);
-        CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfGetCacheDataSize");
+        int ret = FastFss_dpfGetCacheDataSize(&cacheSize, bitWidthIn, elementSize, elementNum);
+        CHECK_ERROR_CODE(ret, "FastFss_dpfGetCacheDataSize");
     }
     torch::TensorOptions options;
     options             = options.dtype(torch::kUInt8).device(device.type());

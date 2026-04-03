@@ -4,6 +4,7 @@
 #include <FastFss/cpu/mic.h>
 #include <FastFss/cuda/dcf.h>
 #include <FastFss/cuda/mic.h>
+#include <FastFss/mic.h>
 #ifndef NO_CUDA
 #include <c10/cuda/CUDAStream.h>
 #endif
@@ -39,9 +40,9 @@ std::size_t dcf_mic_get_key_data_size(std::size_t bitWidthIn,
                                       std::size_t elementNum)
 {
     std::size_t result = 0;
-    int ret = FastFss_cpu_dcfMICGetKeyDataSize(&result, bitWidthIn, bitWidthOut,
-                                               elementSize, elementNum);
-    CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfMICGetKeyDataSize");
+    int ret = FastFss_dcfMICGetKeyDataSize(&result, bitWidthIn, bitWidthOut,
+                                           elementSize, elementNum);
+    CHECK_ERROR_CODE(ret, "FastFss_dcfMICGetKeyDataSize");
     return result;
 }
 
@@ -51,9 +52,9 @@ std::size_t dcf_mic_get_cache_data_size(std::size_t bitWidthIn,
                                         std::size_t elementNum)
 {
     std::size_t result = 0;
-    int         ret    = FastFss_cpu_dcfMICGetCacheDataSize(
+    int         ret    = FastFss_dcfMICGetCacheDataSize(
         &result, bitWidthIn, bitWidthOut, elementSize, elementNum);
-    CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfMICGetCacheDataSize");
+    CHECK_ERROR_CODE(ret, "FastFss_dcfMICGetCacheDataSize");
     return result;
 }
 
