@@ -4,10 +4,11 @@
 #include <torch/python.h>
 #include <torch/torch.h>
 
+#include "pyFastTensorUtils.h"
+
 namespace pyFastFss {
 
-std::size_t ottt_get_key_data_size(std::size_t bitWidthIn,
-                                   std::size_t elementNum);
+std::size_t ottt_get_key_data_size(std::size_t bitWidthIn, std::size_t elementNum);
 
 torch::Tensor& ottt_key_gen(torch::Tensor&       keyInOut,
                             const torch::Tensor& alpha,

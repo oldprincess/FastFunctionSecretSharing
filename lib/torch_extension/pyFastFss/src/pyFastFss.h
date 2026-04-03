@@ -9,6 +9,7 @@
 #include "pyFastGrotto.h"
 #include "pyFastOttt.h"
 #include "pyFastPrng.h"
+#include "pyFastTensorUtils.h"
 
 namespace pyFastFss {
 

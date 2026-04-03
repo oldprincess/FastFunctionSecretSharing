@@ -14,9 +14,7 @@
 #include <cstdint>
 #include <cstdio>
 
-#define ERR_LOG(fmt, ...)                                                     \
-    std::fprintf(stderr, "[FastFss DCF MIC] " fmt ". %s:%d\n", ##__VA_ARGS__, \
-                 __FILE__, __LINE__)
+#define ERR_LOG(fmt, ...) std::fprintf(stderr, "[FastFss DCF MIC] " fmt ". %s:%d\n", ##__VA_ARGS__, __FILE__, __LINE__)
 
 #define ARG_ASSERT(exp)                                    \
     if (!(exp))                                            \
@@ -40,8 +38,7 @@ std::size_t dcf_mic_get_key_data_size(std::size_t bitWidthIn,
                                       std::size_t elementNum)
 {
     std::size_t result = 0;
-    int ret = FastFss_dcfMICGetKeyDataSize(&result, bitWidthIn, bitWidthOut,
-                                           elementSize, elementNum);
+    int         ret    = FastFss_dcfMICGetKeyDataSize(&result, bitWidthIn, bitWidthOut, elementSize, elementNum);
     CHECK_ERROR_CODE(ret, "FastFss_dcfMICGetKeyDataSize");
     return result;
 }
@@ -52,8 +49,7 @@ std::size_t dcf_mic_get_cache_data_size(std::size_t bitWidthIn,
                                         std::size_t elementNum)
 {
     std::size_t result = 0;
-    int         ret    = FastFss_dcfMICGetCacheDataSize(
-        &result, bitWidthIn, bitWidthOut, elementSize, elementNum);
+    int         ret    = FastFss_dcfMICGetCacheDataSize(&result, bitWidthIn, bitWidthOut, elementSize, elementNum);
     CHECK_ERROR_CODE(ret, "FastFss_dcfMICGetCacheDataSize");
     return result;
 }
@@ -81,7 +77,12 @@ py::tuple dcf_mic_key_gen(torch::Tensor       &keyOut,
     ARG_ASSERT(leftBoundary.is_contiguous());
     ARG_ASSERT(rightBoundary.is_contiguous());
 
-    ARG_ASSERT((std::size_t)alpha.numel() == elementNum);
+    const auto valueBitWidth = max_bit_width({bitWidthIn, bitWidthOut});
+    const auto alphaLayout   = inspect_value_tensor(alpha, valueBitWidth);
+    const auto leftLayout    = inspect_value_tensor(leftBoundary, valueBitWidth);
+    const auto rightLayout   = inspect_value_tensor(rightBoundary, valueBitWidth);
+
+    ARG_ASSERT(alphaLayout.logicalElementNum == elementNum);
     ARG_ASSERT((std::size_t)seed0.numel() == 16 * elementNum);
     ARG_ASSERT((std::size_t)seed1.numel() == 16 * elementNum);
 
@@ -94,7 +95,7 @@ py::tuple dcf_mic_key_gen(torch::Tensor       &keyOut,
     ARG_ASSERT(leftBoundary.dtype() == dtype);
     ARG_ASSERT(rightBoundary.dtype() == dtype);
 
-    std::size_t elementSize = alpha.element_size();
+    std::size_t elementSize = alphaLayout.elementSize;
 
     ARG_ASSERT(bitWidthIn <= elementSize * 8);
     ARG_ASSERT(bitWidthOut <= elementSize * 8);
@@ -108,11 +109,13 @@ py::tuple dcf_mic_key_gen(torch::Tensor       &keyOut,
     ARG_ASSERT(leftBoundary.device() == device);
     ARG_ASSERT(rightBoundary.device() == device);
 
-    ARG_ASSERT(leftBoundary.numel() == rightBoundary.numel());
+    assert_same_logical_shape(leftLayout, rightLayout,
+                              "leftBoundary and rightBoundary must have the same logical shape");
 
-    std::size_t intervalNum = (std::size_t)leftBoundary.numel();
+    std::size_t intervalNum = leftLayout.logicalElementNum;
 
-    zOut.resize_({(std::int64_t)(intervalNum * elementNum)});
+    zOut.resize_(make_value_shape(append_logical_dim(alphaLayout.logicalShape, static_cast<std::int64_t>(intervalNum)),
+                                  valueBitWidth));
 
     // =====================================================
     // ===================== FastFss =======================
@@ -126,25 +129,24 @@ py::tuple dcf_mic_key_gen(torch::Tensor       &keyOut,
 
     if (device.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_dcfMICKeyGen(
-            keyOut.mutable_data_ptr(),                        //
-            (std::size_t)keyOut.numel(),                      //
-            zOut.mutable_data_ptr(),                          //
-            (std::size_t)zOut.numel() * elementSize,          //
-            alpha.const_data_ptr(),                           //
-            (std::size_t)alpha.numel() * elementSize,         //
-            seed0.const_data_ptr(),                           //
-            (std::size_t)seed0.numel(),                       //
-            seed1.const_data_ptr(),                           //
-            (std::size_t)seed1.numel(),                       //
-            leftBoundary.const_data_ptr(),                    //
-            (std::size_t)leftBoundary.numel() * elementSize,  //
-            rightBoundary.const_data_ptr(),                   //
-            (std::size_t)rightBoundary.numel() * elementSize, //
-            bitWidthIn,                                       //
-            bitWidthOut,                                      //
-            elementSize,                                      //
-            elementNum                                        //
+        int ret = FastFss_cpu_dcfMICKeyGen(keyOut.mutable_data_ptr(),                                         //
+                                           (std::size_t)keyOut.numel(),                                       //
+                                           zOut.mutable_data_ptr(),                                           //
+                                           (std::size_t)zOut.numel() * zOut.element_size(),                   //
+                                           alpha.const_data_ptr(),                                            //
+                                           (std::size_t)alpha.numel() * alpha.element_size(),                 //
+                                           seed0.const_data_ptr(),                                            //
+                                           (std::size_t)seed0.numel(),                                        //
+                                           seed1.const_data_ptr(),                                            //
+                                           (std::size_t)seed1.numel(),                                        //
+                                           leftBoundary.const_data_ptr(),                                     //
+                                           (std::size_t)leftBoundary.numel() * leftBoundary.element_size(),   //
+                                           rightBoundary.const_data_ptr(),                                    //
+                                           (std::size_t)rightBoundary.numel() * rightBoundary.element_size(), //
+                                           bitWidthIn,                                                        //
+                                           bitWidthOut,                                                       //
+                                           elementSize,                                                       //
+                                           elementNum                                                         //
         );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfMICKeyGen");
     }
@@ -153,26 +155,25 @@ py::tuple dcf_mic_key_gen(torch::Tensor       &keyOut,
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
 
-        int ret = FastFss_cuda_dcfMICKeyGen(
-            keyOut.mutable_data_ptr(),                        //
-            (std::size_t)keyOut.numel(),                      //
-            zOut.mutable_data_ptr(),                          //
-            (std::size_t)zOut.numel() * elementSize,          //
-            alpha.const_data_ptr(),                           //
-            (std::size_t)alpha.numel() * elementSize,         //
-            seed0.const_data_ptr(),                           //
-            (std::size_t)seed0.numel(),                       //
-            seed1.const_data_ptr(),                           //
-            (std::size_t)seed1.numel(),                       //
-            leftBoundary.const_data_ptr(),                    //
-            (std::size_t)leftBoundary.numel() * elementSize,  //
-            rightBoundary.const_data_ptr(),                   //
-            (std::size_t)rightBoundary.numel() * elementSize, //
-            bitWidthIn,                                       //
-            bitWidthOut,                                      //
-            elementSize,                                      //
-            elementNum,                                       //
-            &stream                                           //
+        int ret = FastFss_cuda_dcfMICKeyGen(keyOut.mutable_data_ptr(),                                         //
+                                            (std::size_t)keyOut.numel(),                                       //
+                                            zOut.mutable_data_ptr(),                                           //
+                                            (std::size_t)zOut.numel() * zOut.element_size(),                   //
+                                            alpha.const_data_ptr(),                                            //
+                                            (std::size_t)alpha.numel() * alpha.element_size(),                 //
+                                            seed0.const_data_ptr(),                                            //
+                                            (std::size_t)seed0.numel(),                                        //
+                                            seed1.const_data_ptr(),                                            //
+                                            (std::size_t)seed1.numel(),                                        //
+                                            leftBoundary.const_data_ptr(),                                     //
+                                            (std::size_t)leftBoundary.numel() * leftBoundary.element_size(),   //
+                                            rightBoundary.const_data_ptr(),                                    //
+                                            (std::size_t)rightBoundary.numel() * rightBoundary.element_size(), //
+                                            bitWidthIn,                                                        //
+                                            bitWidthOut,                                                       //
+                                            elementSize,                                                       //
+                                            elementNum,                                                        //
+                                            &stream                                                            //
         );
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dcfMICKeyGen");
     }
@@ -208,7 +209,13 @@ torch::Tensor &dcf_mic_eval(torch::Tensor       &sharedOut,
     ARG_ASSERT(leftBoundary.is_contiguous());
     ARG_ASSERT(rightBoundary.is_contiguous());
 
-    ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
+    const auto valueBitWidth = max_bit_width({bitWidthIn, bitWidthOut});
+    const auto maskedLayout  = inspect_value_tensor(maskedX, valueBitWidth);
+    const auto leftLayout    = inspect_value_tensor(leftBoundary, valueBitWidth);
+    const auto rightLayout   = inspect_value_tensor(rightBoundary, valueBitWidth);
+    const auto sharedZLayout = inspect_value_tensor(sharedZ, valueBitWidth);
+
+    ARG_ASSERT(maskedLayout.logicalElementNum == elementNum);
     ARG_ASSERT((std::size_t)seed.numel() == 16 * elementNum);
 
     ARG_ASSERT(key.dtype() == torch::kUInt8);
@@ -220,7 +227,7 @@ torch::Tensor &dcf_mic_eval(torch::Tensor       &sharedOut,
     ARG_ASSERT(leftBoundary.dtype() == dtype);
     ARG_ASSERT(rightBoundary.dtype() == dtype);
 
-    std::size_t elementSize = maskedX.element_size();
+    std::size_t elementSize = maskedLayout.elementSize;
     ARG_ASSERT(bitWidthIn <= elementSize * 8);
     ARG_ASSERT(bitWidthOut <= elementSize * 8);
 
@@ -232,17 +239,17 @@ torch::Tensor &dcf_mic_eval(torch::Tensor       &sharedOut,
     ARG_ASSERT(leftBoundary.device() == device);
     ARG_ASSERT(rightBoundary.device() == device);
 
-    ARG_ASSERT(leftBoundary.numel() == rightBoundary.numel());
+    assert_same_logical_shape(leftLayout, rightLayout,
+                              "leftBoundary and rightBoundary must have the same logical shape");
 
-    std::size_t intervalNum = (std::size_t)leftBoundary.numel();
-    ARG_ASSERT((std::size_t)sharedZ.numel() == intervalNum * elementNum);
+    std::size_t intervalNum = leftLayout.logicalElementNum;
+    ARG_ASSERT(sharedZLayout.logicalShape ==
+               append_logical_dim(maskedLayout.logicalShape, static_cast<std::int64_t>(intervalNum)));
 
-    std::size_t keyDataSize = dcf_mic_get_key_data_size(
-        bitWidthIn, bitWidthOut, elementSize, elementNum);
+    std::size_t keyDataSize = dcf_mic_get_key_data_size(bitWidthIn, bitWidthOut, elementSize, elementNum);
     ARG_ASSERT((std::size_t)key.numel() == keyDataSize);
 
-    std::size_t cacheSize = dcf_mic_get_cache_data_size(
-        bitWidthIn, bitWidthOut, elementSize, elementNum);
+    std::size_t          cacheSize = dcf_mic_get_cache_data_size(bitWidthIn, bitWidthOut, elementSize, elementNum);
     torch::TensorOptions options;
     options             = options.dtype(torch::kUInt8).device(device.type());
     torch::Tensor cache = torch::empty({(std::int64_t)(cacheSize)}, options);
@@ -251,31 +258,32 @@ torch::Tensor &dcf_mic_eval(torch::Tensor       &sharedOut,
     // ===================== FastFss =======================
     // =====================================================
 
-    sharedOut.resize_({(std::int64_t)(intervalNum * elementNum)});
+    sharedOut.resize_(make_value_shape(
+        append_logical_dim(maskedLayout.logicalShape, static_cast<std::int64_t>(intervalNum)), valueBitWidth));
 
     if (device.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_dcfMICEval(                     //
-            sharedOut.mutable_data_ptr(),                     //
-            (std::size_t)sharedOut.numel() * elementSize,     //
-            maskedX.const_data_ptr(),                         //
-            (std::size_t)maskedX.numel() * elementSize,       //
-            key.const_data_ptr(),                             //
-            (std::size_t)key.numel(),                         //
-            sharedZ.const_data_ptr(),                         //
-            (std::size_t)sharedZ.numel() * elementSize,       //
-            seed.const_data_ptr(),                            //
-            (std::size_t)seed.numel(),                        //
-            partyId,                                          //
-            leftBoundary.const_data_ptr(),                    //
-            (std::size_t)leftBoundary.numel() * elementSize,  //
-            rightBoundary.const_data_ptr(),                   //
-            (std::size_t)rightBoundary.numel() * elementSize, //
-            bitWidthIn,                                       //
-            bitWidthOut,                                      //
-            elementSize,                                      //
-            elementNum,                                       //
-            cache.mutable_data_ptr(),                         //
+        int ret = FastFss_cpu_dcfMICEval(                                      //
+            sharedOut.mutable_data_ptr(),                                      //
+            (std::size_t)sharedOut.numel() * sharedOut.element_size(),         //
+            maskedX.const_data_ptr(),                                          //
+            (std::size_t)maskedX.numel() * maskedX.element_size(),             //
+            key.const_data_ptr(),                                              //
+            (std::size_t)key.numel(),                                          //
+            sharedZ.const_data_ptr(),                                          //
+            (std::size_t)sharedZ.numel() * sharedZ.element_size(),             //
+            seed.const_data_ptr(),                                             //
+            (std::size_t)seed.numel(),                                         //
+            partyId,                                                           //
+            leftBoundary.const_data_ptr(),                                     //
+            (std::size_t)leftBoundary.numel() * leftBoundary.element_size(),   //
+            rightBoundary.const_data_ptr(),                                    //
+            (std::size_t)rightBoundary.numel() * rightBoundary.element_size(), //
+            bitWidthIn,                                                        //
+            bitWidthOut,                                                       //
+            elementSize,                                                       //
+            elementNum,                                                        //
+            cache.mutable_data_ptr(),                                          //
             cache.numel());
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dcfMICEval");
     }
@@ -284,28 +292,28 @@ torch::Tensor &dcf_mic_eval(torch::Tensor       &sharedOut,
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
 
-        int ret = FastFss_cuda_dcfMICEval(                    //
-            sharedOut.mutable_data_ptr(),                     //
-            (std::size_t)sharedOut.numel() * elementSize,     //
-            maskedX.const_data_ptr(),                         //
-            (std::size_t)maskedX.numel() * elementSize,       //
-            key.const_data_ptr(),                             //
-            (std::size_t)key.numel(),                         //
-            sharedZ.const_data_ptr(),                         //
-            (std::size_t)sharedZ.numel() * elementSize,       //
-            seed.const_data_ptr(),                            //
-            (std::size_t)seed.numel(),                        //
-            partyId,                                          //
-            leftBoundary.const_data_ptr(),                    //
-            (std::size_t)leftBoundary.numel() * elementSize,  //
-            rightBoundary.const_data_ptr(),                   //
-            (std::size_t)rightBoundary.numel() * elementSize, //
-            bitWidthIn,                                       //
-            bitWidthOut,                                      //
-            elementSize,                                      //
-            elementNum,                                       //
-            cache.mutable_data_ptr(),                         //
-            cache.numel(),                                    //
+        int ret = FastFss_cuda_dcfMICEval(                                     //
+            sharedOut.mutable_data_ptr(),                                      //
+            (std::size_t)sharedOut.numel() * sharedOut.element_size(),         //
+            maskedX.const_data_ptr(),                                          //
+            (std::size_t)maskedX.numel() * maskedX.element_size(),             //
+            key.const_data_ptr(),                                              //
+            (std::size_t)key.numel(),                                          //
+            sharedZ.const_data_ptr(),                                          //
+            (std::size_t)sharedZ.numel() * sharedZ.element_size(),             //
+            seed.const_data_ptr(),                                             //
+            (std::size_t)seed.numel(),                                         //
+            partyId,                                                           //
+            leftBoundary.const_data_ptr(),                                     //
+            (std::size_t)leftBoundary.numel() * leftBoundary.element_size(),   //
+            rightBoundary.const_data_ptr(),                                    //
+            (std::size_t)rightBoundary.numel() * rightBoundary.element_size(), //
+            bitWidthIn,                                                        //
+            bitWidthOut,                                                       //
+            elementSize,                                                       //
+            elementNum,                                                        //
+            cache.mutable_data_ptr(),                                          //
+            cache.numel(),                                                     //
             &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dcfMICEval");
     }

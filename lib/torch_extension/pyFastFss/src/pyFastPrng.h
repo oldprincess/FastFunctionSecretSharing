@@ -4,6 +4,8 @@
 #include <torch/python.h>
 #include <torch/torch.h>
 
+#include "pyFastTensorUtils.h"
+
 namespace pyFastFss {
 
 // ==========================================

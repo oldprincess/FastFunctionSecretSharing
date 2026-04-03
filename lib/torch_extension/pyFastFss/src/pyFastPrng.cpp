@@ -12,9 +12,7 @@
 #include <cstdint>
 #include <cstdio>
 
-#define ERR_LOG(fmt, ...)                                                  \
-    std::fprintf(stderr, "[FastFss PRNG] " fmt ". %s:%d\n", ##__VA_ARGS__, \
-                 __FILE__, __LINE__)
+#define ERR_LOG(fmt, ...) std::fprintf(stderr, "[FastFss PRNG] " fmt ". %s:%d\n", ##__VA_ARGS__, __FILE__, __LINE__)
 
 #define ARG_ASSERT(exp)                                    \
     if (!(exp))                                            \
@@ -277,17 +275,18 @@ torch::Tensor &Prng::rand_(torch::Tensor &out, std::size_t bitWidth)
     ARG_ASSERT(out.is_contiguous());
     ARG_ASSERT(device_.type() == out.device().type());
 
-    std::size_t elementSize = out.dtype().itemsize();
+    const auto  outLayout   = inspect_value_tensor(out, bitWidth);
+    std::size_t elementSize = outLayout.elementSize;
     ARG_ASSERT(bitWidth <= elementSize * 8);
 
     if (device_.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_prngGen(ctx_,                   //
-                                      out.mutable_data_ptr(), //
-                                      bitWidth,               //
-                                      elementSize,            //
-                                      out.numel()             //
-        );                                                    //
+        int ret = FastFss_cpu_prngGen(ctx_,                       //
+                                      out.mutable_data_ptr(),     //
+                                      bitWidth,                   //
+                                      elementSize,                //
+                                      outLayout.logicalElementNum //
+        );                                                        //
         CHECK_ERROR_CODE(ret, "FastFss_cpu_prngGen");
     }
 #ifndef NO_CUDA
@@ -295,13 +294,13 @@ torch::Tensor &Prng::rand_(torch::Tensor &out, std::size_t bitWidth)
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
 
-        int ret = FastFss_cuda_prngGen(ctx_,                   //
-                                       out.mutable_data_ptr(), //
-                                       bitWidth,               //
-                                       elementSize,            //
-                                       out.numel(),            //
-                                       &stream                 //
-        );                                                     //
+        int ret = FastFss_cuda_prngGen(ctx_,                        //
+                                       out.mutable_data_ptr(),      //
+                                       bitWidth,                    //
+                                       elementSize,                 //
+                                       outLayout.logicalElementNum, //
+                                       &stream                      //
+        );                                                          //
         CHECK_ERROR_CODE(ret, "FastFss_cuda_prngGen");
     }
 #endif

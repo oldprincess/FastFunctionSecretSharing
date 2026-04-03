@@ -4,11 +4,11 @@
 #include <torch/python.h>
 #include <torch/torch.h>
 
+#include "pyFastTensorUtils.h"
+
 namespace pyFastFss {
 
-std::size_t grotto_get_key_data_size(std::size_t bitWidthIn,
-                                     std::size_t elementSize,
-                                     std::size_t elementNum);
+std::size_t grotto_get_key_data_size(std::size_t bitWidthIn, std::size_t elementSize, std::size_t elementNum);
 
 torch::Tensor& grotto_key_gen(torch::Tensor&       keyOut,
                               const torch::Tensor& alpha,

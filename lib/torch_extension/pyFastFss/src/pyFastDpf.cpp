@@ -62,11 +62,16 @@ torch::Tensor &dpf_key_gen(torch::Tensor       &keyOut,
     ARG_ASSERT(seed0.is_contiguous());
     ARG_ASSERT(seed1.is_contiguous());
 
-    ARG_ASSERT((std::size_t)alpha.numel() == elementNum);
+    const auto valueBitWidth = max_bit_width({bitWidthIn, bitWidthOut});
+    const auto alphaLayout   = inspect_value_tensor(alpha, valueBitWidth);
+
+    ARG_ASSERT(alphaLayout.logicalElementNum == elementNum);
 
     if ((std::size_t)beta.numel() != 0)
     {
-        ARG_ASSERT((std::size_t)beta.numel() == elementNum);
+        const auto betaLayout = inspect_value_tensor(beta, valueBitWidth);
+        ARG_ASSERT(betaLayout.logicalElementNum == elementNum);
+        assert_same_logical_shape(alphaLayout, betaLayout, "alpha and beta must have the same logical shape");
     }
     ARG_ASSERT((std::size_t)seed0.numel() == 16 * elementNum);
     ARG_ASSERT((std::size_t)seed1.numel() == 16 * elementNum);
@@ -77,7 +82,7 @@ torch::Tensor &dpf_key_gen(torch::Tensor       &keyOut,
 
     ARG_ASSERT(alpha.dtype() == beta.dtype());
 
-    std::size_t elementSize = alpha.element_size();
+    std::size_t elementSize = alphaLayout.elementSize;
     ARG_ASSERT(bitWidthIn <= elementSize * 8);
     ARG_ASSERT(bitWidthOut <= elementSize * 8);
 
@@ -99,22 +104,22 @@ torch::Tensor &dpf_key_gen(torch::Tensor       &keyOut,
 
     if (device.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_dpfKeyGen(              //
-            keyOut.mutable_data_ptr(),                //
-            (std::size_t)keyOut.numel(),              //
-            alpha.const_data_ptr(),                   //
-            (std::size_t)alpha.numel() * elementSize, //
-            beta.const_data_ptr(),                    //
-            (std::size_t)beta.numel() * elementSize,  //
-            seed0.const_data_ptr(),                   //
-            (std::size_t)seed0.numel(),               //
-            seed1.const_data_ptr(),                   //
-            (std::size_t)seed1.numel(),               //
-            bitWidthIn,                               //
-            bitWidthOut,                              //
-            1,                                        //
-            elementSize,                              //
-            elementNum                                //
+        int ret = FastFss_cpu_dpfKeyGen(                       //
+            keyOut.mutable_data_ptr(),                         //
+            (std::size_t)keyOut.numel(),                       //
+            alpha.const_data_ptr(),                            //
+            (std::size_t)alpha.numel() * alpha.element_size(), //
+            beta.const_data_ptr(),                             //
+            (std::size_t)beta.numel() * beta.element_size(),   //
+            seed0.const_data_ptr(),                            //
+            (std::size_t)seed0.numel(),                        //
+            seed1.const_data_ptr(),                            //
+            (std::size_t)seed1.numel(),                        //
+            bitWidthIn,                                        //
+            bitWidthOut,                                       //
+            1,                                                 //
+            elementSize,                                       //
+            elementNum                                         //
         );
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfKeyGen");
     }
@@ -123,22 +128,22 @@ torch::Tensor &dpf_key_gen(torch::Tensor       &keyOut,
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
 
-        int ret = FastFss_cuda_dpfKeyGen(             //
-            keyOut.mutable_data_ptr(),                //
-            (std::size_t)keyOut.numel(),              //
-            alpha.const_data_ptr(),                   //
-            (std::size_t)alpha.numel() * elementSize, //
-            beta.const_data_ptr(),                    //
-            (std::size_t)beta.numel() * elementSize,  //
-            seed0.const_data_ptr(),                   //
-            (std::size_t)seed0.numel(),               //
-            seed1.const_data_ptr(),                   //
-            (std::size_t)seed1.numel(),               //
-            bitWidthIn,                               //
-            bitWidthOut,                              //
-            1,                                        //
-            elementSize,                              //
-            elementNum,                               //
+        int ret = FastFss_cuda_dpfKeyGen(                      //
+            keyOut.mutable_data_ptr(),                         //
+            (std::size_t)keyOut.numel(),                       //
+            alpha.const_data_ptr(),                            //
+            (std::size_t)alpha.numel() * alpha.element_size(), //
+            beta.const_data_ptr(),                             //
+            (std::size_t)beta.numel() * beta.element_size(),   //
+            seed0.const_data_ptr(),                            //
+            (std::size_t)seed0.numel(),                        //
+            seed1.const_data_ptr(),                            //
+            (std::size_t)seed1.numel(),                        //
+            bitWidthIn,                                        //
+            bitWidthOut,                                       //
+            1,                                                 //
+            elementSize,                                       //
+            elementNum,                                        //
             &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dpfKeyGen");
     }
@@ -168,7 +173,10 @@ torch::Tensor &dpf_eval(torch::Tensor       &sharedOut,
     ARG_ASSERT(key.is_contiguous());
     ARG_ASSERT(seed.is_contiguous());
 
-    ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
+    const auto valueBitWidth = max_bit_width({bitWidthIn, bitWidthOut});
+    const auto maskedLayout  = inspect_value_tensor(maskedX, valueBitWidth);
+
+    ARG_ASSERT(maskedLayout.logicalElementNum == elementNum);
     ARG_ASSERT((std::size_t)seed.numel() == 16 * elementNum);
 
     ARG_ASSERT(key.dtype() == torch::kUInt8);
@@ -176,7 +184,7 @@ torch::Tensor &dpf_eval(torch::Tensor       &sharedOut,
 
     ARG_ASSERT(sharedOut.dtype() == maskedX.dtype());
 
-    std::size_t elementSize = maskedX.element_size();
+    std::size_t elementSize = maskedLayout.elementSize;
     ARG_ASSERT(bitWidthIn <= elementSize * 8);
     ARG_ASSERT(bitWidthOut <= elementSize * 8);
 
@@ -191,24 +199,24 @@ torch::Tensor &dpf_eval(torch::Tensor       &sharedOut,
     // ===================== FastFss =======================
     // =====================================================
 
-    sharedOut.resize_(maskedX.sizes());
+    sharedOut.resize_(make_value_shape(maskedLayout.logicalShape, valueBitWidth));
 
     if (device.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_dpfEval(                    //
-            sharedOut.mutable_data_ptr(),                 //
-            (std::size_t)sharedOut.numel() * elementSize, //
-            maskedX.const_data_ptr(),                     //
-            (std::size_t)maskedX.numel() * elementSize,   //
-            key.const_data_ptr(),                         //
-            (std::size_t)key.numel(),                     //
-            seed.const_data_ptr(),                        //
-            (std::size_t)seed.numel(),                    //
-            partyId,                                      //
-            bitWidthIn,                                   //
-            bitWidthOut,                                  //
-            1,                                            //
-            elementSize,                                  //
+        int ret = FastFss_cpu_dpfEval(                                 //
+            sharedOut.mutable_data_ptr(),                              //
+            (std::size_t)sharedOut.numel() * sharedOut.element_size(), //
+            maskedX.const_data_ptr(),                                  //
+            (std::size_t)maskedX.numel() * maskedX.element_size(),     //
+            key.const_data_ptr(),                                      //
+            (std::size_t)key.numel(),                                  //
+            seed.const_data_ptr(),                                     //
+            (std::size_t)seed.numel(),                                 //
+            partyId,                                                   //
+            bitWidthIn,                                                //
+            bitWidthOut,                                               //
+            1,                                                         //
+            elementSize,                                               //
             elementNum, nullptr, 0);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfEval");
     }
@@ -217,20 +225,20 @@ torch::Tensor &dpf_eval(torch::Tensor       &sharedOut,
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
 
-        int ret = FastFss_cuda_dpfEval(                   //
-            sharedOut.mutable_data_ptr(),                 //
-            (std::size_t)sharedOut.numel() * elementSize, //
-            maskedX.const_data_ptr(),                     //
-            (std::size_t)maskedX.numel() * elementSize,   //
-            key.const_data_ptr(),                         //
-            (std::size_t)key.numel(),                     //
-            seed.const_data_ptr(),                        //
-            (std::size_t)seed.numel(),                    //
-            partyId,                                      //
-            bitWidthIn,                                   //
-            bitWidthOut,                                  //
-            1,                                            //
-            elementSize,                                  //
+        int ret = FastFss_cuda_dpfEval(                                //
+            sharedOut.mutable_data_ptr(),                              //
+            (std::size_t)sharedOut.numel() * sharedOut.element_size(), //
+            maskedX.const_data_ptr(),                                  //
+            (std::size_t)maskedX.numel() * maskedX.element_size(),     //
+            key.const_data_ptr(),                                      //
+            (std::size_t)key.numel(),                                  //
+            seed.const_data_ptr(),                                     //
+            (std::size_t)seed.numel(),                                 //
+            partyId,                                                   //
+            bitWidthIn,                                                //
+            bitWidthOut,                                               //
+            1,                                                         //
+            elementSize,                                               //
             elementNum, nullptr, 0, &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dpfEval");
     }
@@ -262,7 +270,11 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
     ARG_ASSERT(seed.is_contiguous());
     ARG_ASSERT(point.is_contiguous());
 
-    ARG_ASSERT((std::size_t)maskedX.numel() == elementNum);
+    const auto valueBitWidth = max_bit_width({bitWidthIn, bitWidthOut});
+    const auto maskedLayout  = inspect_value_tensor(maskedX, valueBitWidth);
+    const auto pointLayout   = inspect_value_tensor(point, valueBitWidth);
+
+    ARG_ASSERT(maskedLayout.logicalElementNum == elementNum);
     ARG_ASSERT((std::size_t)seed.numel() == 16 * elementNum);
 
     ARG_ASSERT(key.dtype() == torch::kUInt8);
@@ -270,7 +282,7 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
 
     ARG_ASSERT(sharedOut.dtype() == maskedX.dtype());
 
-    std::size_t elementSize = maskedX.element_size();
+    std::size_t elementSize = maskedLayout.elementSize;
     ARG_ASSERT(bitWidthIn <= elementSize * 8);
     ARG_ASSERT(bitWidthOut <= elementSize * 8);
 
@@ -294,27 +306,29 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
     options             = options.dtype(torch::kUInt8).device(device.type());
     torch::Tensor cache = torch::empty({(std::int64_t)(cacheSize)}, options);
 
-    sharedOut.resize_(maskedX.numel() * point.numel());
+    sharedOut.resize_(make_value_shape(
+        append_logical_dim(maskedLayout.logicalShape, static_cast<std::int64_t>(pointLayout.logicalElementNum)),
+        valueBitWidth));
 
     if (device.type() == torch::kCPU)
     {
-        int ret = FastFss_cpu_dpfEvalMulti(             //
-            sharedOut.mutable_data_ptr(),               //
-            sharedOut.numel() * elementSize,            //
-            maskedX.const_data_ptr(),                   //
-            (std::size_t)maskedX.numel() * elementSize, //
-            key.const_data_ptr(),                       //
-            (std::size_t)key.numel(),                   //
-            seed.const_data_ptr(),                      //
-            (std::size_t)seed.numel(),                  //
-            partyId,                                    //
-            point.const_data_ptr(),                     //
-            point.numel() * elementSize,                //
-            bitWidthIn,                                 //
-            bitWidthOut,                                //
-            1,                                          //
-            elementSize,                                //
-            elementNum,                                 //
+        int ret = FastFss_cpu_dpfEvalMulti(                        //
+            sharedOut.mutable_data_ptr(),                          //
+            sharedOut.numel() * sharedOut.element_size(),          //
+            maskedX.const_data_ptr(),                              //
+            (std::size_t)maskedX.numel() * maskedX.element_size(), //
+            key.const_data_ptr(),                                  //
+            (std::size_t)key.numel(),                              //
+            seed.const_data_ptr(),                                 //
+            (std::size_t)seed.numel(),                             //
+            partyId,                                               //
+            point.const_data_ptr(),                                //
+            point.numel() * point.element_size(),                  //
+            bitWidthIn,                                            //
+            bitWidthOut,                                           //
+            1,                                                     //
+            elementSize,                                           //
+            elementNum,                                            //
             cache.mutable_data_ptr(), cacheSize);
         CHECK_ERROR_CODE(ret, "FastFss_cpu_dpfEvalMulti");
     }
@@ -323,24 +337,24 @@ torch::Tensor &dpf_multi_eval(torch::Tensor       &sharedOut,
     {
         cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
 
-        int ret = FastFss_cuda_dpfEvalMulti(            //
-            sharedOut.mutable_data_ptr(),               //
-            sharedOut.numel() * elementSize,            //
-            maskedX.const_data_ptr(),                   //
-            (std::size_t)maskedX.numel() * elementSize, //
-            key.const_data_ptr(),                       //
-            (std::size_t)key.numel(),                   //
-            seed.const_data_ptr(),                      //
-            (std::size_t)seed.numel(),                  //
-            partyId,                                    //
-            point.const_data_ptr(),                     //
-            point.numel() * elementSize,                //
-            bitWidthIn,                                 //
-            bitWidthOut,                                //
-            1,                                          //
-            elementSize,                                //
-            elementNum,                                 //
-            cache.mutable_data_ptr(), cacheSize,        //
+        int ret = FastFss_cuda_dpfEvalMulti(                       //
+            sharedOut.mutable_data_ptr(),                          //
+            sharedOut.numel() * sharedOut.element_size(),          //
+            maskedX.const_data_ptr(),                              //
+            (std::size_t)maskedX.numel() * maskedX.element_size(), //
+            key.const_data_ptr(),                                  //
+            (std::size_t)key.numel(),                              //
+            seed.const_data_ptr(),                                 //
+            (std::size_t)seed.numel(),                             //
+            partyId,                                               //
+            point.const_data_ptr(),                                //
+            point.numel() * point.element_size(),                  //
+            bitWidthIn,                                            //
+            bitWidthOut,                                           //
+            1,                                                     //
+            elementSize,                                           //
+            elementNum,                                            //
+            cache.mutable_data_ptr(), cacheSize,                   //
             &stream);
         CHECK_ERROR_CODE(ret, "FastFss_cuda_dpfEvalMulti");
     }
