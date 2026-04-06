@@ -18,16 +18,16 @@ int FastFss_cuda_otttKeyGen(void       *key,
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
-            kernel::OtttKeyGenTask<scalar_t> task{
-                .key           = key,
-                .keyDataSize   = keyDataSize,
-                .alpha         = alpha,
-                .alphaDataSize = alphaDataSize,
-                .bitWidthIn    = bitWidthIn,
-                .elementSize   = elementSize,
-                .elementNum    = elementNum,
-                .cudaStreamPtr = cudaStreamPtr,
-            };
+            kernel::OtttKeyGenTask<scalar_t> task{};
+            task.key = key;
+            task.keyDataSize = keyDataSize;
+            task.alpha = alpha;
+            task.alphaDataSize = alphaDataSize;
+            task.bitWidthIn = bitWidthIn;
+            task.elementSize = elementSize;
+            task.elementNum = elementNum;
+            task.cudaStreamPtr = cudaStreamPtr;
+
             return kernel::parallel_execute(task);
         });
 }
@@ -51,23 +51,23 @@ int FastFss_cuda_otttLutEval(void       *sharedOutE,
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
-            kernel::OtttLutEvalTask<scalar_t> task{
-                .sharedOutE          = sharedOutE,
-                .sharedOutEDataSize  = sharedOutEDataSize,
-                .sharedOutT          = sharedOutT,
-                .sharedOutTDataSize  = sharedOutTDataSize,
-                .maskedX             = maskedX,
-                .maskedXDataSize     = maskedXDataSize,
-                .key                 = key,
-                .keyDataSize         = keyDataSize,
-                .partyId             = partyId,
-                .lookUpTable         = lookUpTable,
-                .lookUpTableDataSize = lookUpTableDataSize,
-                .bitWidthIn          = bitWidthIn,
-                .elementSize         = elementSize,
-                .elementNum          = elementNum,
-                .cudaStreamPtr       = cudaStreamPtr,
-            };
+            kernel::OtttLutEvalTask<scalar_t> task{};
+            task.sharedOutE = sharedOutE;
+            task.sharedOutEDataSize = sharedOutEDataSize;
+            task.sharedOutT = sharedOutT;
+            task.sharedOutTDataSize = sharedOutTDataSize;
+            task.maskedX = maskedX;
+            task.maskedXDataSize = maskedXDataSize;
+            task.key = key;
+            task.keyDataSize = keyDataSize;
+            task.partyId = partyId;
+            task.lookUpTable = lookUpTable;
+            task.lookUpTableDataSize = lookUpTableDataSize;
+            task.bitWidthIn = bitWidthIn;
+            task.elementSize = elementSize;
+            task.elementNum = elementNum;
+            task.cudaStreamPtr = cudaStreamPtr;
+
             return kernel::parallel_execute(task);
         });
 }

@@ -26,24 +26,24 @@ int FastFss_cuda_dcfKeyGen(void       *key,
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
-            kernel::DcfKeyGenTask<scalar_t> task{
-                .key           = key,
-                .keyDataSize   = keyDataSize,
-                .alpha         = alpha,
-                .alphaDataSize = alphaDataSize,
-                .beta          = beta,
-                .betaDataSize  = betaDataSize,
-                .seed0         = seed0,
-                .seedDataSize0 = seedDataSize0,
-                .seed1         = seed1,
-                .seedDataSize1 = seedDataSize1,
-                .bitWidthIn    = bitWidthIn,
-                .bitWidthOut   = bitWidthOut,
-                .groupSize     = groupSize,
-                .elementSize   = elementSize,
-                .elementNum    = elementNum,
-                .cudaStreamPtr = cudaStreamPtr,
-            };
+            kernel::DcfKeyGenTask<scalar_t> task{};
+            task.key = key;
+            task.keyDataSize = keyDataSize;
+            task.alpha = alpha;
+            task.alphaDataSize = alphaDataSize;
+            task.beta = beta;
+            task.betaDataSize = betaDataSize;
+            task.seed0 = seed0;
+            task.seedDataSize0 = seedDataSize0;
+            task.seed1 = seed1;
+            task.seedDataSize1 = seedDataSize1;
+            task.bitWidthIn = bitWidthIn;
+            task.bitWidthOut = bitWidthOut;
+            task.groupSize = groupSize;
+            task.elementSize = elementSize;
+            task.elementNum = elementNum;
+            task.cudaStreamPtr = cudaStreamPtr;
+
             return kernel::parallel_execute(task);
         });
 }
@@ -69,25 +69,25 @@ int FastFss_cuda_dcfEval(void       *sharedOut,
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
-            kernel::DcfEvalTask<scalar_t> task{
-                .sharedOut         = sharedOut,
-                .sharedOutDataSize = sharedOutSize,
-                .maskedX           = maskedX,
-                .maskedXDataSize   = maskedXDataSize,
-                .key               = key,
-                .keyDataSize       = keyDataSize,
-                .seed              = seed,
-                .seedDataSize      = seedDataSize,
-                .partyId           = partyId,
-                .bitWidthIn        = bitWidthIn,
-                .bitWidthOut       = bitWidthOut,
-                .groupSize         = groupSize,
-                .elementSize       = elementSize,
-                .elementNum        = elementNum,
-                .cache             = cache,
-                .cacheDataSize     = cacheDataSize,
-                .cudaStreamPtr     = cudaStreamPtr,
-            };
+            kernel::DcfEvalTask<scalar_t> task{};
+            task.sharedOut = sharedOut;
+            task.sharedOutDataSize = sharedOutSize;
+            task.maskedX = maskedX;
+            task.maskedXDataSize = maskedXDataSize;
+            task.key = key;
+            task.keyDataSize = keyDataSize;
+            task.seed = seed;
+            task.seedDataSize = seedDataSize;
+            task.partyId = partyId;
+            task.bitWidthIn = bitWidthIn;
+            task.bitWidthOut = bitWidthOut;
+            task.groupSize = groupSize;
+            task.elementSize = elementSize;
+            task.elementNum = elementNum;
+            task.cache = cache;
+            task.cacheDataSize = cacheDataSize;
+            task.cudaStreamPtr = cudaStreamPtr;
+
             return kernel::parallel_execute(task);
         });
 }

@@ -8,9 +8,13 @@ import torch
 
 cxx_flags = []
 if sys.platform == "linux":
-    cxx_flags = ["-maes", "-std=c++20", "-O3", "-fopenmp", "-fvisibility=hidden"]
+    cxx_flags = ["-maes", "-std=c++17", "-O3", "-fopenmp", "-fvisibility=hidden"]
 else:
-    cxx_flags = ["/std:c++20", "/O2", "/openmp"]
+    cxx_flags = ["/std:c++17", "/O2", "/openmp"]
+
+nvcc_flags = ["-O3", "-std=c++17", "-arch=native", "--expt-relaxed-constexpr", "--default-stream=per-thread"]
+if sys.platform == "win32":
+    nvcc_flags += ['-Xcompiler="/EHsc"']
 
 if not torch.cuda.is_available():
     if sys.platform == "linux":
@@ -55,7 +59,7 @@ else:
         ],
         extra_compile_args={
             "cxx": cxx_flags,
-            "nvcc": ["-O3", "-std=c++20"],
+            "nvcc": nvcc_flags,
         },
     )
 

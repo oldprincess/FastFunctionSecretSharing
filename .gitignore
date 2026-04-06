@@ -8,3 +8,7 @@ dist/
 .env/
 html/
 latex/
+__pycache__/
+*.pyd
+lib/torch_extension/build/
+lib/torch_extension/pyFastFss.egg-info/

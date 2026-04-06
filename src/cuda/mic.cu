@@ -30,27 +30,27 @@ int FastFss_cuda_dcfMICKeyGen(void       *key,
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
-            kernel::DcfMICKeyGenTask<scalar_t> task{
-                .key                    = key,
-                .keyDataSize            = keyDataSize,
-                .z                      = z,
-                .zDataSize              = zDataSize,
-                .alpha                  = alpha,
-                .alphaDataSize          = alphaDataSize,
-                .seed0                  = seed0,
-                .seedDataSize0          = seedDataSize0,
-                .seed1                  = seed1,
-                .seedDataSize1          = seedDataSize1,
-                .leftEndpoints          = leftEndpoints,
-                .leftEndpointsDataSize  = leftEndpointsDataSize,
-                .rightEndpoints         = rightEndpoints,
-                .rightEndpointsDataSize = rightEndpointsDataSize,
-                .bitWidthIn             = bitWidthIn,
-                .bitWidthOut            = bitWidthOut,
-                .elementSize            = elementSize,
-                .elementNum             = elementNum,
-                .cudaStreamPtr          = cudaStreamPtr,
-            };
+            kernel::DcfMICKeyGenTask<scalar_t> task{};
+            task.key = key;
+            task.keyDataSize = keyDataSize;
+            task.z = z;
+            task.zDataSize = zDataSize;
+            task.alpha = alpha;
+            task.alphaDataSize = alphaDataSize;
+            task.seed0 = seed0;
+            task.seedDataSize0 = seedDataSize0;
+            task.seed1 = seed1;
+            task.seedDataSize1 = seedDataSize1;
+            task.leftEndpoints = leftEndpoints;
+            task.leftEndpointsDataSize = leftEndpointsDataSize;
+            task.rightEndpoints = rightEndpoints;
+            task.rightEndpointsDataSize = rightEndpointsDataSize;
+            task.bitWidthIn = bitWidthIn;
+            task.bitWidthOut = bitWidthOut;
+            task.elementSize = elementSize;
+            task.elementNum = elementNum;
+            task.cudaStreamPtr = cudaStreamPtr;
+
             return kernel::parallel_execute(task);
         });
 }
@@ -81,30 +81,30 @@ int FastFss_cuda_dcfMICEval(void       *sharedOut,
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
-            kernel::DcfMICEvalTask<scalar_t> task{
-                .sharedOut              = sharedOut,
-                .sharedOutDataSize      = sharedOutDataSize,
-                .maskedX                = maskedX,
-                .maskedXDataSize        = maskedXDataSize,
-                .key                    = key,
-                .keyDataSize            = keyDataSize,
-                .sharedZ                = sharedZ,
-                .sharedZDataSize        = sharedZDataSize,
-                .seed                   = seed,
-                .seedDataSize           = seedDataSize,
-                .partyId                = partyId,
-                .leftEndpoints          = leftEndpoints,
-                .leftEndpointsDataSize  = leftEndpointsDataSize,
-                .rightEndpoints         = rightEndpoints,
-                .rightEndpointsDataSize = rightEndpointsDataSize,
-                .bitWidthIn             = bitWidthIn,
-                .bitWidthOut            = bitWidthOut,
-                .elementSize            = elementSize,
-                .elementNum             = elementNum,
-                .cache                  = cache,
-                .cacheDataSize          = cacheDataSize,
-                .cudaStreamPtr          = cudaStreamPtr,
-            };
+            kernel::DcfMICEvalTask<scalar_t> task{};
+            task.sharedOut = sharedOut;
+            task.sharedOutDataSize = sharedOutDataSize;
+            task.maskedX = maskedX;
+            task.maskedXDataSize = maskedXDataSize;
+            task.key = key;
+            task.keyDataSize = keyDataSize;
+            task.sharedZ = sharedZ;
+            task.sharedZDataSize = sharedZDataSize;
+            task.seed = seed;
+            task.seedDataSize = seedDataSize;
+            task.partyId = partyId;
+            task.leftEndpoints = leftEndpoints;
+            task.leftEndpointsDataSize = leftEndpointsDataSize;
+            task.rightEndpoints = rightEndpoints;
+            task.rightEndpointsDataSize = rightEndpointsDataSize;
+            task.bitWidthIn = bitWidthIn;
+            task.bitWidthOut = bitWidthOut;
+            task.elementSize = elementSize;
+            task.elementNum = elementNum;
+            task.cache = cache;
+            task.cacheDataSize = cacheDataSize;
+            task.cudaStreamPtr = cudaStreamPtr;
+
             return kernel::parallel_execute(task);
         });
 }
