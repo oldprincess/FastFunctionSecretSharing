@@ -420,7 +420,7 @@ FAST_FSS_DEVICE inline void grottoMICEval(    //
         sp = grottoEval<GroupElement>(key, xP, seed, partyId, bitWidth, true, cache);
         sq = grottoEval<GroupElement>(key, xQ, seed, partyId, bitWidth, true, cache);
 
-        sharedOut[0] = (sp ^ sq) ^ ((xQ > xP) ? partyId : 0);
+        sharedOut[0] = (sp ^ sq) ^ ((xQ >= xP) ? partyId : 0);
     }
     for (std::size_t i = 1; i < intervalNum; i++)
     {
@@ -442,7 +442,7 @@ FAST_FSS_DEVICE inline void grottoMICEval(    //
         }
         sq = grottoEval<GroupElement>(key, xQ, seed, partyId, bitWidth, true, cache);
 
-        sharedOut[i] = (sp ^ sq) ^ ((xQ > xP) ? partyId : 0);
+        sharedOut[i] = (sp ^ sq) ^ ((xQ >= xP) ? partyId : 0);
     }
 }
 
@@ -485,7 +485,7 @@ FAST_FSS_DEVICE inline void grottoIntervalLutEval( //
         sp = grottoEval<GroupElement>(key, xP, seed, partyId, bitWidth, true, cache);
         sq = grottoEval<GroupElement>(key, xQ, seed, partyId, bitWidth, true, cache);
 
-        GroupElement tmp = (sp ^ sq) ^ ((xQ > xP) ? partyId : 0);
+        GroupElement tmp = (sp ^ sq) ^ ((xQ >= xP) ? partyId : 0);
 
         tmp &= 1;
         sharedOutE[0] += tmp;
@@ -514,7 +514,7 @@ FAST_FSS_DEVICE inline void grottoIntervalLutEval( //
         }
         sq = grottoEval<GroupElement>(key, xQ, seed, partyId, bitWidth, true, cache);
 
-        GroupElement tmp = (sp ^ sq) ^ ((xQ > xP) ? partyId : 0);
+        GroupElement tmp = (sp ^ sq) ^ ((xQ >= xP) ? partyId : 0);
 
         tmp &= 1;
         sharedOutE[0] += tmp;
@@ -531,17 +531,17 @@ FAST_FSS_DEVICE inline void grottoIntervalLutEval( //
             sharedOutT[j] = (GroupElement)(-1) * sharedOutT[j];
         }
     }
-    // E = 1 or -1.
-    // E = ((E - 1) >> 1) & 1: 1(V need times -1) 0(V need not times -1)
-    if (partyId == 0)
-    {
-        sharedOutE[0] -= 1;
-        sharedOutE[0] = modBits<GroupElement>((sharedOutE[0] >> 1) + (sharedOutE[0] & 1), 1);
-    }
-    else
-    {
-        sharedOutE[0] = modBits<GroupElement>(sharedOutE[0] >> 1, 1);
-    }
+    // // E = 1 or -1.
+    // // E = ((E - 1) >> 1) & 1: 1(V need times -1) 0(V need not times -1)
+    // if (partyId == 0)
+    // {
+    //     sharedOutE[0] -= 1;
+    //     sharedOutE[0] = modBits<GroupElement>((sharedOutE[0] >> 1) + (sharedOutE[0] & 1), 1);
+    // }
+    // else
+    // {
+    //     sharedOutE[0] = modBits<GroupElement>(sharedOutE[0] >> 1, 1);
+    // }
 }
 
 } // namespace FastFss::impl

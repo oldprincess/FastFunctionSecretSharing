@@ -28,17 +28,17 @@ int FastFss_cpu_grottoKeyGen(void       *key,
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             kernel::GrottoKeyGenTask<scalar_t> task{};
-            task.key = key;
-            task.keyDataSize = keyDataSize;
-            task.alpha = alpha;
+            task.key           = key;
+            task.keyDataSize   = keyDataSize;
+            task.alpha         = alpha;
             task.alphaDataSize = alphaDataSize;
-            task.seed0 = seed0;
+            task.seed0         = seed0;
             task.seedDataSize0 = seedDataSize0;
-            task.seed1 = seed1;
+            task.seed1         = seed1;
             task.seedDataSize1 = seedDataSize1;
-            task.bitWidthIn = bitWidthIn;
-            task.elementSize = elementSize;
-            task.elementNum = elementNum;
+            task.bitWidthIn    = bitWidthIn;
+            task.elementSize   = elementSize;
+            task.elementNum    = elementNum;
 
             return kernel::parallel_execute(task);
         });
@@ -63,20 +63,20 @@ int FastFss_cpu_grottoEqEval(void       *sharedBooleanOut,
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             kernel::GrottoEqEvalTask<scalar_t> task{};
-            task.sharedBooleanOut = sharedBooleanOut;
+            task.sharedBooleanOut  = sharedBooleanOut;
             task.sharedOutDataSize = sharedOutDataSize;
-            task.maskedX = maskedX;
-            task.maskedXDataSize = maskedXDataSize;
-            task.key = key;
-            task.keyDataSize = keyDataSize;
-            task.seed = seed;
-            task.seedDataSize = seedDataSize;
-            task.partyId = partyId;
-            task.bitWidthIn = bitWidthIn;
-            task.elementSize = elementSize;
-            task.elementNum = elementNum;
-            task.cache = cache;
-            task.cacheDataSize = cacheDataSize;
+            task.maskedX           = maskedX;
+            task.maskedXDataSize   = maskedXDataSize;
+            task.key               = key;
+            task.keyDataSize       = keyDataSize;
+            task.seed              = seed;
+            task.seedDataSize      = seedDataSize;
+            task.partyId           = partyId;
+            task.bitWidthIn        = bitWidthIn;
+            task.elementSize       = elementSize;
+            task.elementNum        = elementNum;
+            task.cache             = cache;
+            task.cacheDataSize     = cacheDataSize;
 
             return kernel::parallel_execute(task);
         });
@@ -102,21 +102,21 @@ int FastFss_cpu_grottoEval(void       *sharedBooleanOut,
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             kernel::GrottoEvalTask<scalar_t> task{};
-            task.sharedBooleanOut = sharedBooleanOut;
+            task.sharedBooleanOut  = sharedBooleanOut;
             task.sharedOutDataSize = sharedOutDataSize;
-            task.maskedX = maskedX;
-            task.maskedXDataSize = maskedXDataSize;
-            task.key = key;
-            task.keyDataSize = keyDataSize;
-            task.seed = seed;
-            task.seedDataSize = seedDataSize;
-            task.equalBound = equalBound;
-            task.partyId = partyId;
-            task.bitWidthIn = bitWidthIn;
-            task.elementSize = elementSize;
-            task.elementNum = elementNum;
-            task.cache = cache;
-            task.cacheDataSize = cacheDataSize;
+            task.maskedX           = maskedX;
+            task.maskedXDataSize   = maskedXDataSize;
+            task.key               = key;
+            task.keyDataSize       = keyDataSize;
+            task.seed              = seed;
+            task.seedDataSize      = seedDataSize;
+            task.equalBound        = equalBound;
+            task.partyId           = partyId;
+            task.bitWidthIn        = bitWidthIn;
+            task.elementSize       = elementSize;
+            task.elementNum        = elementNum;
+            task.cache             = cache;
+            task.cacheDataSize     = cacheDataSize;
 
             return kernel::parallel_execute(task);
         });
@@ -145,24 +145,24 @@ int FastFss_cpu_grottoMICEval(void       *sharedBooleanOut,
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             kernel::GrottoMICEvalTask<scalar_t> task{};
-            task.sharedBooleanOut = sharedBooleanOut;
+            task.sharedBooleanOut         = sharedBooleanOut;
             task.sharedBooleanOutDataSize = sharedBooleanOutDataSize;
-            task.maskedX = maskedX;
-            task.maskedXDataSize = maskedXDataSize;
-            task.key = key;
-            task.keyDataSize = keyDataSize;
-            task.seed = seed;
-            task.seedDataSize = seedDataSize;
-            task.partyId = partyId;
-            task.leftEndpoints = leftEndpoints;
-            task.leftEndpointsDataSize = leftEndpointsDataSize;
-            task.rightEndpoints = rightEndpoints;
-            task.rightEndpointsDataSize = rightEndpointsDataSize;
-            task.bitWidthIn = bitWidthIn;
-            task.elementSize = elementSize;
-            task.elementNum = elementNum;
-            task.cache = cache;
-            task.cacheDataSize = cacheDataSize;
+            task.maskedX                  = maskedX;
+            task.maskedXDataSize          = maskedXDataSize;
+            task.key                      = key;
+            task.keyDataSize              = keyDataSize;
+            task.seed                     = seed;
+            task.seedDataSize             = seedDataSize;
+            task.partyId                  = partyId;
+            task.leftEndpoints            = leftEndpoints;
+            task.leftEndpointsDataSize    = leftEndpointsDataSize;
+            task.rightEndpoints           = rightEndpoints;
+            task.rightEndpointsDataSize   = rightEndpointsDataSize;
+            task.bitWidthIn               = bitWidthIn;
+            task.elementSize              = elementSize;
+            task.elementNum               = elementNum;
+            task.cache                    = cache;
+            task.cacheDataSize            = cacheDataSize;
 
             return kernel::parallel_execute(task);
         });
@@ -196,29 +196,29 @@ int FastFss_cpu_grottoIntervalLutEval(void       *sharedOutE,
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             kernel::GrottoIntervalLutEvalTask<scalar_t> task{};
-            task.sharedOutE = sharedOutE;
-            task.sharedOutEDataSize = sharedOutEDataSize;
-            task.sharedOutT = sharedOutT;
-            task.sharedOutTDataSize = sharedOutTDataSize;
-            task.maskedX = maskedX;
-            task.maskedXDataSize = maskedXDataSize;
-            task.key = key;
-            task.keyDataSize = keyDataSize;
-            task.seed = seed;
-            task.seedDataSize = seedDataSize;
-            task.partyId = partyId;
-            task.leftEndpoints = leftEndpoints;
-            task.leftEndpointsDataSize = leftEndpointsDataSize;
-            task.rightEndpoints = rightEndpoints;
+            task.sharedOutE             = sharedOutE;
+            task.sharedOutEDataSize     = sharedOutEDataSize;
+            task.sharedOutT             = sharedOutT;
+            task.sharedOutTDataSize     = sharedOutTDataSize;
+            task.maskedX                = maskedX;
+            task.maskedXDataSize        = maskedXDataSize;
+            task.key                    = key;
+            task.keyDataSize            = keyDataSize;
+            task.seed                   = seed;
+            task.seedDataSize           = seedDataSize;
+            task.partyId                = partyId;
+            task.leftEndpoints          = leftEndpoints;
+            task.leftEndpointsDataSize  = leftEndpointsDataSize;
+            task.rightEndpoints         = rightEndpoints;
             task.rightEndpointsDataSize = rightEndpointsDataSize;
-            task.lookUpTable = lookUpTable;
-            task.lookUpTableDataSize = lookUpTableDataSize;
-            task.bitWidthIn = bitWidthIn;
-            task.bitWidthOut = bitWidthOut;
-            task.elementSize = elementSize;
-            task.elementNum = elementNum;
-            task.cache = cache;
-            task.cacheDataSize = cacheDataSize;
+            task.lookUpTable            = lookUpTable;
+            task.lookUpTableDataSize    = lookUpTableDataSize;
+            task.bitWidthIn             = bitWidthIn;
+            task.bitWidthOut            = bitWidthOut;
+            task.elementSize            = elementSize;
+            task.elementNum             = elementNum;
+            task.cache                  = cache;
+            task.cacheDataSize          = cacheDataSize;
 
             return kernel::parallel_execute(task);
         });

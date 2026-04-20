@@ -44,7 +44,7 @@ __global__ static void grottoMICEvalParallelAllKernel(void       *out,
         GroupElement sq = impl::grottoEval<GroupElement>( //
             keyObj, xQ, seedPtr + xIdx * 16, partyId, bitWidthIn, true, nullptr);
 
-        outPtr[i] = (sp ^ sq) ^ ((xQ > xP) ? partyId : 0);
+        outPtr[i] = (sp ^ sq) ^ ((xQ >= xP) ? partyId : 0);
     }
 }
 

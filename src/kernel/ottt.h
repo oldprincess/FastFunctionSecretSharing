@@ -108,9 +108,10 @@ struct OtttLutEvalTask
         auto       *sharedOutEPtr = (GroupElement *)sharedOutE;
         auto       *sharedOutTPtr = (GroupElement *)sharedOutT;
         const auto  keyOffset     = i * (1ULL << bitWidthIn) / 8;
+        std::size_t lutNum        = lookUpTableDataSize / ((1ULL << bitWidthIn) * elementSize);
 
-        impl::otttLutEval<GroupElement>(sharedOutEPtr + i, sharedOutTPtr + i, maskedXPtr[i], keyPtr + keyOffset, lutPtr,
-                                        partyId, bitWidthIn);
+        impl::otttLutEval<GroupElement>(sharedOutEPtr + i, sharedOutTPtr + i * lutNum, maskedXPtr[i],
+                                        keyPtr + keyOffset, lutPtr, lutNum, partyId, bitWidthIn);
     }
 };
 

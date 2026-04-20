@@ -31,21 +31,21 @@ int FastFss_cpu_dcfKeyGen(void       *key,
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             kernel::DcfKeyGenTask<scalar_t> task{};
-            task.key = key;
-            task.keyDataSize = keyDataSize;
-            task.alpha = alpha;
+            task.key           = key;
+            task.keyDataSize   = keyDataSize;
+            task.alpha         = alpha;
             task.alphaDataSize = alphaDataSize;
-            task.beta = beta;
-            task.betaDataSize = betaDataSize;
-            task.seed0 = seed0;
+            task.beta          = beta;
+            task.betaDataSize  = betaDataSize;
+            task.seed0         = seed0;
             task.seedDataSize0 = seedDataSize0;
-            task.seed1 = seed1;
+            task.seed1         = seed1;
             task.seedDataSize1 = seedDataSize1;
-            task.bitWidthIn = bitWidthIn;
-            task.bitWidthOut = bitWidthOut;
-            task.groupSize = groupSize;
-            task.elementSize = elementSize;
-            task.elementNum = elementNum;
+            task.bitWidthIn    = bitWidthIn;
+            task.bitWidthOut   = bitWidthOut;
+            task.groupSize     = groupSize;
+            task.elementSize   = elementSize;
+            task.elementNum    = elementNum;
 
             return kernel::parallel_execute(task);
         });
@@ -72,22 +72,22 @@ int FastFss_cpu_dcfEval(void       *sharedOut,
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
             kernel::DcfEvalTask<scalar_t> task{};
-            task.sharedOut = sharedOut;
+            task.sharedOut         = sharedOut;
             task.sharedOutDataSize = sharedOutSize;
-            task.maskedX = maskedX;
-            task.maskedXDataSize = maskedXDataSize;
-            task.key = key;
-            task.keyDataSize = keyDataSize;
-            task.seed = seed;
-            task.seedDataSize = seedDataSize;
-            task.partyId = partyId;
-            task.bitWidthIn = bitWidthIn;
-            task.bitWidthOut = bitWidthOut;
-            task.groupSize = groupSize;
-            task.elementSize = elementSize;
-            task.elementNum = elementNum;
-            task.cache = cache;
-            task.cacheDataSize = cacheDataSize;
+            task.maskedX           = maskedX;
+            task.maskedXDataSize   = maskedXDataSize;
+            task.key               = key;
+            task.keyDataSize       = keyDataSize;
+            task.seed              = seed;
+            task.seedDataSize      = seedDataSize;
+            task.partyId           = partyId;
+            task.bitWidthIn        = bitWidthIn;
+            task.bitWidthOut       = bitWidthOut;
+            task.groupSize         = groupSize;
+            task.elementSize       = elementSize;
+            task.elementNum        = elementNum;
+            task.cache             = cache;
+            task.cacheDataSize     = cacheDataSize;
 
             return kernel::parallel_execute(task);
         });

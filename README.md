@@ -15,30 +15,30 @@ If a CUDA toolchain is available, CUDA sources are enabled automatically:
 
 ```shell
 cmake -S . -B build
-cmake --build build --config Debug
+cmake --build build --config Release
 ```
 
 Build and run tests explicitly:
 
 ```shell
 cmake -S . -B build -DFAST_FSS_BUILD_TESTS=ON
-cmake --build build --config Debug
-ctest --test-dir build -C Debug --output-on-failure
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
 ```
 
 If CUDA is not available or you only want CPU targets:
 
 ```shell
 cmake -S . -B build -DFAST_FSS_ENABLE_CUDA=OFF
-cmake --build build --config Debug
+cmake --build build --config Release
 ```
 
 Build CPU-only targets and tests:
 
 ```shell
 cmake -S . -B build -DFAST_FSS_ENABLE_CUDA=OFF -DFAST_FSS_BUILD_TESTS=ON
-cmake --build build --config Debug
-ctest --test-dir build -C Debug --output-on-failure
+cmake --build build --config Release
+ctest --test-dir build -C Release --output-on-failure
 ```
 
 ### Use Python API

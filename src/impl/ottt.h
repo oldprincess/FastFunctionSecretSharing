@@ -30,6 +30,7 @@ FAST_FSS_DEVICE static void otttLutEval(GroupElement       *sharedOutE,
                                         GroupElement        maskedX,
                                         const void         *key,
                                         const GroupElement *lut,
+                                        std::size_t         lutNum,
                                         int                 partyId,
                                         std::size_t         bitWidthIn) noexcept
 {
@@ -40,7 +41,10 @@ FAST_FSS_DEVICE static void otttLutEval(GroupElement       *sharedOutE,
     const auto  maskedXIndex = static_cast<std::size_t>(maskedX);
 
     sharedOutE[0] = 0;
-    sharedOutT[0] = 0;
+    for (std::size_t k = 0; k < lutNum; k++)
+    {
+        sharedOutT[k] = 0;
+    }
 
     while (num >= 256)
     {
@@ -63,10 +67,13 @@ FAST_FSS_DEVICE static void otttLutEval(GroupElement       *sharedOutE,
             std::size_t lutIdx1 = (maskedXIndex - i - j - 64) & mask;
             std::size_t lutIdx2 = (maskedXIndex - i - j - 128) & mask;
             std::size_t lutIdx3 = (maskedXIndex - i - j - 192) & mask;
-            sharedOutT[0] += (e0i) ? lut[lutIdx0] : (GroupElement)0;
-            sharedOutT[0] += (e1i) ? lut[lutIdx1] : (GroupElement)0;
-            sharedOutT[0] += (e2i) ? lut[lutIdx2] : (GroupElement)0;
-            sharedOutT[0] += (e3i) ? lut[lutIdx3] : (GroupElement)0;
+            for (std::size_t k = 0; k < lutNum; ++k)
+            {
+                sharedOutT[k] += (e0i) ? lut[lutIdx0 + k * totalNum] : (GroupElement)0;
+                sharedOutT[k] += (e1i) ? lut[lutIdx1 + k * totalNum] : (GroupElement)0;
+                sharedOutT[k] += (e2i) ? lut[lutIdx2 + k * totalNum] : (GroupElement)0;
+                sharedOutT[k] += (e3i) ? lut[lutIdx3 + k * totalNum] : (GroupElement)0;
+            }
         }
         key = (const void *)((const std::uint64_t *)key + 4);
         i += 256, num -= 256;
@@ -85,8 +92,11 @@ FAST_FSS_DEVICE static void otttLutEval(GroupElement       *sharedOutE,
 
             std::size_t lutIdx0 = (maskedXIndex - i - j) & mask;
             std::size_t lutIdx1 = (maskedXIndex - i - j - 64) & mask;
-            sharedOutT[0] += (e0i) ? lut[lutIdx0] : (GroupElement)0;
-            sharedOutT[0] += (e1i) ? lut[lutIdx1] : (GroupElement)0;
+            for (std::size_t k = 0; k < lutNum; ++k)
+            {
+                sharedOutT[k] += (e0i) ? lut[lutIdx0 + k * totalNum] : (GroupElement)0;
+                sharedOutT[k] += (e1i) ? lut[lutIdx1 + k * totalNum] : (GroupElement)0;
+            }
         }
         key = (const void *)((const std::uint64_t *)key + 2);
         i += 128, num -= 128;
@@ -99,7 +109,11 @@ FAST_FSS_DEVICE static void otttLutEval(GroupElement       *sharedOutE,
         {
             bool ei = (e >> j) & 1;
             sharedOutE[0] += (ei ? 1 : 0);
-            sharedOutT[0] += (ei) ? lut[(maskedXIndex - i) & mask] : (GroupElement)0;
+            std::size_t lutIdx = (maskedXIndex - i) & mask;
+            for (std::size_t k = 0; k < lutNum; k++)
+            {
+                sharedOutT[k] += (ei) ? lut[lutIdx + k * totalNum] : (GroupElement)0;
+            }
         }
         key = (const void *)((const std::uint64_t *)key + 1);
         num -= 64;
@@ -112,7 +126,11 @@ FAST_FSS_DEVICE static void otttLutEval(GroupElement       *sharedOutE,
         {
             bool ei = (e >> j) & 1;
             sharedOutE[0] += (ei ? 1 : 0);
-            sharedOutT[0] += (ei) ? lut[(maskedXIndex - i) & mask] : (GroupElement)0;
+            std::size_t lutIdx = (maskedXIndex - i) & mask;
+            for (std::size_t k = 0; k < lutNum; k++)
+            {
+                sharedOutT[k] += (ei) ? lut[lutIdx + k * totalNum] : (GroupElement)0;
+            }
         }
         key = (const void *)((const std::uint32_t *)key + 1);
         num -= 32;
@@ -125,7 +143,11 @@ FAST_FSS_DEVICE static void otttLutEval(GroupElement       *sharedOutE,
         {
             bool ei = (e >> j) & 1;
             sharedOutE[0] += (ei ? 1 : 0);
-            sharedOutT[0] += (ei) ? lut[(maskedXIndex - i) & mask] : (GroupElement)0;
+            std::size_t lutIdx = (maskedXIndex - i) & mask;
+            for (std::size_t k = 0; k < lutNum; k++)
+            {
+                sharedOutT[k] += (ei) ? lut[lutIdx + k * totalNum] : (GroupElement)0;
+            }
         }
         key = (const void *)((const std::uint16_t *)key + 1);
         num -= 16;
@@ -138,7 +160,11 @@ FAST_FSS_DEVICE static void otttLutEval(GroupElement       *sharedOutE,
         {
             bool ei = (e >> j) & 1;
             sharedOutE[0] += (ei ? 1 : 0);
-            sharedOutT[0] += (ei) ? lut[(maskedXIndex - i) & mask] : (GroupElement)0;
+            std::size_t lutIdx = (maskedXIndex - i) & mask;
+            for (std::size_t k = 0; k < lutNum; k++)
+            {
+                sharedOutT[k] += (ei) ? lut[lutIdx + k * totalNum] : (GroupElement)0;
+            }
         }
         key = (const void *)((const std::uint8_t *)key + 1);
         num -= 8;
@@ -147,19 +173,22 @@ FAST_FSS_DEVICE static void otttLutEval(GroupElement       *sharedOutE,
     if (partyId == 0)
     {
         sharedOutE[0] = (GroupElement)(0 - sharedOutE[0]);
-        sharedOutT[0] = (GroupElement)(0 - sharedOutT[0]);
+        for (std::size_t k = 0; k < lutNum; k++)
+        {
+            sharedOutT[k] = (GroupElement)(0 - sharedOutT[k]);
+        }
     }
-    // E = 1 or -1.
-    // E = ((E - 1) >> 1) & 1: 1(V need times -1) 0(V need not times -1)
-    if (partyId == 0)
-    {
-        sharedOutE[0] -= 1;
-        sharedOutE[0] = modBits<GroupElement>((sharedOutE[0] >> 1) + (sharedOutE[0] & 1), 1);
-    }
-    else
-    {
-        sharedOutE[0] = modBits<GroupElement>(sharedOutE[0] >> 1, 1);
-    }
+    // // E = 1 or -1.
+    // // E = ((E - 1) >> 1) & 1: 1(V need times -1) 0(V need not times -1)
+    // if (partyId == 0)
+    // {
+    //     sharedOutE[0] -= 1;
+    //     sharedOutE[0] = modBits<GroupElement>((sharedOutE[0] >> 1) + (sharedOutE[0] & 1), 1);
+    // }
+    // else
+    // {
+    //     sharedOutE[0] = modBits<GroupElement>(sharedOutE[0] >> 1, 1);
+    // }
 }
 
 } // namespace FastFss::impl

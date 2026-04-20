@@ -84,5 +84,3 @@ if(FAST_FSS_BUILD_TESTS)
     add_subdirectory(third_party/googletest EXCLUDE_FROM_ALL)
     add_subdirectory(tests)
 endif()
-
-
