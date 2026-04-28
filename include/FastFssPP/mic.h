@@ -110,7 +110,7 @@ void dcfMICKeyGen(std::span<std::uint8_t>       key,
 }
 
 template <typename T>
-void dcfMICEval(std::span<std::uint8_t>       sharedOut,
+void dcfMICEval(std::span<T>                  sharedOut,
                 std::span<const T>            maskedX,
                 std::span<const std::uint8_t> key,
                 std::span<const T>            sharedZ,
@@ -122,11 +122,11 @@ void dcfMICEval(std::span<std::uint8_t>       sharedOut,
                 std::size_t                   bitWidthOut,
                 std::span<std::uint8_t>       cache)
 {
-    int ret = FastFss_cpu_dcfMICEval(sharedOut.data(), sharedOut.size(), maskedX.data(), maskedX.size() * sizeof(T),
-                                     key.data(), key.size(), sharedZ.data(), sharedZ.size() * sizeof(T), seed.data(),
-                                     seed.size(), partyId, leftEndpoints.data(), leftEndpoints.size() * sizeof(T),
-                                     rightEndpoints.data(), rightEndpoints.size() * sizeof(T), bitWidthIn, bitWidthOut,
-                                     sizeof(T), maskedX.size(), cache.data(), cache.size());
+    int ret = FastFss_cpu_dcfMICEval(
+        sharedOut.data(), sharedOut.size() * sizeof(T), maskedX.data(), maskedX.size() * sizeof(T), key.data(),
+        key.size(), sharedZ.data(), sharedZ.size() * sizeof(T), seed.data(), seed.size(), partyId, leftEndpoints.data(),
+        leftEndpoints.size() * sizeof(T), rightEndpoints.data(), rightEndpoints.size() * sizeof(T), bitWidthIn,
+        bitWidthOut, sizeof(T), maskedX.size(), cache.data(), cache.size());
     if (ret != FAST_FSS_SUCCESS)
     {
         throw std::runtime_error("FastFss_cpu_dcfMICEval failed. error code: " + std::to_string(ret));
@@ -161,7 +161,7 @@ void dcfMICKeyGen(std::span<std::uint8_t>       key,
 }
 
 template <typename T>
-void dcfMICEval(std::span<std::uint8_t>       sharedOut,
+void dcfMICEval(std::span<T>                  sharedOut,
                 std::span<const T>            maskedX,
                 std::span<const std::uint8_t> key,
                 std::span<const T>            sharedZ,
@@ -174,11 +174,11 @@ void dcfMICEval(std::span<std::uint8_t>       sharedOut,
                 std::span<std::uint8_t>       cache,
                 void                         *cudaStreamPtr)
 {
-    int ret = FastFss_cuda_dcfMICEval(sharedOut.data(), sharedOut.size(), maskedX.data(), maskedX.size() * sizeof(T),
-                                      key.data(), key.size(), sharedZ.data(), sharedZ.size() * sizeof(T), seed.data(),
-                                      seed.size(), partyId, leftEndpoints.data(), leftEndpoints.size() * sizeof(T),
-                                      rightEndpoints.data(), rightEndpoints.size() * sizeof(T), bitWidthIn, bitWidthOut,
-                                      sizeof(T), maskedX.size(), cache.data(), cache.size(), cudaStreamPtr);
+    int ret = FastFss_cuda_dcfMICEval(
+        sharedOut.data(), sharedOut.size() * sizeof(T), maskedX.data(), maskedX.size() * sizeof(T), key.data(),
+        key.size(), sharedZ.data(), sharedZ.size() * sizeof(T), seed.data(), seed.size(), partyId, leftEndpoints.data(),
+        leftEndpoints.size() * sizeof(T), rightEndpoints.data(), rightEndpoints.size() * sizeof(T), bitWidthIn,
+        bitWidthOut, sizeof(T), maskedX.size(), cache.data(), cache.size(), cudaStreamPtr);
     if (ret != FAST_FSS_SUCCESS)
     {
         throw std::runtime_error("FastFss_cuda_dcfMICEval failed. error code: " + std::to_string(ret));

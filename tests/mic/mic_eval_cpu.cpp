@@ -93,7 +93,7 @@ void RunCpuMicEvalTestBody(Fixture* self)
             std::vector<T>            share1(z.size());
             std::vector<std::uint8_t> evalCache(cacheSize);
             FastFss::mic::cpu::dcfMICEval<T>(
-                std::span<std::uint8_t>(reinterpret_cast<std::uint8_t*>(share0.data()), share0.size() * sizeof(T)),
+                std::span<T>(share0.data(), share0.size()),
                 std::span<const T>(testCase.maskedX.data(), testCase.maskedX.size()),
                 std::span<const std::uint8_t>(key.data(), key.size()),
                 std::span<const T>(sharedZ0.data(), sharedZ0.size()),
@@ -102,7 +102,7 @@ void RunCpuMicEvalTestBody(Fixture* self)
                 std::span<const T>(testCase.rightEndpoints.data(), testCase.rightEndpoints.size()), bitWidthIn,
                 bitWidthOut, std::span<std::uint8_t>(evalCache.data(), evalCache.size()));
             FastFss::mic::cpu::dcfMICEval<T>(
-                std::span<std::uint8_t>(reinterpret_cast<std::uint8_t*>(share1.data()), share1.size() * sizeof(T)),
+                std::span<T>(share1.data(), share1.size()),
                 std::span<const T>(testCase.maskedX.data(), testCase.maskedX.size()),
                 std::span<const std::uint8_t>(key.data(), key.size()),
                 std::span<const T>(sharedZ1.data(), sharedZ1.size()),

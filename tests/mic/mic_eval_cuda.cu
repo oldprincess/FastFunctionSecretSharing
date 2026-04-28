@@ -118,8 +118,7 @@ void RunCudaMicEvalTestBody(Fixture *self)
             thrust::device_vector<std::uint8_t> cache_d(cacheSize);
 
             FastFss::mic::cuda::dcfMICEval<T>(
-                std::span<std::uint8_t>(reinterpret_cast<std::uint8_t *>(thrust::raw_pointer_cast(share0_d.data())),
-                                        share0_d.size() * sizeof(T)),
+                std::span<T>(thrust::raw_pointer_cast(share0_d.data()), share0_d.size()),
                 std::span<const T>(thrust::raw_pointer_cast(maskedX_d.data()), maskedX_d.size()),
                 std::span<const std::uint8_t>(thrust::raw_pointer_cast(key_d.data()), key_d.size()),
                 std::span<const T>(thrust::raw_pointer_cast(sharedZ0_d.data()), sharedZ0_d.size()),
@@ -128,8 +127,7 @@ void RunCudaMicEvalTestBody(Fixture *self)
                 std::span<const T>(thrust::raw_pointer_cast(right_d.data()), right_d.size()), bitWidthIn, bitWidthOut,
                 std::span<std::uint8_t>(thrust::raw_pointer_cast(cache_d.data()), cache_d.size()), nullptr);
             FastFss::mic::cuda::dcfMICEval<T>(
-                std::span<std::uint8_t>(reinterpret_cast<std::uint8_t *>(thrust::raw_pointer_cast(share1_d.data())),
-                                        share1_d.size() * sizeof(T)),
+                std::span<T>(thrust::raw_pointer_cast(share1_d.data()), share1_d.size()),
                 std::span<const T>(thrust::raw_pointer_cast(maskedX_d.data()), maskedX_d.size()),
                 std::span<const std::uint8_t>(thrust::raw_pointer_cast(key_d.data()), key_d.size()),
                 std::span<const T>(thrust::raw_pointer_cast(sharedZ1_d.data()), sharedZ1_d.size()),
