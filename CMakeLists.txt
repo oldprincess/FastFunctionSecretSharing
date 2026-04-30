@@ -21,6 +21,7 @@ set(FAST_FSS_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/dpf.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/grotto.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/mic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/spline.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ottt.cpp)
 
 set(FAST_FSS_CPU_SOURCES 
@@ -29,6 +30,7 @@ set(FAST_FSS_CPU_SOURCES
     src/cpu/dpf.cpp
     src/cpu/grotto.cpp
     src/cpu/mic.cpp
+    src/cpu/spline.cpp
     src/cpu/ottt.cpp
     src/cpu/prng.cpp)
 
@@ -38,6 +40,7 @@ set(FAST_FSS_CUDA_SOURCES
     src/cuda/dpf.cu
     src/cuda/grotto.cu
     src/cuda/mic.cu
+    src/cuda/spline.cu
     src/cuda/ottt.cu
     src/cuda/prng.cu)
 

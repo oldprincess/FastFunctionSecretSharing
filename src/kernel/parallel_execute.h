@@ -61,7 +61,7 @@ static inline int parallel_execute(Task task)
     {
         grid = CUDA_MAX_GRID_DIM;
     }
-    cudaStream_t stream = 0;
+    cudaStream_t stream = cudaStreamPerThread;
     if (task.cudaStreamPtr)
     {
         stream = *(cudaStream_t *)(task.cudaStreamPtr);

@@ -36,10 +36,10 @@ struct DcfCache
 };
 
 template <typename GroupElement>
-static inline std::size_t dcfGetKeyDataSize(std::size_t bitWidthIn,
-                                            std::size_t bitWidthOut,
-                                            std::size_t groupSize,
-                                            size_t      elementNum) noexcept
+FAST_FSS_HD static inline std::size_t dcfGetKeyDataSize(std::size_t bitWidthIn,
+                                                        std::size_t bitWidthOut,
+                                                        std::size_t groupSize,
+                                                        size_t      elementNum) noexcept
 {
     return elementNum * (16 * bitWidthIn +                               //
                          sizeof(GroupElement) * bitWidthIn * groupSize + //
@@ -50,18 +50,18 @@ static inline std::size_t dcfGetKeyDataSize(std::size_t bitWidthIn,
 }
 
 template <typename GroupElement>
-inline std::size_t dcfGetZippedKeyDataSize(std::size_t bitWidthIn,
-                                           std::size_t bitWidthOut,
-                                           std::size_t groupSize,
-                                           std::size_t elementNum) noexcept
+FAST_FSS_HD inline std::size_t dcfGetZippedKeyDataSize(std::size_t bitWidthIn,
+                                                       std::size_t bitWidthOut,
+                                                       std::size_t groupSize,
+                                                       std::size_t elementNum) noexcept
 {
     return 0;
 }
 
 template <typename GroupElement>
-static inline std::size_t dcfGetCacheDataSize(std::size_t bitWidthIn,
-                                              std::size_t groupSize,
-                                              std::size_t elementNum) noexcept
+FAST_FSS_HD static inline std::size_t dcfGetCacheDataSize(std::size_t bitWidthIn,
+                                                          std::size_t groupSize,
+                                                          std::size_t elementNum) noexcept
 {
     return elementNum * (16 * bitWidthIn) + elementNum * sizeof(GroupElement) * bitWidthIn * groupSize;
 }
