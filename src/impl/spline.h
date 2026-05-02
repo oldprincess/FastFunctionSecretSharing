@@ -11,7 +11,6 @@ struct DcfSplineEvalWorkspace
 {
     GroupElement *currentDcfOut      = nullptr; // intervalNum * (degree + 1)
     GroupElement *nextDcfOut         = nullptr; // intervalNum * (degree + 1)
-    GroupElement *wrapAroundSegment  = nullptr; // degree + 1
     GroupElement *coefficientScratch = nullptr; // degree + 1
 };
 
@@ -21,6 +20,9 @@ struct DcfSplineCache
     DcfCache<GroupElement>               dcfCache;
     DcfSplineEvalWorkspace<GroupElement> workspace;
 };
+
+template <typename GroupElement>
+using DcfSplineKey = DcfKey<GroupElement>;
 
 template <typename GroupElement>
 FAST_FSS_HD static inline std::size_t dcfSplineGetKeyDataSize(std::size_t bitWidthIn,
@@ -42,31 +44,45 @@ FAST_FSS_HD static inline std::size_t dcfSplineGetCacheDataSize(std::size_t bitW
     std::size_t groupSize = intervalNum * (degree + 1);
     std::size_t coeffNum  = degree + 1;
     return dcfGetCacheDataSize<GroupElement>(bitWidthIn, groupSize, elementNum) +
-           elementNum * sizeof(GroupElement) * (2 * groupSize + 2 * coeffNum);
+           elementNum * sizeof(GroupElement) * (2 * groupSize + coeffNum);
+}
+
+template <typename GroupElement>
+FAST_FSS_HD static inline void dcfSplineKeySetPtr(DcfSplineKey<GroupElement> &keyObj,
+                                                  const void                 *key,
+                                                  std::size_t                 bitWidthIn,
+                                                  std::size_t                 bitWidthOut,
+                                                  std::size_t                 intervalNum,
+                                                  std::size_t                 degree,
+                                                  std::size_t                 idx,
+                                                  std::size_t                 elementNum) noexcept
+{
+    impl::dcfKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut, (intervalNum) * (degree + 1), idx,
+                                     elementNum);
 }
 
 template <typename GroupElement>
 FAST_FSS_HD static inline void dcfSplineCacheSetPtr(DcfSplineCache<GroupElement> &cache,
                                                     void                         *cacheData,
                                                     std::size_t                   bitWidthIn,
-                                                    std::size_t                   groupSize,
-                                                    std::size_t                   coeffNum,
+                                                    std::size_t                   intervalNum,
+                                                    std::size_t                   degree,
                                                     std::size_t                   idx,
                                                     std::size_t                   elementNum) noexcept
 {
+    std::size_t groupSize = intervalNum * (degree + 1);
+    std::size_t coeffNum  = degree + 1;
     dcfCacheSetPtr<GroupElement>(cache.dcfCache, cacheData, bitWidthIn, groupSize, idx, elementNum);
 
     char       *curCacheData   = static_cast<char *>(cacheData);
     std::size_t dcfCacheSize   = dcfGetCacheDataSize<GroupElement>(bitWidthIn, groupSize, elementNum);
-    std::size_t workspacePitch = sizeof(GroupElement) * (2 * groupSize + 2 * coeffNum);
+    std::size_t workspacePitch = sizeof(GroupElement) * (2 * groupSize + 1 * coeffNum);
     char       *workspaceBase  = curCacheData + dcfCacheSize + idx * workspacePitch;
 
     cache.workspace.currentDcfOut = reinterpret_cast<GroupElement *>(workspaceBase);
     workspaceBase += sizeof(GroupElement) * groupSize;
     cache.workspace.nextDcfOut = reinterpret_cast<GroupElement *>(workspaceBase);
     workspaceBase += sizeof(GroupElement) * groupSize;
-    cache.workspace.wrapAroundSegment = reinterpret_cast<GroupElement *>(workspaceBase);
-    workspaceBase += sizeof(GroupElement) * coeffNum;
     cache.workspace.coefficientScratch = reinterpret_cast<GroupElement *>(workspaceBase);
 }
 
@@ -155,7 +171,7 @@ FAST_FSS_DEVICE inline void dcfSplineKeyGen(DcfKey<GroupElement> &key,
 
         GroupElement alphaL      = modBits<GroupElement>(left + alpha, (int)(bitWidthIn));
         GroupElement alphaR      = modBits<GroupElement>(right + alpha, (int)(bitWidthIn));
-        GroupElement alphaRPrime = modBits<GroupElement>(rightPrime + alpha, static_cast<int>(bitWidthIn));
+        GroupElement alphaRPrime = modBits<GroupElement>(rightPrime + alpha, (int)(bitWidthIn));
 
         GroupElement correction = static_cast<GroupElement>((alphaL > alphaR) - (alphaL > left) +
                                                             (alphaRPrime > rightPrime) + (alphaR == maxValue));
@@ -187,7 +203,7 @@ FAST_FSS_DEVICE inline GroupElement dcfSplineEval(const DcfKey<GroupElement>   &
 
     DcfSplineEvalWorkspace<GroupElement> &workspace = cache.workspace;
 
-    maskedX = modBits<GroupElement>(maskedX, static_cast<int>(bitWidthIn));
+    maskedX = modBits<GroupElement>(maskedX, (int)(bitWidthIn));
 
     if (intervalNum == 0)
     {
@@ -207,7 +223,7 @@ FAST_FSS_DEVICE inline GroupElement dcfSplineEval(const DcfKey<GroupElement>   &
 
         if (i > 0 && modBits<GroupElement>(rightEndpoints[i - 1] + 1, (int)bitWidthIn) == left)
         {
-            for (std::size_t j = 0; j < coeffNum; j++)
+            for (std::size_t j = 0; j < intervalNum * coeffNum; j++)
             {
                 workspace.currentDcfOut[j] = workspace.nextDcfOut[j];
             }

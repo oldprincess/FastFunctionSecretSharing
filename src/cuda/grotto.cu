@@ -5,8 +5,6 @@
 #include "../impl/grotto.h"
 #include "../kernel/grotto.h"
 #include "../kernel/parallel_execute.h"
-#include "grotto/eqMulti.cuh"
-#include "grotto/mic.cuh"
 
 using namespace FastFss;
 
@@ -146,71 +144,9 @@ int FastFss_cuda_grottoMICEval(void       *sharedBooleanOut,
                                size_t      cacheDataSize,
                                void       *cudaStreamPtr)
 {
-    int ret = FAST_FSS_DISPATCH_INTEGRAL_TYPES(
-        elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
-        [&] {
-            kernel::GrottoMICEvalTask<scalar_t> task{};
-            task.sharedBooleanOut         = sharedBooleanOut;
-            task.sharedBooleanOutDataSize = sharedBooleanOutDataSize;
-            task.maskedX                  = maskedX;
-            task.maskedXDataSize          = maskedXDataSize;
-            task.key                      = key;
-            task.keyDataSize              = keyDataSize;
-            task.seed                     = seed;
-            task.seedDataSize             = seedDataSize;
-            task.partyId                  = partyId;
-            task.leftEndpoints            = leftEndpoints;
-            task.leftEndpointsDataSize    = leftEndpointsDataSize;
-            task.rightEndpoints           = rightEndpoints;
-            task.rightEndpointsDataSize   = rightEndpointsDataSize;
-            task.bitWidthIn               = bitWidthIn;
-            task.elementSize              = elementSize;
-            task.elementNum               = elementNum;
-            task.cache                    = cache;
-            task.cacheDataSize            = cacheDataSize;
-            task.cudaStreamPtr            = cudaStreamPtr;
-
-            return task.check();
-        });
-    if (ret != FAST_FSS_SUCCESS)
-    {
-        return ret;
-    }
-
-    std::size_t intervalNum = leftEndpointsDataSize / elementSize;
-    std::size_t block       = CUDA_DEFAULT_BLOCK_DIM;
-    std::size_t grid        = (elementNum + block - 1) / block;
-    bool        parallelAll = false;
-    if (grid > CUDA_MAX_GRID_DIM)
-    {
-        grid = CUDA_MAX_GRID_DIM;
-    }
-    else if (grid < FastFss_cuda_getGridDim())
-    {
-        parallelAll = true;
-        grid        = (elementNum * intervalNum + block - 1) / block;
-        if (grid > CUDA_MAX_GRID_DIM)
-        {
-            grid = CUDA_MAX_GRID_DIM;
-        }
-    }
-    cudaStream_t stream = (cudaStreamPtr) ? *(cudaStream_t *)cudaStreamPtr : 0;
-
     return FAST_FSS_DISPATCH_INTEGRAL_TYPES(
         elementSize, { return (int)FAST_FSS_INVALID_ELEMENT_SIZE_ERROR; },
         [&] {
-            if (parallelAll)
-            {
-                grottoMICEvalParallelAllKernel<scalar_t>
-                    <<<grid, block, 0, stream>>>(sharedBooleanOut, maskedX, key, seed, partyId, leftEndpoints,
-                                                 rightEndpoints, intervalNum, bitWidthIn, elementNum);
-                if (cudaPeekAtLastError() != cudaSuccess)
-                {
-                    return (int)FAST_FSS_RUNTIME_ERROR;
-                }
-                return (int)FAST_FSS_SUCCESS;
-            }
-
             kernel::GrottoMICEvalTask<scalar_t> task{};
             task.sharedBooleanOut         = sharedBooleanOut;
             task.sharedBooleanOutDataSize = sharedBooleanOutDataSize;

@@ -104,7 +104,8 @@ struct DcfSplineKeyGenTask
         const GroupElement *rightEndpointsPtr = (const GroupElement *)rightEndpoints;
 
         impl::DcfKey<GroupElement> keyObj;
-        impl::dcfKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum);
+        impl::dcfSplineKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut, intervalNum, degree, i,
+                                               elementNum);
         impl::dcfSplineKeyGen<GroupElement>(keyObj, ePtr + groupSize * i, betaPtr + groupSize * i, alphaPtr[i],
                                             coefficientsPtr, seed0Ptr + 16 * i, seed1Ptr + 16 * i, leftEndpointsPtr,
                                             rightEndpointsPtr, intervalNum, degree, bitWidthIn, bitWidthOut);
@@ -219,8 +220,9 @@ struct DcfSplineEvalTask
 
         impl::DcfKey<GroupElement>         keyObj;
         impl::DcfSplineCache<GroupElement> cacheObj;
-        impl::dcfKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum);
-        impl::dcfSplineCacheSetPtr<GroupElement>(cacheObj, cache, bitWidthIn, groupSize, coeffNum, i, elementNum);
+        impl::dcfSplineKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut, intervalNum, degree, i,
+                                               elementNum);
+        impl::dcfSplineCacheSetPtr<GroupElement>(cacheObj, cache, bitWidthIn, intervalNum, degree, i, elementNum);
         sharedOutPtr[i] = impl::dcfSplineEval<GroupElement>(
             keyObj, maskedXPtr[i], sharedBetaPtr + groupSize * i, sharedEPtr + groupSize * i, seedPtr + 16 * i, partyId,
             leftEndpointsPtr, rightEndpointsPtr, intervalNum, degree, bitWidthIn, bitWidthOut, cacheObj);

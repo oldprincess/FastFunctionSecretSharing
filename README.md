@@ -2,23 +2,34 @@
 
 ## How to build
 
-### CMake
-
 Initialize submodules first:
 
 ```shell
 git submodule update --init --recursive
 ```
 
+### CMake
+
 Configure and build the C++ library.
 If a CUDA toolchain is available, CUDA sources are enabled automatically:
+
+Windows:
 
 ```shell
 cmake -S . -B build
 cmake --build build --config Release
 ```
 
+Linux:
+
+```shell
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
 Build and run tests explicitly:
+
+Windows:
 
 ```shell
 cmake -S . -B build -DFAST_FSS_BUILD_TESTS=ON
@@ -26,19 +37,46 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
+Linux:
+
+```shell
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFAST_FSS_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
 If CUDA is not available or you only want CPU targets:
+
+Windows:
 
 ```shell
 cmake -S . -B build -DFAST_FSS_ENABLE_CUDA=OFF
 cmake --build build --config Release
 ```
 
+Linux:
+
+```shell
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFAST_FSS_ENABLE_CUDA=OFF
+cmake --build build
+```
+
 Build CPU-only targets and tests:
+
+Windows:
 
 ```shell
 cmake -S . -B build -DFAST_FSS_ENABLE_CUDA=OFF -DFAST_FSS_BUILD_TESTS=ON
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
+```
+
+Linux:
+
+```shell
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFAST_FSS_ENABLE_CUDA=OFF -DFAST_FSS_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
 ### Use Python API
@@ -55,13 +93,6 @@ run
 cd lib/torch_extension
 python setup.py bdist_wheel
 pip install dist/pyFastFss-<version>.whl
-```
-
-### Use C++ API
-
-```shell
-cmake -S . -B build
-cmake --build build --config Release
 ```
 
 ## References

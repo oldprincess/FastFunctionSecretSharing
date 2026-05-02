@@ -55,34 +55,6 @@ int FastFss_cuda_dcfMICKeyGen(void       *key,
         });
 }
 
-// template <typename GroupElement>
-// static __global__ void cudaDcfMICEvalParallelKernel(void       *out,
-//                                                     const void *maskedX,
-//                                                     const void *sharedZ,
-//                                                     const void *key,
-//                                                     const void *seed,
-//                                                     int         partyId,
-//                                                     const void *leftEndpoints,
-//                                                     const void *rightEndpoints,
-//                                                     size_t      intervalNum,
-//                                                     size_t      bitWidthIn,
-//                                                     size_t      elementNum,
-//                                                     void       *cache)
-// {
-//     std::size_t idx    = threadIdx.x + blockIdx.x * blockDim.x;
-//     std::size_t stride = blockDim.x * gridDim.x;
-
-//     const GroupElement *maskedXPtr        = (const GroupElement *)maskedX;
-//     const std::uint8_t *seedPtr           = (const std::uint8_t *)seed;
-//     GroupElement       *outPtr            = (GroupElement *)out;
-//     const GroupElement *leftEndpointsPtr  = (const GroupElement *)leftEndpoints;
-//     const GroupElement *rightEndpointsPtr = (const GroupElement *)rightEndpoints;
-
-//     impl::DcfKey<GroupElement> keyObj;
-
-//     impl::dcfMICEval
-// }
-
 int FastFss_cuda_dcfMICEval(void       *sharedOut,
                             size_t      sharedOutDataSize,
                             const void *maskedX,

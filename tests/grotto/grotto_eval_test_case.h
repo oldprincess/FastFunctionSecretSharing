@@ -30,7 +30,6 @@ struct GrottoEvalTestCase
         : bitWidthIn(bitWidthIn_), elementNum(elementNum_), expectedLt(elementNum_, T(0)), expectedLe(elementNum_, T(0))
     {
         const std::size_t valueBits   = sizeof(T) * 8;
-        const std::size_t elementSize = sizeof(T);
         const T           maskIn      = (bitWidthIn >= valueBits) ? ~T(0) : ((T(1) << bitWidthIn) - T(1));
 
         FastFss::prng::cpu::Prng prng;

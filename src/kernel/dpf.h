@@ -3,6 +3,8 @@
 
 #include <FastFss/errors.h>
 
+#include <limits>
+
 #include "../impl/dpf.h"
 
 namespace FastFss::kernel {
@@ -274,6 +276,110 @@ struct DpfEvalAllTask
     }
 };
 
+// template <typename GroupElement>
+// struct DpfEvalMultiTask
+// {
+//     void       *sharedOut;
+//     size_t      sharedOutDataSize;
+//     const void *maskedX;
+//     size_t      maskedXDataSize;
+//     const void *key;
+//     size_t      keyDataSize;
+//     const void *seed;
+//     size_t      seedDataSize;
+//     int         partyId;
+//     const void *point;
+//     size_t      pointDataSize;
+//     size_t      bitWidthIn;
+//     size_t      bitWidthOut;
+//     size_t      groupSize;
+//     size_t      elementSize;
+//     size_t      elementNum;
+//     void       *cache;
+//     size_t      cacheDataSize;
+//     void       *cudaStreamPtr = nullptr;
+
+//     int check() noexcept
+//     {
+//         std::size_t needKeyDataSize   = 0;
+//         std::size_t needCacheDataSize = 0;
+
+//         if (!(0 < bitWidthIn && bitWidthIn <= elementSize * 8))
+//         {
+//             return FAST_FSS_INVALID_BITWIDTH_ERROR;
+//         }
+//         if (!(0 < bitWidthOut && bitWidthOut <= elementSize * 8))
+//         {
+//             return FAST_FSS_INVALID_BITWIDTH_ERROR;
+//         }
+//         if (groupSize == 0)
+//         {
+//             return FAST_FSS_INVALID_GROUP_SIZE_ERROR;
+//         }
+//         if (partyId != 0 && partyId != 1)
+//         {
+//             return FAST_FSS_INVALID_PARTY_ID_ERROR;
+//         }
+//         if (pointDataSize % elementSize != 0)
+//         {
+//             return FAST_FSS_INVALID_POINT_DATA_SIZE_ERROR;
+//         }
+
+//         needKeyDataSize = impl::dpfGetKeyDataSize<GroupElement>(bitWidthIn, bitWidthOut, groupSize, elementNum);
+//         if (keyDataSize != needKeyDataSize)
+//         {
+//             return FAST_FSS_INVALID_KEY_DATA_SIZE_ERROR;
+//         }
+//         if (sharedOutDataSize != elementNum * elementSize * (pointDataSize / elementSize) * groupSize)
+//         {
+//             return FAST_FSS_INVALID_SHARED_OUT_DATA_SIZE_ERROR;
+//         }
+//         if (maskedXDataSize != elementNum * elementSize)
+//         {
+//             return FAST_FSS_INVALID_MASKED_X_DATA_SIZE_ERROR;
+//         }
+//         if (seedDataSize != elementNum * 16)
+//         {
+//             return FAST_FSS_INVALID_SEED_DATA_SIZE_ERROR;
+//         }
+//         if (cacheDataSize != 0)
+//         {
+//             needCacheDataSize = impl::dpfGetCacheDataSize<GroupElement>(bitWidthIn, elementNum);
+//             if (cacheDataSize != needCacheDataSize)
+//             {
+//                 return FAST_FSS_INVALID_CACHE_DATA_SIZE_ERROR;
+//             }
+//         }
+//         return FAST_FSS_SUCCESS;
+//     }
+
+//     FAST_FSS_DEVICE void operator()(std::size_t i) const noexcept
+//     {
+//         const std::size_t pointNum = pointDataSize / elementSize;
+
+//         GroupElement       *sharedOutPtr = (GroupElement *)sharedOut;
+//         const GroupElement *maskedXPtr   = (const GroupElement *)maskedX;
+//         const std::uint8_t *seedPtr      = (const std::uint8_t *)seed;
+//         const GroupElement *pointPtr     = (const GroupElement *)point;
+
+//         impl::DpfKey<GroupElement>    keyObj;
+//         impl::DpfCache<GroupElement>  cacheObj;
+//         impl::DpfCache<GroupElement> *cacheObjPtr = nullptr;
+//         impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, groupSize, i, elementNum);
+//         if (cache != nullptr)
+//         {
+//             impl::dpfCacheSetPtr(cacheObj, cache, bitWidthIn, i, elementNum);
+//             cacheObjPtr = &cacheObj;
+//         }
+//         for (std::size_t j = 0; j < pointNum; ++j)
+//         {
+//             GroupElement tmp = maskedXPtr[i] - pointPtr[j];
+//             impl::dpfEval(sharedOutPtr + pointNum * i * groupSize + j * groupSize, keyObj, tmp, seedPtr + 16 * i,
+//                           partyId, bitWidthIn, bitWidthOut, groupSize, cacheObjPtr);
+//         }
+//     }
+// };
+
 template <typename GroupElement>
 struct DpfEvalMultiTask
 {
@@ -351,9 +457,21 @@ struct DpfEvalMultiTask
         return FAST_FSS_SUCCESS;
     }
 
+    std::size_t getStridedWorkerCount(std::size_t maxWorkerCount) const noexcept
+    {
+        std::size_t pointNum  = pointDataSize / elementSize;
+        std::size_t totalWork = elementNum * pointNum;
+        return (totalWork < maxWorkerCount) ? totalWork : maxWorkerCount;
+    }
+
+    std::size_t getWorkspaceSize(std::size_t workerCount) const noexcept
+    {
+        return impl::dpfGetCacheDataSize<GroupElement>(bitWidthIn, workerCount);
+    }
+
     FAST_FSS_DEVICE void operator()(std::size_t i) const noexcept
     {
-        const std::size_t pointNum = pointDataSize / elementSize;
+        std::size_t pointNum = pointDataSize / elementSize;
 
         GroupElement       *sharedOutPtr = (GroupElement *)sharedOut;
         const GroupElement *maskedXPtr   = (const GroupElement *)maskedX;
@@ -374,6 +492,44 @@ struct DpfEvalMultiTask
             GroupElement tmp = maskedXPtr[i] - pointPtr[j];
             impl::dpfEval(sharedOutPtr + pointNum * i * groupSize + j * groupSize, keyObj, tmp, seedPtr + 16 * i,
                           partyId, bitWidthIn, bitWidthOut, groupSize, cacheObjPtr);
+        }
+    }
+
+    FAST_FSS_DEVICE void run(std::size_t workerIdx, std::size_t workerCount, void *workspace) const noexcept
+    {
+        std::size_t pointNum   = pointDataSize / elementSize;
+        std::size_t totalWork  = elementNum * pointNum;
+        std::size_t chunkSize  = (totalWork + workerCount - 1) / workerCount;
+        std::size_t beginIndex = workerIdx * chunkSize;
+        std::size_t endIndex   = (beginIndex + chunkSize < totalWork) ? (beginIndex + chunkSize) : totalWork;
+
+        GroupElement       *sharedOutPtr = (GroupElement *)sharedOut;
+        const GroupElement *maskedXPtr   = (const GroupElement *)maskedX;
+        const std::uint8_t *seedPtr      = (const std::uint8_t *)seed;
+        const GroupElement *pointPtr     = (const GroupElement *)point;
+
+        impl::DpfKey<GroupElement>   keyObj;
+        impl::DpfCache<GroupElement> cacheObj;
+        std::size_t                  prevElementIdx = (std::size_t)(-1);
+
+        for (std::size_t linearIdx = beginIndex; linearIdx < endIndex; ++linearIdx)
+        {
+            const std::size_t elementIdx = linearIdx / pointNum;
+            const std::size_t pointIdx   = linearIdx % pointNum;
+            if (elementIdx != prevElementIdx)
+            {
+                impl::dpfKeySetPtr(keyObj, key, bitWidthIn, bitWidthOut, groupSize, elementIdx, elementNum);
+                if (workspace != nullptr)
+                {
+                    impl::dpfCacheSetPtr(cacheObj, workspace, bitWidthIn, workerIdx, workerCount);
+                }
+            }
+
+            const GroupElement tmp = maskedXPtr[elementIdx] - pointPtr[pointIdx];
+            impl::dpfEval(sharedOutPtr + pointNum * elementIdx * groupSize + pointIdx * groupSize, keyObj, tmp,
+                          seedPtr + 16 * elementIdx, partyId, bitWidthIn, bitWidthOut, groupSize,
+                          (workspace != nullptr) ? &cacheObj : nullptr);
+            prevElementIdx = elementIdx;
         }
     }
 };
