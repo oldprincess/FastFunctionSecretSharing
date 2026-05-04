@@ -1,0 +1,40 @@
+#ifndef PY_FAST_FSS_CSRC_SPLINE_SPLINE_CPU_H
+#define PY_FAST_FSS_CSRC_SPLINE_SPLINE_CPU_H
+
+#include <torch/types.h>
+
+#include <tuple>
+
+std::tuple<torch::Tensor&, torch::Tensor&, torch::Tensor&> cpu_spline_key_gen(torch::Tensor&       key,
+                                                                               torch::Tensor&       e,
+                                                                               torch::Tensor&       beta,
+                                                                               const torch::Tensor& alpha,
+                                                                               const torch::Tensor& seed0,
+                                                                               const torch::Tensor& seed1,
+                                                                               const torch::Tensor& coefficients,
+                                                                               std::size_t          degree,
+                                                                               const torch::Tensor& leftEndpoints,
+                                                                               const torch::Tensor& rightEndpoints,
+                                                                               std::size_t          intervalNum,
+                                                                               std::size_t          bitWidthIn,
+                                                                               std::size_t          bitWidthOut,
+                                                                               std::size_t          elementSize,
+                                                                               std::size_t          elementNum);
+
+torch::Tensor& cpu_spline_eval(torch::Tensor&       out,
+                               const torch::Tensor& maskedX,
+                               const torch::Tensor& key,
+                               const torch::Tensor& sharedE,
+                               const torch::Tensor& sharedBeta,
+                               const torch::Tensor& seed,
+                               int                  partyId,
+                               const torch::Tensor& leftEndpoints,
+                               const torch::Tensor& rightEndpoints,
+                               std::size_t          intervalNum,
+                               std::size_t          degree,
+                               std::size_t          bitWidthIn,
+                               std::size_t          bitWidthOut,
+                               std::size_t          elementSize,
+                               std::size_t          elementNum);
+
+#endif

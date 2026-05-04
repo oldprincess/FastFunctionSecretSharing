@@ -5,6 +5,25 @@ import glob
 import os
 import torch
 
+THIS_DIR = os.path.abspath(os.path.dirname(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(THIS_DIR, "..", ".."))
+
+
+def here(*parts):
+    return os.path.join(THIS_DIR, *parts)
+
+
+def repo(*parts):
+    return os.path.join(PROJECT_ROOT, *parts)
+
+
+def here_glob(*parts):
+    return glob.glob(here(*parts), recursive=True)
+
+
+def repo_glob(*parts):
+    return glob.glob(repo(*parts), recursive=True)
+
 
 cxx_flags = []
 if sys.platform == "linux":
@@ -12,50 +31,61 @@ if sys.platform == "linux":
 else:
     cxx_flags = ["/std:c++17", "/O2", "/openmp"]
 
-nvcc_flags = ["-O3", "-std=c++17", "-arch=native", "--expt-relaxed-constexpr", "--default-stream=per-thread"]
+nvcc_flags = [
+    "-O3",
+    "-std=c++17",
+    "-arch=native",
+    "--expt-relaxed-constexpr",
+    "--default-stream=per-thread",
+]
 if sys.platform == "win32":
     nvcc_flags += ['-Xcompiler="/EHsc"']
 
 if not torch.cuda.is_available():
     if sys.platform == "linux":
-        cxx_flags += ["-DNO_CUDA"]
+        cxx_flags += []
     else:
-        cxx_flags += ["/DNO_CUDA"]
+        cxx_flags += []
     ext_module = cpp_extension.CppExtension(
         name="pyFastFss" + "._C",
         sources=[
             # python
-            *glob.glob("pyFastFss/src/*.cpp"),
+            *here_glob("pyFastFss", "csrc", "**", "*.cpp"),
             # public api
-            *glob.glob("../../src/*.cpp"),
+            *repo_glob("src", "*.cpp"),
             # cpu
-            *glob.glob("../../src/cpu/*.cpp"),
+            *repo_glob("src", "cpu", "*.cpp"),
         ],
         include_dirs=[
-            os.path.abspath("../../include"),
-            os.path.abspath("../../third_party/wideint/include"),
+            repo("include"),
+            repo("third_party", "wideint", "include"),
         ],
         extra_compile_args={
             "cxx": cxx_flags,
         },
     )
 else:
+    if sys.platform == "linux":
+        cxx_flags += ["-DFAST_FSS_ENABLE_CUDA"]
+    else:
+        cxx_flags += ["/DFAST_FSS_ENABLE_CUDA"]
     ext_module = cpp_extension.CUDAExtension(
         name="pyFastFss" + "._C",
         sources=[
             # python
-            *glob.glob("pyFastFss/src/*.cpp"),
+            *here_glob("pyFastFss", "csrc", "**", "*.cpp"),
+            *here_glob("pyFastFss", "csrc", "**", "*.cu"),
             # public api
-            *glob.glob("../../src/*.cpp"),
+            *repo_glob("src", "*.cpp"),
             # cpu
-            *glob.glob("../../src/cpu/*.cpp"),
+            *repo_glob("src", "cpu", "*.cpp"),
             # cuda
-            *glob.glob("../../src/cuda/*.cpp"),
-            *glob.glob("../../src/cuda/*.cu"),
+            *repo_glob("src", "cuda", "*.cpp"),
+            *repo_glob("src", "cuda", "*.cu"),
         ],
         include_dirs=[
-            os.path.abspath("../../include"),
-            os.path.abspath("../../third_party/wideint/include"),
+            repo("include"),
+            repo("third_party", "wideint", "include"),
         ],
         extra_compile_args={
             "cxx": cxx_flags,
@@ -65,7 +95,7 @@ else:
 
 setup(
     name="pyFastFss",
-    version="0.0.202512061650",
+    version="0.0.202605040050",
     description="Fast Function Secret Sharing (Dpf and Dcf)",
     long_description="",
     author="oldprincess",
