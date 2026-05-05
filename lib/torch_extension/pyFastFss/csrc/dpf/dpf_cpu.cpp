@@ -29,7 +29,7 @@ torch::Tensor& cpu_dpf_key_gen(torch::Tensor&       key,
         bitWidthOut,                          //
         groupSize,                            //
         elementSize,                          //
-        alpha.numel()                         //
+        elementNum                            //
     );                                        //
     if (ret != 0)
     {
@@ -146,8 +146,8 @@ torch::Tensor& cpu_dpf_eval_multi(torch::Tensor&       out,
         key.const_data_ptr(),                        //
         key.element_size() * key.numel(),            //
         seed.const_data_ptr(),                       //
-        partyId,                                     //
         seed.element_size() * seed.numel(),          //
+        partyId,                                     //
         point.const_data_ptr(),                      //
         point.element_size() * point.numel(),        //
         bitWidthIn,                                  //
