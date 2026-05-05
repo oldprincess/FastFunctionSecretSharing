@@ -32,8 +32,8 @@ struct has_strided_support<
     Task,
     std::void_t<decltype(std::declval<const Task &>().getStridedWorkerCount(std::declval<std::size_t>())),
                 decltype(std::declval<const Task &>().getWorkspaceSize(std::declval<std::size_t>())),
-                decltype(std::declval<Task &>().setWorkspace(nullptr, std::declval<std::size_t>())),
-                decltype(std::declval<const Task &>().run(std::declval<std::size_t>(), std::declval<std::size_t>()))>>
+                decltype(std::declval<const Task &>().run(
+                    std::declval<std::size_t>(), std::declval<std::size_t>(), (void *)nullptr))>>
     : std::true_type
 {
 };
@@ -169,7 +169,7 @@ static inline int parallel_execute(Task task)
 
     if constexpr (detail::has_strided_support_v<Task>)
     {
-        if (task.elementNum < CUDA_DEFAULT_BLOCK_DIM * FastFss_cuda_getGridDim())
+        if (task.elementNum < CUDA_DEFAULT_BLOCK_DIM * FastFss_cuda_getFineGrainParallelGridDimThreshold())
         {
             return parallel_execute_strided(task, stream);
         }

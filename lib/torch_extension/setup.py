@@ -41,7 +41,10 @@ nvcc_flags = [
 if sys.platform == "win32":
     nvcc_flags += ['-Xcompiler="/EHsc"']
 
-if not torch.cuda.is_available():
+has_cuda = torch.cuda.is_available()
+define_macros = []
+
+if not has_cuda:
     if sys.platform == "linux":
         cxx_flags += []
     else:
@@ -60,15 +63,13 @@ if not torch.cuda.is_available():
             repo("include"),
             repo("third_party", "wideint", "include"),
         ],
+        define_macros=define_macros,
         extra_compile_args={
             "cxx": cxx_flags,
         },
     )
 else:
-    if sys.platform == "linux":
-        cxx_flags += ["-DFAST_FSS_ENABLE_CUDA"]
-    else:
-        cxx_flags += ["/DFAST_FSS_ENABLE_CUDA"]
+    define_macros.append(("FAST_FSS_ENABLE_CUDA", None))
     ext_module = cpp_extension.CUDAExtension(
         name="pyFastFss" + "._C",
         sources=[
@@ -87,6 +88,7 @@ else:
             repo("include"),
             repo("third_party", "wideint", "include"),
         ],
+        define_macros=define_macros,
         extra_compile_args={
             "cxx": cxx_flags,
             "nvcc": nvcc_flags,

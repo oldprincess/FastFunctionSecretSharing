@@ -25,6 +25,10 @@ FAST_FSS_API int FastFss_cuda_setGridDim(int dim);
  */
 FAST_FSS_API int FastFss_cuda_getGridDim();
 
+FAST_FSS_API int FastFss_cuda_getFineGrainParallelGridDimThreshold();
+
+FAST_FSS_API int FastFss_cuda_setFineGrainParallelGridDimThreshold(int dim);
+
 #ifdef __cplusplus
 }
 #endif

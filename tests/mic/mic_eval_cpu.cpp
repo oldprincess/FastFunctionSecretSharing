@@ -1,15 +1,22 @@
+#include <FastFssPP/config.h>
 #include <FastFssPP/mic.h>
 #include <FastFssPP/prng.h>
 #include <gtest/gtest.h>
 
 #include <cstdint>
 #include <span>
+#include <type_traits>
 #include <vector>
 #include <wideint/wideint.hpp>
 
+#include "../../src/kernel/mic.h"
+#include "../../src/kernel/parallel_execute.h"
 #include "mic_eval_test_case.h"
 
 namespace FastFss::tests::mic {
+
+static_assert(kernel::detail::has_strided_support_v<kernel::DcfMICEvalTask<std::uint32_t>>,
+              "DcfMICEvalTask should expose fine-grained parallel interfaces");
 
 struct CpuMicEvalTestParams
 {
@@ -117,6 +124,68 @@ void RunCpuMicEvalTestBody(Fixture* self)
                 ASSERT_EQ(out, testCase.expected[i]);
             }
         }
+    }
+}
+
+TEST(CpuMicEvalFineGrainedPath, ProducesExpectedOutput)
+{
+    using T = std::uint32_t;
+
+    const int previousNumThreads = FastFss::config::cpu::getNumThreads();
+    struct ThreadCountGuard
+    {
+        int previous;
+        ~ThreadCountGuard()
+        {
+            FastFss::config::cpu::setNumThreads(previous);
+        }
+    } guard{previousNumThreads};
+    FastFss::config::cpu::setNumThreads(8);
+
+    const std::size_t bitWidthIn    = 32;
+    const std::size_t bitWidthOut   = 32;
+    const std::size_t elementNum    = 1;
+    const std::size_t intervalCount = 64;
+    const std::size_t elementSize   = sizeof(T);
+
+    MicEvalTestCase<T> testCase(bitWidthIn, bitWidthOut, elementNum, intervalCount);
+    const std::size_t  keySize = FastFss::mic::dcfMICGetKeyDataSize(bitWidthIn, bitWidthOut, elementSize, elementNum);
+
+    std::vector<std::uint8_t> key(keySize);
+    std::vector<T>            z(elementNum * intervalCount);
+    FastFss::mic::cpu::dcfMICKeyGen<T>(
+        std::span<std::uint8_t>(key.data(), key.size()), std::span<T>(z.data(), z.size()),
+        std::span<const T>(testCase.alpha.data(), testCase.alpha.size()),
+        std::span<const std::uint8_t>(testCase.seed0.data(), testCase.seed0.size()),
+        std::span<const std::uint8_t>(testCase.seed1.data(), testCase.seed1.size()),
+        std::span<const T>(testCase.leftEndpoints.data(), testCase.leftEndpoints.size()),
+        std::span<const T>(testCase.rightEndpoints.data(), testCase.rightEndpoints.size()), bitWidthIn, bitWidthOut);
+
+    std::vector<T> sharedOut0(z.size());
+    std::vector<T> sharedOut1(z.size());
+    std::vector<T> sharedZ0(z.size(), 0);
+    std::vector<T> sharedZ1 = z;
+
+    ASSERT_NO_THROW(FastFss::mic::cpu::dcfMICEval<T>(
+        std::span<T>(sharedOut0.data(), sharedOut0.size()),
+        std::span<const T>(testCase.maskedX.data(), testCase.maskedX.size()),
+        std::span<const std::uint8_t>(key.data(), key.size()), std::span<const T>(sharedZ0.data(), sharedZ0.size()),
+        std::span<const std::uint8_t>(testCase.seed0.data(), testCase.seed0.size()), 0,
+        std::span<const T>(testCase.leftEndpoints.data(), testCase.leftEndpoints.size()),
+        std::span<const T>(testCase.rightEndpoints.data(), testCase.rightEndpoints.size()), bitWidthIn, bitWidthOut,
+        std::span<std::uint8_t>{}));
+    ASSERT_NO_THROW(FastFss::mic::cpu::dcfMICEval<T>(
+        std::span<T>(sharedOut1.data(), sharedOut1.size()),
+        std::span<const T>(testCase.maskedX.data(), testCase.maskedX.size()),
+        std::span<const std::uint8_t>(key.data(), key.size()), std::span<const T>(sharedZ1.data(), sharedZ1.size()),
+        std::span<const std::uint8_t>(testCase.seed1.data(), testCase.seed1.size()), 1,
+        std::span<const T>(testCase.leftEndpoints.data(), testCase.leftEndpoints.size()),
+        std::span<const T>(testCase.rightEndpoints.data(), testCase.rightEndpoints.size()), bitWidthIn, bitWidthOut,
+        std::span<std::uint8_t>{}));
+
+    for (std::size_t i = 0; i < z.size(); ++i)
+    {
+        ASSERT_EQ(sharedOut0[i] + sharedOut1[i], testCase.expected[i]);
     }
 }
 

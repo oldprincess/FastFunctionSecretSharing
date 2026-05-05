@@ -3,7 +3,8 @@
 #include <mutex>
 #include <thread>
 
-static int        gNumDims = 32;
+static int        gNumDims          = 128;
+static int        gThresholdNumDims = 64;
 static std::mutex gMutex;
 
 int FastFss_cuda_setGridDim(int dim)
@@ -30,6 +31,37 @@ int FastFss_cuda_getGridDim()
     {
         std::lock_guard<std::mutex> lock(gMutex);
         return gNumDims;
+    }
+    catch (...)
+    {
+        return -1;
+    }
+}
+
+int FastFss_cuda_setFineGrainParallelGridDimThreshold(int dim)
+{
+    try
+    {
+        std::lock_guard<std::mutex> lock(gMutex);
+        if (dim <= 0)
+        {
+            return -2;
+        }
+        gThresholdNumDims = dim;
+    }
+    catch (...)
+    {
+        return -1;
+    }
+    return 0;
+}
+
+int FastFss_cuda_getFineGrainParallelGridDimThreshold()
+{
+    try
+    {
+        std::lock_guard<std::mutex> lock(gMutex);
+        return gThresholdNumDims;
     }
     catch (...)
     {

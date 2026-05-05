@@ -1,3 +1,4 @@
+#include <FastFssPP/config.h>
 #include <FastFssPP/mic.h>
 #include <FastFssPP/prng.h>
 #include <gtest/gtest.h>
@@ -7,12 +8,16 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <type_traits>
 #include <vector>
 #include <wideint/wideint.hpp>
 
 #include "mic_eval_test_case.h"
 
 namespace FastFss::tests::mic {
+
+static_assert(std::is_same_v<decltype(FastFss::config::cuda::getFineGrainParallelGridDimThreshold()), int>,
+              "CUDA config wrapper should expose fine-grain threshold getter");
 
 struct CudaMicEvalTestParams
 {
@@ -147,6 +152,92 @@ void RunCudaMicEvalTestBody(Fixture *self)
                 ASSERT_EQ(out, testCase.expected[i]);
             }
         }
+    }
+}
+
+TEST(CudaMicEvalFineGrainedPath, ProducesExpectedOutput)
+{
+    using T = std::uint32_t;
+
+    const int previousGridDim   = FastFss::config::cuda::getGridDim();
+    const int previousThreshold = FastFss::config::cuda::getFineGrainParallelGridDimThreshold();
+    struct CudaConfigGuard
+    {
+        int previousGridDim;
+        int previousThreshold;
+        ~CudaConfigGuard()
+        {
+            FastFss::config::cuda::setGridDim(previousGridDim);
+            FastFss::config::cuda::setFineGrainParallelGridDimThreshold(previousThreshold);
+        }
+    } guard{previousGridDim, previousThreshold};
+
+    FastFss::config::cuda::setGridDim(1);
+    FastFss::config::cuda::setFineGrainParallelGridDimThreshold(8);
+
+    const std::size_t bitWidthIn    = 32;
+    const std::size_t bitWidthOut   = 32;
+    const std::size_t elementNum    = 1;
+    const std::size_t intervalCount = 64;
+    const std::size_t elementSize   = sizeof(T);
+
+    MicEvalTestCase<T> testCase(bitWidthIn, bitWidthOut, elementNum, intervalCount);
+    const std::size_t  keySize = FastFss::mic::dcfMICGetKeyDataSize(bitWidthIn, bitWidthOut, elementSize, elementNum);
+
+    thrust::device_vector<T>            alpha_d(testCase.alpha.begin(), testCase.alpha.end());
+    thrust::device_vector<T>            maskedX_d(testCase.maskedX.begin(), testCase.maskedX.end());
+    thrust::device_vector<std::uint8_t> seed0_d(testCase.seed0.begin(), testCase.seed0.end());
+    thrust::device_vector<std::uint8_t> seed1_d(testCase.seed1.begin(), testCase.seed1.end());
+    thrust::device_vector<T>            left_d(testCase.leftEndpoints.begin(), testCase.leftEndpoints.end());
+    thrust::device_vector<T>            right_d(testCase.rightEndpoints.begin(), testCase.rightEndpoints.end());
+    thrust::device_vector<std::uint8_t> key_d(keySize);
+    thrust::device_vector<T>            z_d(elementNum * intervalCount);
+
+    ASSERT_NO_THROW(FastFss::mic::cuda::dcfMICKeyGen<T>(
+        std::span<std::uint8_t>(thrust::raw_pointer_cast(key_d.data()), key_d.size()),
+        std::span<T>(thrust::raw_pointer_cast(z_d.data()), z_d.size()),
+        std::span<const T>(thrust::raw_pointer_cast(alpha_d.data()), alpha_d.size()),
+        std::span<const std::uint8_t>(thrust::raw_pointer_cast(seed0_d.data()), seed0_d.size()),
+        std::span<const std::uint8_t>(thrust::raw_pointer_cast(seed1_d.data()), seed1_d.size()),
+        std::span<const T>(thrust::raw_pointer_cast(left_d.data()), left_d.size()),
+        std::span<const T>(thrust::raw_pointer_cast(right_d.data()), right_d.size()), bitWidthIn, bitWidthOut,
+        nullptr));
+
+    std::vector<T> z(z_d.size());
+    thrust::copy(z_d.begin(), z_d.end(), z.begin());
+
+    thrust::device_vector<T> share0_d(z.size());
+    thrust::device_vector<T> share1_d(z.size());
+    thrust::device_vector<T> sharedZ0_d(z.size(), 0);
+    thrust::device_vector<T> sharedZ1_d(z.begin(), z.end());
+
+    ASSERT_NO_THROW(FastFss::mic::cuda::dcfMICEval<T>(
+        std::span<T>(thrust::raw_pointer_cast(share0_d.data()), share0_d.size()),
+        std::span<const T>(thrust::raw_pointer_cast(maskedX_d.data()), maskedX_d.size()),
+        std::span<const std::uint8_t>(thrust::raw_pointer_cast(key_d.data()), key_d.size()),
+        std::span<const T>(thrust::raw_pointer_cast(sharedZ0_d.data()), sharedZ0_d.size()),
+        std::span<const std::uint8_t>(thrust::raw_pointer_cast(seed0_d.data()), seed0_d.size()), 0,
+        std::span<const T>(thrust::raw_pointer_cast(left_d.data()), left_d.size()),
+        std::span<const T>(thrust::raw_pointer_cast(right_d.data()), right_d.size()), bitWidthIn, bitWidthOut,
+        std::span<std::uint8_t>{}, nullptr));
+    ASSERT_NO_THROW(FastFss::mic::cuda::dcfMICEval<T>(
+        std::span<T>(thrust::raw_pointer_cast(share1_d.data()), share1_d.size()),
+        std::span<const T>(thrust::raw_pointer_cast(maskedX_d.data()), maskedX_d.size()),
+        std::span<const std::uint8_t>(thrust::raw_pointer_cast(key_d.data()), key_d.size()),
+        std::span<const T>(thrust::raw_pointer_cast(sharedZ1_d.data()), sharedZ1_d.size()),
+        std::span<const std::uint8_t>(thrust::raw_pointer_cast(seed1_d.data()), seed1_d.size()), 1,
+        std::span<const T>(thrust::raw_pointer_cast(left_d.data()), left_d.size()),
+        std::span<const T>(thrust::raw_pointer_cast(right_d.data()), right_d.size()), bitWidthIn, bitWidthOut,
+        std::span<std::uint8_t>{}, nullptr));
+
+    std::vector<T> share0(z.size());
+    std::vector<T> share1(z.size());
+    thrust::copy(share0_d.begin(), share0_d.end(), share0.begin());
+    thrust::copy(share1_d.begin(), share1_d.end(), share1.begin());
+
+    for (std::size_t i = 0; i < z.size(); ++i)
+    {
+        ASSERT_EQ(share0[i] + share1[i], testCase.expected[i]);
     }
 }
 

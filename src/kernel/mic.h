@@ -185,6 +185,91 @@ struct DcfMICEvalTask
                                        sharedZPtr + intervalNum * i, seedPtr + 16 * i, partyId, leftEndpointsPtr,
                                        rightEndpointsPtr, intervalNum, bitWidthIn, bitWidthOut, cachePtr);
     }
+
+    std::size_t getStridedWorkerCount(std::size_t maxWorkerCount) const noexcept
+    {
+        const std::size_t intervalNum = leftEndpointsDataSize / elementSize;
+        if (intervalNum == 0 || maxWorkerCount == 0)
+        {
+            return 0;
+        }
+
+        std::size_t blockCountPerElement = (maxWorkerCount + elementNum - 1) / elementNum;
+        if (blockCountPerElement == 0)
+        {
+            blockCountPerElement = 1;
+        }
+        if (blockCountPerElement > intervalNum)
+        {
+            blockCountPerElement = intervalNum;
+        }
+
+        const std::size_t totalWork = elementNum * blockCountPerElement;
+        return (totalWork < maxWorkerCount) ? totalWork : maxWorkerCount;
+    }
+
+    std::size_t getWorkspaceSize(std::size_t workerCount) const noexcept
+    {
+        return impl::dcfGetCacheDataSize<GroupElement>(bitWidthIn, 1, workerCount);
+    }
+
+    FAST_FSS_DEVICE void run(std::size_t workerIdx, std::size_t workerCount, void *workspace) const noexcept
+    {
+        const std::size_t intervalNum = leftEndpointsDataSize / elementSize;
+        if (intervalNum == 0 || workerCount == 0)
+        {
+            return;
+        }
+
+        std::size_t blockCountPerElement = (workerCount + elementNum - 1) / elementNum;
+        if (blockCountPerElement == 0)
+        {
+            blockCountPerElement = 1;
+        }
+        if (blockCountPerElement > intervalNum)
+        {
+            blockCountPerElement = intervalNum;
+        }
+
+        const std::size_t totalWork  = elementNum * blockCountPerElement;
+        const std::size_t chunkSize  = (totalWork + workerCount - 1) / workerCount;
+        const std::size_t beginIndex = workerIdx * chunkSize;
+        const std::size_t endIndex   = (beginIndex + chunkSize < totalWork) ? (beginIndex + chunkSize) : totalWork;
+        const std::size_t blockSpan  = (intervalNum + blockCountPerElement - 1) / blockCountPerElement;
+
+        GroupElement       *sharedOutPtr      = (GroupElement *)sharedOut;
+        const GroupElement *maskedXPtr        = (const GroupElement *)maskedX;
+        const GroupElement *sharedZPtr        = (const GroupElement *)sharedZ;
+        const std::uint8_t *seedPtr           = (const std::uint8_t *)seed;
+        const GroupElement *leftEndpointsPtr  = (const GroupElement *)leftEndpoints;
+        const GroupElement *rightEndpointsPtr = (const GroupElement *)rightEndpoints;
+
+        impl::DcfKey<GroupElement>    keyObj;
+        impl::DcfCache<GroupElement>  cacheObj;
+        impl::DcfCache<GroupElement> *cachePtr = nullptr;
+
+        if (workspace != nullptr)
+        {
+            impl::dcfCacheSetPtr<GroupElement>(cacheObj, workspace, bitWidthIn, 1, workerIdx, workerCount);
+            cachePtr = &cacheObj;
+        }
+
+        for (std::size_t linearIdx = beginIndex; linearIdx < endIndex; ++linearIdx)
+        {
+            const std::size_t elementIdx    = linearIdx / blockCountPerElement;
+            const std::size_t blockIdx      = linearIdx % blockCountPerElement;
+            const std::size_t beginInterval = blockIdx * blockSpan;
+            const std::size_t endInterval =
+                (beginInterval + blockSpan < intervalNum) ? (beginInterval + blockSpan) : intervalNum;
+
+            impl::dcfKeySetPtr<GroupElement>(keyObj, key, bitWidthIn, bitWidthOut, 1, elementIdx, elementNum);
+            impl::dcfMICEval<GroupElement>(
+                sharedOutPtr + intervalNum * elementIdx + beginInterval, maskedXPtr[elementIdx], keyObj,
+                sharedZPtr + intervalNum * elementIdx + beginInterval, seedPtr + 16 * elementIdx, partyId,
+                leftEndpointsPtr + beginInterval, rightEndpointsPtr + beginInterval, endInterval - beginInterval,
+                bitWidthIn, bitWidthOut, cachePtr);
+        }
+    }
 };
 
 } // namespace FastFss::kernel

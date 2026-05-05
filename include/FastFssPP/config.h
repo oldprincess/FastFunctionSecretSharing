@@ -70,6 +70,27 @@ inline int getGridDim()
     return n;
 }
 
+inline void setFineGrainParallelGridDimThreshold(int dim)
+{
+    int ret = FastFss_cuda_setFineGrainParallelGridDimThreshold(dim);
+    if (ret != FAST_FSS_SUCCESS)
+    {
+        throw std::runtime_error("FastFss_cuda_setFineGrainParallelGridDimThreshold failed. error code: " +
+                                 std::to_string(ret));
+    }
+}
+
+inline int getFineGrainParallelGridDimThreshold()
+{
+    int n = FastFss_cuda_getFineGrainParallelGridDimThreshold();
+    if (n < 0)
+    {
+        throw std::runtime_error("FastFss_cuda_getFineGrainParallelGridDimThreshold failed. error code: " +
+                                 std::to_string(n));
+    }
+    return n;
+}
+
 } // namespace cuda
 
 } // namespace FastFss::config
